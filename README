@@ -1,0 +1,95 @@
+Quick Start Guide
+-----------------
+
+The Makefile assumes that CUDA (we recommend version >= 5.0) has been installed
+and is in the PATH.
+
+You also need to have zlib installed.
+
+In the directory vertexAPI, type 'make' to build the three example programs:
+
+1) simpleBFS (Breadth-First Search)
+2) simplePageRank (Pagerank implementation with dynamic vertex activation)
+3) simpleSSSP (Single source shortest path)
+
+you can run the programs against the small graphs in ../smallRegressionGraphs/ .
+
+For example:
+
+./simpleBFS ../smallRegressionGraphs/small.mtx
+
+If you wish to view the results of a run (which currently consists of all the
+vertices and their final values), then supply a second argument for the output
+file.
+
+./simpleBFS ../smallRegressionGraphs/small.mtx small.out
+
+The printed output should look something like:
+
+numActive: 3
+numActive: 3
+numActive: 0
+Took: 0.216544 ms
+Graph Diameter: 2
+M-Edges / sec: .050798
+
+Each iteration will print the number of active vertices on that iteration.
+
+The contents of small.out should be:
+
+0 0
+1 1
+2 1
+3 1
+4 2
+5 2
+6 2
+
+The first column is the vertex id and the second column is that value of that
+vertex, in this case its depth in the BFS.
+
+
+Running Full Regressions and Performance Comparisons
+----------------------------------------------------
+
+To run the full set of regressions and performance comparisons you will first
+need to install PowerGraph.  We recommend this release: graphlabapi_v2.1.4679.tar.gz
+
+Get the downloads here: https://code.google.com/p/graphlabapi/downloads/list
+
+See the graphlab documentation for their installation instructions.
+
+To download the large graphs we use for testing you will need wget and python
+installed.  Go into the directory ../largePerformanceGraphs/ and type 'make'.
+This will download all the necessary graphs and massage them into the correct
+format.
+
+To build the powergraph reference implementations, go into
+PowerGraphReferenceImplementations/ and edit the Makefile so that GRPAHLAB_DIR
+points to the location where you installed graphlab.  Then type 'make' to build
+the reference programs.
+
+To run the regressions go into regressions/. Type:
+
+'make gold' to run the reference implementations on the datasets.
+'make test' to run the GPU GAS Engine programs on the datasets.
+'make regress' to compare the results.
+
+'make' will run all three commands at once.
+
+The generated files have the following format:
+
+[graph_name].[algorithm].gold       - reference result file
+[graph_name].[algorithm].test       - GPU result file
+[graph_name].[algorithm].timing     - reference time in msec
+[graph_name].[algorithm].timing_gpu - GPU time in msec
+[graph_name].[algorithm].pass       - exists if the regression test passed
+
+The largest graph kron_g500-logn21 requires a card with 6GB of RAM to run, if you have
+less, you will receive an out-of-memory error.  Cards with substantially less
+memory may fail on some of the smaller graphs as well.
+
+If you have reportlab installed, then running:
+
+'python chartTest.py' will generate a simple set of bar graphs for displaying
+the relative performance of the GPU GAS Engine vs PowerGraph.
