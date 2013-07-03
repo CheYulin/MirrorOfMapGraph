@@ -1,6 +1,6 @@
 NVCC = nvcc
 
-NVCC_OPTS = -O3 --restrict -Xptxas -dlcm=cg
+NVCC_OPTS = -O3 -Xptxas -dlcm=cg
 NVCC_ARCHS = -gencode arch=compute_20,code=sm_20
 LD_LIBS = -lz
 # Uncomment if you have	gcc 4.5	and would like to use its improved random number facility.
