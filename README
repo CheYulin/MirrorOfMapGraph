@@ -12,17 +12,17 @@ In the directory vertexAPI, type 'make' to build the three example programs:
 2) simplePageRank (Pagerank implementation with dynamic vertex activation)
 3) simpleSSSP (Single source shortest path)
 
-you can run the programs against the small graphs in ../smallRegressionGraphs/ .
+you can run the programs against the small graphs in ./smallRegressionGraphs/ .
 
 For example:
 
-./simpleBFS ../smallRegressionGraphs/small.mtx
+./simpleBFS ./smallRegressionGraphs/small.mtx
 
 If you wish to view the results of a run (which currently consists of all the
 vertices and their final values), then supply a second argument for the output
 file.
 
-./simpleBFS ../smallRegressionGraphs/small.mtx small.out
+./simpleBFS ./smallRegressionGraphs/small.mtx small.out
 
 The printed output should look something like:
 
@@ -60,7 +60,7 @@ Get the downloads here: https://code.google.com/p/graphlabapi/downloads/list
 See the graphlab documentation for their installation instructions.
 
 To download the large graphs we use for testing you will need wget and python
-installed.  Go into the directory ../largePerformanceGraphs/ and type 'make'.
+installed.  Go into the directory ./largePerformanceGraphs/ and type 'make'.
 This will download all the necessary graphs and massage them into the correct
 format.
 
