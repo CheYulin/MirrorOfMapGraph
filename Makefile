@@ -4,14 +4,16 @@ NVCC = nvcc
 NVCC_OPTS = -g -G
 NVCC_ARCHS = -gencode arch=compute_20,code=sm_20
 LD_LIBS = -lz
+# Uncomment if you have	gcc 4.5	and would like to use its improved random number facility.
+#RAND_OPTS=--compiler-options "-std=c++0x"
 
 #The rules need to be cleaned up, but we're probably going to use cmake, so
 #just hacking it for now.
 
-all: graphio.o simpleCC samplePageRank #simpleBFS simplePageRank simpleSSSP  
+all: graphio.o simpleCC samplePageRank simpleBFS simplePageRank simpleSSSP  
 
 graphio.o: graphio.cpp graphio.h Makefile
-	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) --compiler-options "-std=c++0x"
+	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) $(RAND_OPTS)
 
 simpleBFS.o: simpleBFS.cu GASEngine.h bfs.h graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS)
