@@ -6,7 +6,7 @@ LD_LIBS = -lz
 # Uncomment if you have	gcc 4.5	and would like to use its improved random number facility.
 #RAND_OPTS=--compiler-options "-std=c++0x"
 
-all: graphio.o samplePageRank simpleBFS simplePageRank simpleSSSP  
+all: graphio.o samplePageRank simpleBFS simplePageRank simpleSSSP simpleCC
 
 graphio.o: graphio.cpp graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) $(RAND_OPTS)
