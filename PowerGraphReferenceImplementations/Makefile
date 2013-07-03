@@ -2,8 +2,8 @@
 #later.
 
 #Set this to your local installation of graphlab
-#GRAPHLAB_DIR = /home/vishal/compile/graphlabapi
-GRAPHLAB_DIR = /home/erich/graphlabapi
+#GRAPHLAB_DIR = /home/graphlabapi_v21
+GRAPHLAB_DIR = ~/workspace/graphlabapi
 
 
 #We need a nice way to import the compile and link flags from the graphlab
