@@ -69,7 +69,7 @@ PowerGraphReferenceImplementations/ and edit the Makefile so that GRPAHLAB_DIR
 points to the location where you installed graphlab.  Then type 'make' to build
 the reference programs.
 
-To run the regressions go into regressions/. Type:
+To run the regressions go into the ./regressions directory and type:
 
 'make gold' to run the reference implementations on the datasets.
 'make test' to run the GPU GAS Engine programs on the datasets.
