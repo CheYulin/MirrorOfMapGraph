@@ -8,7 +8,7 @@ LD_LIBS = -lz
 #The rules need to be cleaned up, but we're probably going to use cmake, so
 #just hacking it for now.
 
-all: graphio.o simpleBFS simplePageRank simpleSSSP samplePageRank
+all: graphio.o simpleCC samplePageRank #simpleBFS simplePageRank simpleSSSP  
 
 graphio.o: graphio.cpp graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) --compiler-options "-std=c++0x"
@@ -17,6 +17,9 @@ simpleBFS.o: simpleBFS.cu GASEngine.h bfs.h graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS)
 
 simplePageRank.o: simplePageRank.cu GASEngine.h pagerank.h graphio.h Makefile
+	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) 
+
+simpleCC.o: simpleCC.cu GASEngine.h concomp.h graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) 
 
 samplePageRank.o: samplePageRank.cu GASEngine.h pagerank.h graphio.h Makefile
@@ -37,8 +40,11 @@ samplePageRank: samplePageRank.o graphio.o
 simpleSSSP: simpleSSSP.o graphio.o
 	nvcc -o $@ $^ $(LD_LIBS)
 
+simpleCC: simpleCC.o graphio.o
+	nvcc -o $@ $^ $(LD_LIBS)
+
 clean:
-	rm -f simpleBFS simplePageRank simpleSSSP samplePageRank *.o
+	rm -f simpleBFS simplePageRank simpleCC simpleSSSP samplePageRank *.o
 
 
 regress:

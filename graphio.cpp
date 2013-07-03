@@ -24,7 +24,6 @@ under the License.
    Contact us at: info@royal-caliber.com
  */
 
-
 #include "graphio.h"
 #include <zlib.h>
 #include <stdio.h>
@@ -32,31 +31,28 @@ under the License.
 #include <iostream>
 #include <cstdlib>
 #include <math.h>
+#ifdef __GXX_EXPERIMENTAL_CXX0X__ 
 #include <random>
+#endif
 
 using namespace std;
 
-enum SymmetryType
-{
+enum SymmetryType {
   stNone, stSymmetric, stSkewSymmetric, stHermitian
 };
 
-static bool isBlankLine(const char* line)
-{
-  while(*line)
-  {
-    if(!isspace(*line))
+static bool isBlankLine(const char* line) {
+  while (*line) {
+    if (!isspace(*line))
       return false;
     ++line;
   }
   return true;
 }
 
-static gzFile openFile(const char* fname)
-{
+static gzFile openFile(const char* fname) {
   gzFile f = gzopen(fname, "rb");
-  if(!f)
-  {
+  if (!f) {
     cerr << "error opening file " << fname << endl;
     exit(1);
   }
@@ -69,98 +65,83 @@ static gzFile openFile(const char* fname)
 //and figure out the correct abstraction.
 
 static int loadGraph_common(gzFile f
-                            , char commentChar
-                            , bool ignoreFirstDataLine
-                            , bool decrementIndices
-                            , bool disallowSelfLinks
-                            , SymmetryType symType
-                            , int &nVertices
-                            , std::vector<int> *srcs
-                            , std::vector<int> *dsts
-                            , std::vector<int> *edgeValues)
-{
+        , char commentChar
+        , bool ignoreFirstDataLine
+        , bool decrementIndices
+        , bool disallowSelfLinks
+        , SymmetryType symType
+        , int &nVertices
+        , std::vector<int> *srcs
+        , std::vector<int> *dsts
+        , std::vector<int> *edgeValues) {
   char buffer[1024];
   int lineNum = 0;
   int maxVertex = 0;
   bool firstDataLine = true;
-  while(!gzeof(f))
-  {
-    if(!gzgets(f, buffer, sizeof(buffer)))
-    {
+  while (!gzeof(f)) {
+    if (!gzgets(f, buffer, sizeof (buffer))) {
       int err;
       gzerror(f, &err);
-      if(err)
-      {
+      if (err) {
         cerr << "gz error " << err << " at line " << lineNum << endl;
         exit(1);
-      }
-      else
+      } else
         continue;
     }
 
     ++lineNum; //one-based line numbers!
 
     //empty line means eof
-    if(buffer[0] == 0)
+    if (buffer[0] == 0)
       continue;
 
     //ignore comments and blank lines
-    if(buffer[0] == commentChar || isBlankLine(buffer))
+    if (buffer[0] == commentChar || isBlankLine(buffer))
       continue;
 
     int src, dst;
     int nbytes;
     int np = sscanf(buffer, "%d%d%n", &src, &dst, &nbytes);
-    if(np != 2)
-    {
+    if (np != 2) {
       cerr << "error parsing src/dst at line " << lineNum << endl;
       exit(1);
     }
 
     //use 0-based indexing
-    if(decrementIndices)
-    {
+    if (decrementIndices) {
       --src;
       --dst;
     }
 
-    if(ignoreFirstDataLine && firstDataLine)
-    {
+    if (ignoreFirstDataLine && firstDataLine) {
       firstDataLine = false;
       continue;
     }
 
-    if(disallowSelfLinks && src == dst)
-    {
+    if (disallowSelfLinks && src == dst) {
       //scan for an associated edge value
       //and then ignore it
-      if(edgeValues)
-      {
+      if (edgeValues) {
         float edgeValue;
         sscanf(buffer + nbytes, "%f", &edgeValue);
         continue;
       }
-    }
-    else
-    {
+    } else {
       srcs->push_back(src);
       dsts->push_back(dst);
 
-      if(symType != stNone)
-      {
+      if (symType != stNone) {
         srcs->push_back(dst);
         dsts->push_back(src);
       }
     }
 
-    if(edgeValues)
-    {
+    if (edgeValues) {
       float edgeValue;
       sscanf(buffer + nbytes, "%f", &edgeValue);
       edgeValues->push_back(edgeValue);
 
-      switch(symType)
-      {
+      switch (symType) {
         case stNone: break; //do nothing
         case stSymmetric: edgeValues->push_back(edgeValue);
           break;
@@ -171,7 +152,7 @@ static int loadGraph_common(gzFile f
     }
 
     int tmp = max(src, dst);
-    if(tmp > maxVertex)
+    if (tmp > maxVertex)
       maxVertex = tmp;
   }
 
@@ -179,136 +160,7 @@ static int loadGraph_common(gzFile f
   return 0;
 }
 
-//static int loadGraph_sample_common(gzFile f
-//                                   , char commentChar
-//                                   , bool ignoreFirstDataLine
-//                                   , bool decrementIndices
-//                                   , bool disallowSelfLinks
-//                                   , SymmetryType symType
-//                                   , int &nVertices
-//                                   , std::vector<int> *srcs
-//                                   , std::vector<int> *dsts
-//                                   , std::vector<int> *edgeValues)
-//{
-//  char buffer[1024];
-//  int lineNum = 0;
-//  int maxVertex = 0;
-//  bool firstDataLine = true;
-//  int num_edge_after_sample = floor(num_edge * sample_rate);
-//  int num_rand = num_edge - num_edge_after_sample;
-//  //	int num_rand = 10;
-//  printf("num_edge_after_sample = %d\n", num_edge_after_sample);
-//
-//  default_random_engine generator;
-//  uniform_int_distribution<int> distribution(0, num_edge - 1);
-//  vector<bool> labels(num_edge, true);
-//
-//  for(int i = 0; i < num_rand; i++)
-//  {
-//    int number = distribution(generator);
-//    labels[number] = false;
-//    //		printf("rand[%d] = %d\n", i, number);
-//  }
-//  while(!gzeof(f))
-//  {
-//    if(!gzgets(f, buffer, sizeof(buffer)))
-//    {
-//      int err;
-//      gzerror(f, &err);
-//      if(err)
-//      {
-//        cerr << "gz error " << err << " at line " << lineNum << endl;
-//        exit(1);
-//      }
-//      else
-//        continue;
-//    }
-//
-//    ++lineNum; //one-based line numbers!
-//
-//    //empty line means eof
-//    if(buffer[0] == 0)
-//      continue;
-//
-//    //ignore comments and blank lines
-//    if(buffer[0] == commentChar || isBlankLine(buffer))
-//      continue;
-//
-//    int src, dst;
-//    int nbytes;
-//    int np = sscanf(buffer, "%d%d%n", &src, &dst, &nbytes);
-//    if(np != 2)
-//    {
-//      cerr << "error parsing src/dst at line " << lineNum << endl;
-//      exit(1);
-//    }
-//
-//    //use 0-based indexing
-//    if(decrementIndices)
-//    {
-//      --src;
-//      --dst;
-//    }
-//
-//    if(ignoreFirstDataLine && firstDataLine)
-//    {
-//      firstDataLine = false;
-//      continue;
-//    }
-//
-//    if(disallowSelfLinks && src == dst)
-//    {
-//      //scan for an associated edge value
-//      //and then ignore it
-//      if(edgeValues)
-//      {
-//        float edgeValue;
-//        sscanf(buffer + nbytes, "%f", &edgeValue);
-//        continue;
-//      }
-//    }
-//    else
-//    {
-//      srcs->push_back(src);
-//      dsts->push_back(dst);
-//
-//      if(symType != stNone)
-//      {
-//        srcs->push_back(dst);
-//        dsts->push_back(src);
-//      }
-//    }
-//
-//    if(edgeValues)
-//    {
-//      float edgeValue;
-//      sscanf(buffer + nbytes, "%f", &edgeValue);
-//      edgeValues->push_back(edgeValue);
-//
-//      switch(symType)
-//      {
-//        case stNone: break; //do nothing
-//        case stSymmetric: edgeValues->push_back(edgeValue);
-//          break;
-//        case stSkewSymmetric: edgeValues->push_back(-edgeValue);
-//          break;
-//        case stHermitian: break; //unsupported
-//      }
-//    }
-//
-//    int tmp = max(src, dst);
-//    if(tmp > maxVertex)
-//      maxVertex = tmp;
-//  }
-//
-//  nVertices = maxVertex + 1;
-//  return 0;
-//}
-
-int loadGraph_GraphLabSnap(const char* fname
-                           , int &nVertices
-                           , std::vector<int> &srcs
-                           , std::vector<int> &dsts)
+int loadGraph_GraphLabSnap(const char* fname, int &nVertices, std::vector<int> &srcs, std::vector<int> &dsts) 
 {
   gzFile f = openFile(fname);
   int ret = loadGraph_common(f, '#', false, false, true, stNone, nVertices, &srcs, &dsts, 0);
@@ -317,16 +169,14 @@ int loadGraph_GraphLabSnap(const char* fname
 }
 
 int loadGraph_MatrixMarket(const char* fname
-                           , int &nVertices
-                           , std::vector<int> &srcs
-                           , std::vector<int> &dsts
-                           , std::vector<int> *edgeValues)
-{
+        , int &nVertices
+        , std::vector<int> &srcs
+        , std::vector<int> &dsts
+        , std::vector<int> *edgeValues) {
   gzFile f = openFile(fname);
   //first comment line is special
   char line[1024];
-  if(!gzgets(f, line, sizeof(line)))
-  {
+  if (!gzgets(f, line, sizeof (line))) {
     cerr << "error reading header" << endl;
     exit(1);
   }
@@ -338,32 +188,26 @@ int loadGraph_MatrixMarket(const char* fname
 
   //expect matrix.
   tok = strtok_r(0, delim, &p);
-  if(strcmp(tok, "matrix") != 0)
-  {
+  if (strcmp(tok, "matrix") != 0) {
     cerr << "unrecognized token " << tok << " in header" << endl;
     exit(1);
   }
 
   //format should be coordinate
   tok = strtok_r(0, delim, &p);
-  if(strcmp(tok, "coordinate") != 0)
-  {
+  if (strcmp(tok, "coordinate") != 0) {
     cerr << "only coordinate format is supported" << endl;
     exit(1);
   }
 
   //edge data type
   tok = strtok_r(0, delim, &p);
-  if(strcmp(tok, "pattern") == 0)
-  {
-    if(edgeValues)
-    {
+  if (strcmp(tok, "pattern") == 0) {
+    if (edgeValues) {
       cerr << "warning: graph does not have edge values" << endl;
       edgeValues = 0;
     }
-  }
-  else if(strcmp(tok, "complex") == 0)
-  {
+  } else if (strcmp(tok, "complex") == 0) {
     cerr << "complex edge values not supported" << endl;
     exit(1);
   }
@@ -371,16 +215,15 @@ int loadGraph_MatrixMarket(const char* fname
   //symmetry
   tok = strtok_r(0, delim, &p);
   SymmetryType st;
-  if(strcmp(tok, "general") == 0)
+  if (strcmp(tok, "general") == 0)
     st = stNone;
-  else if(strcmp(tok, "symmetric") == 0)
+  else if (strcmp(tok, "symmetric") == 0)
     st = stSymmetric;
-  else if(strcmp(tok, "skew-symmetric") == 0)
+  else if (strcmp(tok, "skew-symmetric") == 0)
     st = stSkewSymmetric;
-  else if(strcmp(tok, "hermitian") == 0)
+  else if (strcmp(tok, "hermitian") == 0)
     st = stHermitian;
-  else
-  {
+  else {
     cerr << "unrecognized symmetry type '" << tok << "'" << endl;
     exit(1);
   }
@@ -391,30 +234,27 @@ int loadGraph_MatrixMarket(const char* fname
 }
 
 int loadGraph(const char* fname
-              , int &nVertices
-              , std::vector<int> &srcs
-              , std::vector<int> &dsts
-              , std::vector<int> *edgeValues)
-{
+        , int &nVertices
+        , std::vector<int> &srcs
+        , std::vector<int> &dsts
+        , std::vector<int> *edgeValues) {
   const char*p = fname;
-  while(*p)
+  while (*p)
     ++p;
-  while(p >= fname && *p != '.')
+  while (p >= fname && *p != '.')
     --p;
 
-  if(strcmp(p, ".gz") == 0)
-  {
+  if (strcmp(p, ".gz") == 0) {
     --p;
-    while(p >= fname && *p != '.')
+    while (p >= fname && *p != '.')
       --p;
   }
 
-  if(strncmp(p, ".edge", 5) == 0)
+  if (strncmp(p, ".edge", 5) == 0)
     return loadGraph_GraphLabSnap(fname, nVertices, srcs, dsts);
-  else if(strncmp(p, ".mtx", 4) == 0)
+  else if (strncmp(p, ".mtx", 4) == 0)
     return loadGraph_MatrixMarket(fname, nVertices, srcs, dsts, edgeValues);
-  else
-  {
+  else {
     cerr << "unrecognized filetype extension " << p << endl;
     exit(1);
   }
@@ -423,36 +263,43 @@ int loadGraph(const char* fname
 }
 
 int randSampleGraph(const vector<int> h_edge_src_vertex, const vector<int> h_edge_dst_vertex,
-                    vector<int> &h_edge_src_vertex_after_sample, vector<int> &h_edge_dst_vertex_after_sample,
-                    double sample_rate)
-{
-  if(sample_rate == 1.0)
-  {
+        vector<int> &h_edge_src_vertex_after_sample, vector<int> &h_edge_dst_vertex_after_sample,
+        double sample_rate) {
+  if (sample_rate == 1.0) {
     h_edge_src_vertex_after_sample = h_edge_src_vertex;
     h_edge_dst_vertex_after_sample = h_edge_dst_vertex;
-  }
-  else
-  {
+  } else {
     int num_edge = h_edge_src_vertex.size();
     int num_edge_after_sample = floor(num_edge * sample_rate);
     int num_rand = num_edge - num_edge_after_sample;
-    //	int num_rand = 10;
-    printf("num_edge_after_sample = %d\n", num_edge_after_sample);
 
+#ifdef __GXX_EXPERIMENTAL_CXX0X__ 
     default_random_engine generator;
     uniform_int_distribution<int> distribution(0, num_edge - 1);
+    printf("Using random_engine!\n");    
+#else
+    srand (time(NULL));
+    printf("Using rand()!\n");
+#endif
+    
     vector<bool> labels(num_edge, true);
-
-    for(int i = 0; i < num_rand; i++)
-    {
-      int number = distribution(generator);
-      labels[number] = false;
-      //		printf("rand[%d] = %d\n", i, number);
-    }
-    for(int i = 0; i < num_edge; i++)
-    {
-      if(labels[i])
+    
+    int number;
+    for (int i = 0; i < num_rand;) {
+#ifdef __GXX_EXPERIMENTAL_CXX0X__ 
+      number = distribution(generator);
+#else
+      number = rand() % num_edge;
+#endif
+      if(labels[number])
       {
+        labels[number] = false;
+        i++;
+      }
+    }
+    
+    for (int i = 0; i < num_edge; i++) {
+      if (labels[i]) {
         h_edge_src_vertex_after_sample.push_back(h_edge_src_vertex[i]);
         h_edge_dst_vertex_after_sample.push_back(h_edge_dst_vertex[i]);
       }

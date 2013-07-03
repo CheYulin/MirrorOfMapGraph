@@ -17,12 +17,12 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 
-**********************************************************/
+ **********************************************************/
 
 /* Written by Erich Elsen and Vishal Vaidyanathan
    of Royal Caliber, LLC
    Contact us at: info@royal-caliber.com
-*/
+ */
 
 typedef unsigned int uint;
 
@@ -34,14 +34,14 @@ typedef unsigned int uint;
 #include "graphio.h"
 
 void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
-                         std::vector<int> &h_edge_dst_vertex,
-                         int numVertices, int avgEdgesPerVertex) {
+        std::vector<int> &h_edge_dst_vertex,
+        int numVertices, int avgEdgesPerVertex) {
   thrust::minstd_rand rng;
   thrust::random::experimental::normal_distribution<float> n_dist(avgEdgesPerVertex, sqrtf(avgEdgesPerVertex));
   thrust::uniform_int_distribution<int> u_dist(0, numVertices - 1);
 
   for (int v = 0; v < numVertices; ++v) {
-    int numEdges = min(max((int)roundf(n_dist(rng)), 1), 1000);
+    int numEdges = min(max((int) roundf(n_dist(rng)), 1), 1000);
     for (int e = 0; e < numEdges; ++e) {
       uint dst_v = u_dist(rng);
       h_edge_src_vertex.push_back(v);
@@ -52,7 +52,7 @@ void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
 
 int main(int argc, char **argv) {
 
-  int numVertices = 5000;
+  int numVertices = 500;
   const int avgEdgesPerVertex = 10;
 
   const char* outFileName = 0;
@@ -60,29 +60,31 @@ int main(int argc, char **argv) {
   //generate simple random graph
   std::vector<int> h_edge_src_vertex;
   std::vector<int> h_edge_dst_vertex;
-
-  if (argc == 1)
+  double samplerate;
+  if (argc == 2) {
     generateRandomGraph(h_edge_src_vertex, h_edge_dst_vertex, numVertices, avgEdgesPerVertex);
-  else if (argc == 2 || argc == 3)
-  {
-    loadGraph( argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex );
-    if (argc == 3)
-      outFileName = argv[2];
-  }
-  else {
-    std::cerr << "Too many arguments!" << std::endl;
+    samplerate = atof(argv[1]);
+  } else if (argc == 3 || argc == 4) {
+    loadGraph(argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex);
+    samplerate = atof(argv[2]);
+  } else if (argc == 4) {
+    loadGraph(argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex);
+    outFileName = argv[2];
+    samplerate = atof(argv[3]);
+  } else {
+    std::cerr << "Wrong number of arguments!" << std::endl;
     exit(1);
   }
 
-	std::vector<int> h_edge_src_vertex_after_sample;
+  std::vector<int> h_edge_src_vertex_after_sample;
   std::vector<int> h_edge_dst_vertex_after_sample;
 
-	randSampleGraph(h_edge_src_vertex, h_edge_dst_vertex, h_edge_src_vertex_after_sample, h_edge_dst_vertex_after_sample, 0.5);
-  
+  randSampleGraph(h_edge_src_vertex, h_edge_dst_vertex, h_edge_src_vertex_after_sample, h_edge_dst_vertex_after_sample, samplerate);
+
 
   const uint numEdges = h_edge_src_vertex_after_sample.size();
-	printf("numEdges before sampling: %d\n", h_edge_src_vertex.size());
-	printf("numEdges after sampling: %d\n", numEdges);
+  printf("numEdges before sampling: %d\n", h_edge_src_vertex.size());
+  printf("numEdges after sampling: %d\n", numEdges);
 
   thrust::device_vector<int> d_edge_src_vertex = h_edge_src_vertex_after_sample;
   thrust::device_vector<int> d_edge_dst_vertex = h_edge_dst_vertex_after_sample;
@@ -92,7 +94,7 @@ int main(int argc, char **argv) {
   std::vector<int> h_num_out_edges(numVertices, 0);
   std::vector<char> existing_vertices(numVertices, 0);
   {
-    for(int e = 0; e < h_edge_src_vertex.size(); ++e) {
+    for (int e = 0; e < h_edge_src_vertex.size(); ++e) {
       h_num_out_edges[h_edge_src_vertex[e]]++;
       existing_vertices[h_edge_src_vertex[e]] = 1;
       existing_vertices[h_edge_dst_vertex[e]] = 1;
@@ -104,7 +106,7 @@ int main(int argc, char **argv) {
 
   //generate random starting values
   std::vector<pagerank::VertexType> h_vertex_vals(numVertices);
-  
+
   {
     thrust::minstd_rand rng;
     thrust::uniform_real_distribution<float> u_dist(0.f, 1.f);
@@ -130,14 +132,15 @@ int main(int argc, char **argv) {
   GASEngine<pagerank, pagerank::VertexType, int, float, float> engine;
 
   cudaEvent_t start, stop;
-  cudaEventCreate(&start); cudaEventCreate(&stop);
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
 
   cudaEventRecord(start);
 
   int diameter = engine.run(d_edge_dst_vertex,
-                            d_edge_src_vertex,
-                            d_vertex_vals,
-                            d_active_vertex_flags);
+          d_edge_src_vertex,
+          d_vertex_vals,
+          d_active_vertex_flags);
 
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
@@ -147,18 +150,16 @@ int main(int argc, char **argv) {
   std::cout << "Took: " << elapsed << " ms" << std::endl;
   std::cout << "Number iterations to convergence: " << diameter << std::endl;
 
-  if( outFileName )
-  {
-    FILE* f = fopen( outFileName, "w" );
-    thrust::copy( d_vertex_vals.begin(), d_vertex_vals.end(), h_vertex_vals.begin() );
-    for( int i = 0; i < existing_vertices.size(); ++i) 
-    {
+  if (outFileName) {
+    FILE* f = fopen(outFileName, "w");
+    thrust::copy(d_vertex_vals.begin(), d_vertex_vals.end(), h_vertex_vals.begin());
+    for (int i = 0; i < existing_vertices.size(); ++i) {
       if (!existing_vertices[i])
         continue;
-      fprintf( f, "%d %f\n", i, h_vertex_vals[i].val );
+      fprintf(f, "%d %f\n", i, h_vertex_vals[i].val);
     }
     fclose(f);
   }
-  
+
   return 0;
 }
