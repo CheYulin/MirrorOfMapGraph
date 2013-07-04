@@ -52,20 +52,22 @@ vertex, in this case its depth in the BFS.
 Running Full Regressions and Performance Comparisons
 ----------------------------------------------------
 
-To run the full set of regressions and performance comparisons you will first
-need to install PowerGraph.  We recommend this release: graphlabapi_v2.1.4679.tar.gz
-
-Get the downloads here: https://code.google.com/p/graphlabapi/downloads/list
-
-See the graphlab documentation for their installation instructions.
-
 To download the large graphs we use for testing you will need wget and python
 installed.  Go into the directory ./largePerformanceGraphs/ and type 'make'.
 This will download all the necessary graphs and massage them into the correct
 format.
 
+To run the full set of regressions and performance comparisons you will first
+need to install PowerGraph.  We recommend this release: graphlabapi_v2.1.4679.tar.gz. 
+MPUGRAPH current runs against a version of graphlab (v2.1 aka powergraph) that is no
+longer "released".  However, you can still get the older version here:
+
+https://code.google.com/p/graphlabapi/downloads/list?can=1&q=&colspec=Filename+Summary+Uploaded+ReleaseDate+Size+DownloadCount
+
+Then follow the top-level README to build the graphlab code.  
+
 To build the powergraph reference implementations, go into
-PowerGraphReferenceImplementations/ and edit the Makefile so that GRPAHLAB_DIR
+PowerGraphReferenceImplementations/ and edit the Makefile so that GRAPHLAB_DIR
 points to the location where you installed graphlab.  Then type 'make' to build
 the reference programs.
 
