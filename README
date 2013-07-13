@@ -1,28 +1,42 @@
 Quick Start Guide
 -----------------
 
-The Makefile assumes that CUDA (we recommend version >= 5.0) has been installed
-and is in the PATH.
+The executables are built in the following directories:
+- make_cuda_dev0: Build for GPU device 0 using CUDA
+- make_cuda_dev1: Build for GPU device 1 using CUDA.
+- make_omp: Build using the OpenMP thrust backed for multicore
+- make_tbb: Buid using Intel Thread Building Blocks
+- make_mic: Buid for Intel Xeon Phi native mode
+
+The CUDA Makefile assumes that CUDA (we recommend version >= 5.0) has
+been installed and is in the PATH. Further the CUDA Makefile builds
+the executable for a specified CUDA device number. This is a total
+hack put in place to get multiple GPUs working quickly without
+changing the command-line parser or trying to read a shell
+variable. Assume this will go away once a real build system (eithe
+cmake or GNU autoconf is put in place.)
+
 
 You also need to have zlib installed.
 
-In the directory vertexAPI, type 'make' to build the three example programs:
+In the appropriate build directory vertexAPI, type 'make' to build the
+three example programs:
 
 1) simpleBFS (Breadth-First Search)
 2) simplePageRank (Pagerank implementation with dynamic vertex activation)
 3) simpleSSSP (Single source shortest path)
 
-you can run the programs against the small graphs in ./smallRegressionGraphs/ .
+you can run the programs against the small graphs in ../smallRegressionGraphs/ .
 
 For example:
 
-./simpleBFS ./smallRegressionGraphs/small.mtx
+./simpleBFS ../smallRegressionGraphs/small.mtx
 
 If you wish to view the results of a run (which currently consists of all the
 vertices and their final values), then supply a second argument for the output
 file.
 
-./simpleBFS ./smallRegressionGraphs/small.mtx small.out
+./simpleBFS ../smallRegressionGraphs/small.mtx small.out
 
 The printed output should look something like:
 
@@ -52,26 +66,24 @@ vertex, in this case its depth in the BFS.
 Running Full Regressions and Performance Comparisons
 ----------------------------------------------------
 
+To run the full set of regressions and performance comparisons you will first
+need to install PowerGraph.  We recommend this release: graphlabapi_v2.1.4679.tar.gz
+
+Get the downloads here: https://code.google.com/p/graphlabapi/downloads/list
+
+See the graphlab documentation for their installation instructions.
+
 To download the large graphs we use for testing you will need wget and python
-installed.  Go into the directory ./largePerformanceGraphs/ and type 'make'.
+installed.  Go into the directory ../largePerformanceGraphs/ and type 'make'.
 This will download all the necessary graphs and massage them into the correct
 format.
 
-To run the full set of regressions and performance comparisons you will first
-need to install PowerGraph.  We recommend this release: graphlabapi_v2.1.4679.tar.gz. 
-MPUGRAPH current runs against a version of graphlab (v2.1 aka powergraph) that is no
-longer "released".  However, you can still get the older version here:
-
-https://code.google.com/p/graphlabapi/downloads/list?can=1&q=&colspec=Filename+Summary+Uploaded+ReleaseDate+Size+DownloadCount
-
-Then follow the top-level README to build the graphlab code.  
-
 To build the powergraph reference implementations, go into
-PowerGraphReferenceImplementations/ and edit the Makefile so that GRAPHLAB_DIR
+PowerGraphReferenceImplementations/ and edit the Makefile so that GRPAHLAB_DIR
 points to the location where you installed graphlab.  Then type 'make' to build
 the reference programs.
 
-To run the regressions go into the ./regressions directory and type:
+To run the regressions go into regressions/. Type:
 
 'make gold' to run the reference implementations on the datasets.
 'make test' to run the GPU GAS Engine programs on the datasets.
