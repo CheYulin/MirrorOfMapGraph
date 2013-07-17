@@ -40,12 +40,12 @@ under the License.
 
 enum GatherEdges
 {
-  NO_GATHER_EDGES, GATHER_IN_EDGES, GATHER_ALL_EDGES
+  NO_GATHER_EDGES, GATHER_IN_EDGES, GATHER_OUT_EDGES, GATHER_ALL_EDGES
 } ;
 
 enum ScatterEdges
 {
-  NO_SCATTER_EDGES, SCATTER_OUT_EDGES
+  NO_SCATTER_EDGES, SCATTER_IN_EDGES, SCATTER_OUT_EDGES, SCATTER_ALL_EDGES
 } ;
 
 __device__ __constant__ int d_iterations;
@@ -59,17 +59,31 @@ class GASEngine
 {
 public:
 
-  struct graph_gather : thrust::unary_function<thrust::tuple<VertexType&, VertexType&, EdgeType&>, GatherType>
+   struct alledge : thrust::unary_function<thrust::tuple<int&, int&>, bool>
   {
 
     __device__
-    GatherType operator()(const thrust::tuple<VertexType&, VertexType&, EdgeType&> &t)
+    bool operator()(const thrust::tuple<int&,int&> &t)
+    {
+      const int& dstactive = thrust::get < 0 > (t);
+      const int& srcactive = thrust::get < 1 > (t);
+      return (dstactive == 1 || srcactive == 1);
+    }
+  } ;
+  
+  
+  struct graph_gather : thrust::unary_function<thrust::tuple<VertexType&, VertexType&, EdgeType&, int&>, GatherType>
+  {
+
+    __device__
+    GatherType operator()(const thrust::tuple<VertexType&, VertexType&, EdgeType&, int&> &t)
     {
       const VertexType &dst = thrust::get < 0 > (t);
       const VertexType &src = thrust::get < 1 > (t);
       const EdgeType &edge = thrust::get < 2 > (t);
+      const int &flag = thrust::get < 3 > (t);
       typename Program::gather gather_functor;
-      return gather_functor(dst, src, edge);
+      return gather_functor(dst, src, edge, flag);
     }
   } ;
 
@@ -113,15 +127,34 @@ public:
   struct graph_scatter : thrust::binary_function<thrust::tuple<VertexType&, VertexType&, EdgeType&>, int &, int>
   {
     __device__
-        int operator()(const thrust::tuple<VertexType &, VertexType&, EdgeType&> &dst_src_edge, int &activeFlag)
+        int operator()(thrust::tuple<VertexType &, VertexType&, EdgeType&> &dst_src_edge, int &activeFlag)
     {
-      const VertexType &dst = thrust::get < 0 > (dst_src_edge);
-      const VertexType &src = thrust::get < 1 > (dst_src_edge);
+      VertexType &dst = thrust::get < 0 > (dst_src_edge);
+      VertexType &src = thrust::get < 1 > (dst_src_edge);
       EdgeType &e = const_cast<EdgeType &> (thrust::get < 2 > (dst_src_edge));
       typename Program::scatter scatter_functor;
 
       int flag = scatter_functor(dst, src, e);
       if (flag)
+        activeFlag = 1;
+
+      return 0;
+    }
+  } ;
+  
+  struct graph_scatter_all : thrust::binary_function<thrust::tuple<VertexType&, VertexType&, EdgeType&, int&>, int &, int>
+  {
+    __device__
+        int operator()(thrust::tuple<VertexType &, VertexType&, EdgeType&, int&> &dst_src_edge, int &activeFlag)
+    {
+      VertexType &dst = thrust::get < 0 > (dst_src_edge);
+      VertexType &src = thrust::get < 1 > (dst_src_edge);
+      EdgeType &e = const_cast<EdgeType &> (thrust::get < 2 > (dst_src_edge));
+      int& srcflag = thrust::get < 3 > (dst_src_edge);
+      typename Program::scatter scatter_functor;
+
+      int flag = scatter_functor(dst, src, e);
+      if (flag && srcflag)
         activeFlag = 1;
 
       return 0;
@@ -135,7 +168,7 @@ public:
   run(thrust::device_vector<int> &d_edge_dst_vertex,
       thrust::device_vector<int> &d_edge_src_vertex,
       thrust::device_vector<VertexType> &d_vertex_vals,
-      std::vector<thrust::device_vector<int> > &d_active_vertex_flags)
+      std::vector<thrust::device_vector<int> > &d_active_vertex_flags, int maxiter)
   {
     thrust::device_vector<int> d_dummy_edge_vals;
 
@@ -143,7 +176,7 @@ public:
                d_edge_src_vertex,
                d_vertex_vals,
                d_dummy_edge_vals,
-               d_active_vertex_flags);
+               d_active_vertex_flags, maxiter);
   }
 
   int
@@ -151,13 +184,17 @@ public:
       thrust::device_vector<int> &d_edge_src_vertex,
       thrust::device_vector<VertexType> &d_vertex_vals,
       thrust::device_vector<EdgeType> &d_edge_vals,
-      std::vector<thrust::device_vector<int> > &d_active_vertex_flags)
+      std::vector<thrust::device_vector<int> > &d_active_vertex_flags, int maxiter)
   {
     typedef typename thrust::device_vector<VertexType>::iterator VertexValueIterator;
     typedef thrust::device_vector<int>::iterator IndexIterator;
     typedef thrust::permutation_iterator<VertexValueIterator, IndexIterator> permuteIterator;
+    typedef thrust::permutation_iterator<IndexIterator, IndexIterator> indexPermuteIterator;
     typedef thrust::tuple<permuteIterator, permuteIterator, typename thrust::device_vector<EdgeType>::iterator> permuteIteratorTuple;
     typedef thrust::zip_iterator<permuteIteratorTuple> zipIterator;
+    
+    typedef thrust::tuple<permuteIterator, permuteIterator, typename thrust::device_vector<EdgeType>::iterator,  indexPermuteIterator> permuteIteratorTuple2;
+    typedef thrust::zip_iterator<permuteIteratorTuple2> zipIterator2;
 
     const int numEdges = d_edge_dst_vertex.size();
     const int numVertices = d_vertex_vals.size();
@@ -170,21 +207,24 @@ public:
     permuteIterator dstValsIt(d_vertex_vals.begin(), d_edge_dst_vertex.begin());
     thrust::transform_iterator<graph_gather, zipIterator, GatherType> graph_gather_iterator(thrust::make_zip_iterator(thrust::make_tuple(dstValsIt, srcValsIt, d_edge_vals.begin())), graph_gather());
     permuteIterator vertexVals(d_vertex_vals.begin(), d_participating_vertices.begin());
-
+    
     int selector = 0;
     int iterations = 0;
 
-    for (; ; )
+    for (int i=0; i< maxiter; i++)
     {
-      cudaMemcpyToSymbol(d_iterations, &iterations, sizeof (int));
+      printf("In the engine\n");
+       //gather
       if (Program::gatherOverEdges() == GATHER_IN_EDGES)
       {
-
-        //gather
+        printf("GATHER_IN_EDGES\n");
+        indexPermuteIterator flagIt(d_active_vertex_flags[selector].begin(), d_edge_dst_vertex.begin());
+        thrust::transform_iterator<graph_gather, zipIterator2, GatherType> graph_gather_iterator2(thrust::make_zip_iterator(thrust::make_tuple(dstValsIt, srcValsIt, d_edge_vals.begin(), flagIt)), graph_gather());
+        cudaMemcpyToSymbol(d_iterations, &iterations, sizeof (int));
         thrust::pair<IndexIterator, typename thrust::device_vector<ReduceType>::iterator> it =
             thrust::reduce_by_key(d_edge_dst_vertex.begin(),
                                   d_edge_dst_vertex.end(),
-                                  graph_gather_iterator,
+                                  graph_gather_iterator2,
                                   d_participating_vertices.begin(),
                                   d_vertex_accum.begin(),
                                   thrust::equal_to<int>(),
@@ -205,8 +245,35 @@ public:
                              graph_apply_gather(),
                              thrust::identity<int>());
       }
-      else if (Program::gatherOverEdges() == GATHER_ALL_EDGES)
+      else if (Program::gatherOverEdges() == GATHER_OUT_EDGES)
       {
+         printf("GATHER_OUT_EDGES\n");
+        indexPermuteIterator flagIt(d_active_vertex_flags[selector].begin(), d_edge_src_vertex.begin());
+        thrust::transform_iterator<graph_gather, zipIterator2, GatherType> graph_gather_iterator2(thrust::make_zip_iterator(thrust::make_tuple(dstValsIt, srcValsIt, d_edge_vals.begin(), flagIt)), graph_gather());
+        cudaMemcpyToSymbol(d_iterations, &iterations, sizeof (int));
+        thrust::pair<IndexIterator, typename thrust::device_vector<ReduceType>::iterator> it =
+            thrust::reduce_by_key(d_edge_src_vertex.begin(),
+                                  d_edge_src_vertex.end(),
+                                  graph_gather_iterator2,
+                                  d_participating_vertices.begin(),
+                                  d_vertex_accum.begin(),
+                                  thrust::equal_to<int>(),
+                                  graph_sum());
+
+        const int numParticipatingVertces = it.first - d_participating_vertices.begin();
+
+        thrust::permutation_iterator<thrust::device_vector<int>::iterator,
+            thrust::device_vector<int>::iterator>
+            activeVertices(d_active_vertex_flags[selector].begin(), d_participating_vertices.begin());
+
+        //apply
+        thrust::transform_if(vertexVals,
+                             vertexVals + numParticipatingVertces,
+                             d_vertex_accum.begin(),
+                             activeVertices,
+                             thrust::make_discard_iterator(),
+                             graph_apply_gather(),
+                             thrust::identity<int>());
       }
       else
       {
@@ -221,14 +288,39 @@ public:
       }
 
       //scatter phase, go over each (active) edge and set new active vals
-      thrust::fill(d_active_vertex_flags[selector ^ 1].begin(), d_active_vertex_flags[selector ^ 1].end(), 0);
+      if (Program::scatterOverEdges() == SCATTER_OUT_EDGES)
+      {
+        printf("SCATTER_OUT_EDGES\n");
+        thrust::fill(d_active_vertex_flags[selector ^ 1].begin(), d_active_vertex_flags[selector ^ 1].end(), 0);
+
+        thrust::permutation_iterator<thrust::device_vector<int>::iterator,
+          thrust::device_vector<int>::iterator>
+          wasActiveFlagIt(d_active_vertex_flags[selector].begin(), d_edge_src_vertex.begin());
+        thrust::permutation_iterator<thrust::device_vector<int>::iterator,
+          thrust::device_vector<int>::iterator>
+          willBeActiveFlagIt(d_active_vertex_flags[selector ^ 1].begin(), d_edge_dst_vertex.begin());
+
+        thrust::transform_if(thrust::make_zip_iterator(thrust::make_tuple(
+                                                                        dstValsIt, srcValsIt, d_edge_vals.begin())),
+                           thrust::make_zip_iterator(thrust::make_tuple(
+                                                                        dstValsIt + numEdges, srcValsIt + numEdges, d_edge_vals.end())),
+                           willBeActiveFlagIt,
+                           wasActiveFlagIt,
+                           thrust::make_discard_iterator(),
+                           graph_scatter(),
+                           thrust::identity<int>());
+      }
+      else if (Program::scatterOverEdges() == SCATTER_IN_EDGES)
+      {
+        printf("SCATTER_IN_EDGES\n");
+        thrust::fill(d_active_vertex_flags[selector ^ 1].begin(), d_active_vertex_flags[selector ^ 1].end(), 0);
 
       thrust::permutation_iterator<thrust::device_vector<int>::iterator,
           thrust::device_vector<int>::iterator>
-          wasActiveFlagIt(d_active_vertex_flags[selector].begin(), d_edge_src_vertex.begin());
+          wasActiveFlagIt(d_active_vertex_flags[selector].begin(), d_edge_dst_vertex.begin());
       thrust::permutation_iterator<thrust::device_vector<int>::iterator,
           thrust::device_vector<int>::iterator>
-          willBeActiveFlagIt(d_active_vertex_flags[selector ^ 1].begin(), d_edge_dst_vertex.begin());
+          willBeActiveFlagIt(d_active_vertex_flags[selector ^ 1].begin(), d_edge_src_vertex.begin());
 
       thrust::transform_if(thrust::make_zip_iterator(thrust::make_tuple(
                                                                         dstValsIt, srcValsIt, d_edge_vals.begin())),
@@ -239,13 +331,50 @@ public:
                            thrust::make_discard_iterator(),
                            graph_scatter(),
                            thrust::identity<int>());
+        
+      }
+      else if (Program::scatterOverEdges() == SCATTER_ALL_EDGES)
+      {
+         printf("SCATTER_ALL_EDGES\n");
+        thrust::fill(d_active_vertex_flags[selector ^ 1].begin(), d_active_vertex_flags[selector ^ 1].end(), 0);
+
+      thrust::permutation_iterator<thrust::device_vector<int>::iterator,
+          thrust::device_vector<int>::iterator>
+          wasActiveFlagItDst(d_active_vertex_flags[selector].begin(), d_edge_dst_vertex.begin());
+      thrust::permutation_iterator<thrust::device_vector<int>::iterator,
+          thrust::device_vector<int>::iterator>
+          wasActiveFlagItSrc(d_active_vertex_flags[selector].begin(), d_edge_src_vertex.begin());
+      
+      thrust::permutation_iterator<thrust::device_vector<int>::iterator,
+          thrust::device_vector<int>::iterator>
+          willBeActiveFlagIt(d_active_vertex_flags[selector ^ 1].begin(), d_edge_dst_vertex.begin());
+
+      thrust::transform_if(thrust::make_zip_iterator(thrust::make_tuple(
+                                                                        dstValsIt, srcValsIt, d_edge_vals.begin(), wasActiveFlagItSrc)),
+                           thrust::make_zip_iterator(thrust::make_tuple(
+                                                                        dstValsIt + numEdges, srcValsIt + numEdges, d_edge_vals.end(), wasActiveFlagItSrc)),
+                           willBeActiveFlagIt,
+                           thrust::make_zip_iterator(thrust::make_tuple(wasActiveFlagItDst, wasActiveFlagItSrc)),
+                           thrust::make_discard_iterator(),
+                           graph_scatter_all(),
+                           alledge());
+        
+      }
+      else
+      {}
 
       selector ^= 1;
 
+      std::vector<int> tmp(d_active_vertex_flags[selector].size());
+      thrust::copy(d_active_vertex_flags[selector].begin(), d_active_vertex_flags[selector].end(), tmp.begin());
       int numActive = thrust::reduce(d_active_vertex_flags[selector].begin(),
                                      d_active_vertex_flags[selector].end());
 
       std::cout << "numActive: " << numActive << "\n";
+      for(int i=0; i<tmp.size(); i++)
+      {
+        printf("active vert[%d] = %d\n", i, tmp[i]);
+      }
 
       if (numActive == 0)
         break;
@@ -254,7 +383,6 @@ public:
     }
     return iterations;
   }
-
 } ;
 
 #endif
