@@ -158,7 +158,6 @@ int main(int argc, char **argv) {
   float elapsed;
   cudaEventElapsedTime(&elapsed, start, stop);
   std::cout << "Took: " << elapsed << " ms" << std::endl;
-  //std::cout << "Iterations to convergence: " << diameter2 << std::endl;
 
   if (outFileName) {
     FILE* f = fopen(outFileName, "w");
