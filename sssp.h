@@ -48,7 +48,7 @@ struct sssp {
 
   struct gather {
     __host__ __device__
-      int operator()(const VertexType dst, const VertexType src, const int edge_length) {
+      int operator()(const VertexType dst, const VertexType src, const int edge_length, const int flag) {
         return src.dist + edge_length;
       }
   };

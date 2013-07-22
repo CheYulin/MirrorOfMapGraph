@@ -124,6 +124,7 @@ int main(int argc, char **argv) {
   d_active_vertex_flags[0].resize(numVertices, 1);
   d_active_vertex_flags[1].resize(numVertices, 1);
 
+  std::vector<int> ret(2);
   GASEngine<concomp, concomp::VertexType, int, int, int> engine;
 
   cudaEvent_t start, stop;
@@ -131,14 +132,15 @@ int main(int argc, char **argv) {
 
   cudaEventRecord(start);
 
-  int diameter = engine.run(d_edge_dst_vertex,
+  ret = engine.run(d_edge_dst_vertex,
                             d_edge_src_vertex,
                             d_vertex_vals,
-                            d_active_vertex_flags);
+                            d_active_vertex_flags, INT_MAX);
 
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
 
+  int diameter = ret[0];
   float elapsed;
   cudaEventElapsedTime(&elapsed, start, stop);
   std::cout << "Took: " << elapsed << " ms" << std::endl;

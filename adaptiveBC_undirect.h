@@ -152,7 +152,7 @@ __global__ void kernel_reinit_active(int nv, adaptiveBC::VertexType* vertex_data
   int tidx = blockDim.x*blockIdx.x + threadIdx.x;
   for(int v = tidx; v<nv; v+= gridDim.x*blockDim.x)
   {
-    if(vertex_data[v].dist == diameter - 2)
+    if(vertex_data[v].dist == diameter - 1)
     {
       flags[v] = 1;
       vertex_data[v].changed = true;

@@ -35,7 +35,7 @@ struct bfs {
 
   struct gather {
     __device__
-      int operator()(const int dst, const int src, const int e) {
+      int operator()(const int dst, const int src, const int e, const int flag) {
         return src;
       }
   };

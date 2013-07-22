@@ -34,6 +34,18 @@ typedef unsigned int uint;
 #include "graphio.h"
 #include <cstdlib>
 
+struct final_changed_transform : thrust::unary_function<thrust::tuple<adaptiveBC::VertexType&, int&>, int>
+  {
+    __device__
+    int operator()(const thrust::tuple<adaptiveBC::VertexType&, int&> &t)
+    {
+      const adaptiveBC::VertexType& v = thrust::get < 0 > (t);
+      const int& flag = thrust::get < 1 > (t);
+      if(v.changed && flag) return 1;
+      else return 0;
+    }
+  } ;
+  
 void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
                          std::vector<int> &h_edge_dst_vertex,
                          int numVertices, int avgEdgesPerVertex) {
@@ -53,8 +65,20 @@ void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
 
 int main(int argc, char **argv) {
 
+  int deviceCount;
+  cudaGetDeviceCount(&deviceCount);
+  int device;
+  for(device = 0; device < deviceCount; ++device)
+  {
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, device);
+    printf("Device %d has compute capability %d.%d.\n",
+           device, deviceProp.major, deviceProp.minor);
+  }
+
   int numVertices;
   const char* outFileName = 0;
+  int ispattern; // result for strcmp with "pattern", 0 if the file is pattern
 
   //generate simple random graph
   std::vector<int> h_edge_src_vertex;
@@ -71,7 +95,7 @@ int main(int argc, char **argv) {
     }
   }
   else if (argc == 2 || argc == 3) {
-    loadGraph( argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex, &h_edge_data );
+    ispattern = loadGraph( argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex, &h_edge_data );
     if (argc == 3)
       outFileName = argv[2];
   }
@@ -79,8 +103,12 @@ int main(int argc, char **argv) {
     std::cerr << "Too many arguments!" << std::endl;
     exit(1);
   }
-
+  
   const uint numEdges = h_edge_src_vertex.size();
+  printf("Graph number of vertices is: %d, number is edges is %d\n", numVertices, numEdges);
+  
+  if(ispattern == 0) // if it is pattern mtx
+      h_edge_data = std::vector<int>(numEdges, 1);
 
   thrust::device_vector<int> d_edge_src_vertex = h_edge_src_vertex; //sort by dst
   thrust::device_vector<int> d_edge_dst_vertex = h_edge_dst_vertex; //sort by dst
@@ -122,12 +150,17 @@ int main(int argc, char **argv) {
   GASEngine<adaptiveBC_backward, adaptiveBC_backward::VertexType, int, double, double> backward_engine;
   thrust::device_vector<double> d_vertex_BC(numVertices, 0.0);
   
+  thrust::device_vector<int> changed_array(numVertices);
+  std::vector<int> ret(2, 1);
+  std::vector<int> ret2(2, 1);
+  
   cudaEvent_t start, stop;
   cudaEventCreate(&start); cudaEventCreate(&stop);
   cudaEventRecord(start);
   
   for(int seed = 0; seed < numVertices; seed++)
   {
+     printf("Seed vertex: %d\n", seed);
     thrust::fill(d_active_vertex_flags[0].begin(), d_active_vertex_flags[0].end(), 0);
     thrust::fill(d_active_vertex_flags[1].begin(), d_active_vertex_flags[1].end(), 0);
     thrust::fill(d_vertex_data.begin(), d_vertex_data.end(), adaptiveBC::VertexType(10000000, 0, false, 0.0));
@@ -135,17 +168,25 @@ int main(int argc, char **argv) {
     startVertex = seed;
     d_active_vertex_flags[0][startVertex] = 1;
     d_vertex_data[startVertex] = adaptiveBC::VertexType(0, 1, true, 0.0);
-    int diameter = forward_engine.run(d_edge_dst_vertex,
+    ret = forward_engine.run(d_edge_dst_vertex,
                             d_edge_src_vertex,
                             d_vertex_data,
                             d_edge_data,
-                            d_active_vertex_flags, 1000000);
-  
+                            d_active_vertex_flags, 1000000000);
+    
+    int selector = ret[1];
+    thrust::fill_n(changed_array.begin(), numVertices, 0);
+    thrust::transform(thrust::make_zip_iterator(thrust::make_tuple(d_vertex_data.begin(),d_active_vertex_flags[selector^1].begin())), 
+                      thrust::make_zip_iterator(thrust::make_tuple(d_vertex_data.end(),d_active_vertex_flags[selector^1].end())), 
+                      changed_array.begin(), final_changed_transform());
+    int num_changed = reduce(changed_array.begin(), changed_array.end());
+    int diameter = ret[0] - ((num_changed == 0) ? 1 : 0);
+
   //reinit active
     reinit_active_flags(d_vertex_data, d_active_vertex_flags[0], diameter);
     thrust::fill(d_active_vertex_flags[1].begin(), d_active_vertex_flags[1].end(), 0);
 
-    int diameter2 = backward_engine.run(d_edge_dst_vertex2,
+    ret2 = backward_engine.run(d_edge_dst_vertex2,
                               d_edge_src_vertex2,
                               d_vertex_data,
                               d_edge_data2,

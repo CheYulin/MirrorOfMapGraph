@@ -108,8 +108,10 @@ int main(int argc, char **argv) {
     startVertex = std::max_element(h_out_edges.begin(), h_out_edges.end()) - h_out_edges.begin();
   }
 
+  startVertex = 0;
   d_vertex_vals[startVertex] = 0;
   d_active_vertex_flags[0][startVertex] = 1;
+  std::vector<int> ret(2);
 
   GASEngine<bfs, int, int, int, int> engine;
 
@@ -118,10 +120,10 @@ int main(int argc, char **argv) {
 
   cudaEventRecord(start);
 
-  int diameter = engine.run(d_edge_dst_vertex,
+  ret = engine.run(d_edge_dst_vertex,
                             d_edge_src_vertex,
                             d_vertex_vals,
-                            d_active_vertex_flags);
+                            d_active_vertex_flags, INT_MAX);
 
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
@@ -129,7 +131,7 @@ int main(int argc, char **argv) {
   float elapsed;
   cudaEventElapsedTime(&elapsed, start, stop);
   std::cout << "Took: " << elapsed << " ms" << std::endl;
-  std::cout << "Graph Diameter: " << diameter << std::endl;
+  std::cout << "Graph Diameter: " << ret[0] << std::endl;
   std::cout << "M-Edges / sec: " << numEdges / (elapsed * 1000.f) << std::endl;
 
   if( outFileName )

@@ -60,17 +60,17 @@ class GASEngine
 public:
 
   
-  struct final_changed_transform : thrust::unary_function<thrust::tuple<VertexType&, int&>, int>
-  {
-    __device__
-    int operator()(const thrust::tuple<VertexType&, int&> &t)
-    {
-      const VertexType& v = thrust::get < 0 > (t);
-      const int& flag = thrust::get < 1 > (t);
-      if(v.changed && flag) return 1;
-      else return 0;
-    }
-  } ;
+//  struct final_changed_transform : thrust::unary_function<thrust::tuple<VertexType&, int&>, int>
+//  {
+//    __device__
+//    int operator()(const thrust::tuple<VertexType&, int&> &t)
+//    {
+//      const VertexType& v = thrust::get < 0 > (t);
+//      const int& flag = thrust::get < 1 > (t);
+//      if(v.changed && flag) return 1;
+//      else return 0;
+//    }
+//  } ;
   
    struct alledge : thrust::unary_function<thrust::tuple<int&, int&>, bool>
   {
@@ -177,7 +177,7 @@ public:
   //wrapper function to avoid needing to provide
   //edge state if the algorithm doesn't need it
 
-  int
+  std::vector<int>
   run(thrust::device_vector<int> &d_edge_dst_vertex,
       thrust::device_vector<int> &d_edge_src_vertex,
       thrust::device_vector<VertexType> &d_vertex_vals,
@@ -192,7 +192,7 @@ public:
                d_active_vertex_flags, maxiter);
   }
 
-  int
+  std::vector<int>
   run(thrust::device_vector<int> &d_edge_dst_vertex,
       thrust::device_vector<int> &d_edge_src_vertex,
       thrust::device_vector<VertexType> &d_vertex_vals,
@@ -224,8 +224,10 @@ public:
     int selector = 0;
     int iterations = 0;
 
-    for (int i=0; i< maxiter; i++)
+//    for (int i=0; i< maxiter; i++)
+    for(;;)
     {
+       cudaMemcpyToSymbol(d_iterations, &iterations, sizeof(int));
        //gather
       if (Program::gatherOverEdges() == GATHER_IN_EDGES)
       {
@@ -374,21 +376,21 @@ public:
 
       int numActive = thrust::reduce(d_active_vertex_flags[selector].begin(),
                                      d_active_vertex_flags[selector].end());
-
-      std::cout << "numActive: " << numActive << "\n";
+      std::vector<int> tmp(d_active_vertex_flags[selector].size());
+      thrust::copy(d_active_vertex_flags[selector].begin(), d_active_vertex_flags[selector].end(), tmp.begin());
+ 
+      std::cout << "numActive: " << numActive << ", iteration: " << iterations << "\n";
 
       if (numActive == 0)
         break;
 
       iterations++;
     }
-    thrust::device_vector<int> changed_array(numVertices, 0);
-    thrust::transform(thrust::make_zip_iterator(thrust::make_tuple(d_vertex_vals.begin(),d_active_vertex_flags[selector^1].begin())), 
-                      thrust::make_zip_iterator(thrust::make_tuple(d_vertex_vals.end(),d_active_vertex_flags[selector^1].end())), 
-                      changed_array.begin(), final_changed_transform());
-    int num_changed = reduce(changed_array.begin(), changed_array.end());
 
-    return iterations - ((num_changed == 0) ? 1 : 0);
+    std::vector<int> ret(2);
+    ret[0] = iterations;
+    ret[1] = selector;
+    return ret;
   }
 } ;
 

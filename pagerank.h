@@ -43,7 +43,7 @@ struct pagerank {
 
   struct gather {
     __host__ __device__
-      float operator()(const VertexType &dst, const VertexType &src, const int &e) {
+      float operator()(const VertexType &dst, const VertexType &src, const int &e, const int flag) {
         return src.val / (src.num_out_edges & 0x7FFFFFF);
       }
   };
