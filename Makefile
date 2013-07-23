@@ -8,7 +8,7 @@ LD_LIBS = -lz
 # Uncomment if you have	gcc 4.5	and would like to use its improved random number facility.
 #RAND_OPTS=--compiler-options "-std=c++0x"
 
-all: graphio.o adaptiveBC_direct adaptiveBC_undirect simpleBFS simplePageRank simpleSSSP samplePageRank simpleCC#  
+all: graphio.o sampleBC_direct sampleBC_undirect adaptiveBC_direct adaptiveBC_undirect simpleBFS simplePageRank simpleSSSP samplePageRank simpleCC
 
 graphio.o: graphio.cpp graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) $(RAND_OPTS)
@@ -26,6 +26,12 @@ adaptiveBC_undirect.o: adaptiveBC_undirect.cu adaptiveBC_undirect.h GASEngine.h 
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) 
 
 adaptiveBC_direct.o: adaptiveBC_direct.cu adaptiveBC_direct.h GASEngine.h graphio.h Makefile
+	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) 
+
+sampleBC_direct.o: sampleBC_direct.cu sampleBC_direct.h GASEngine.h graphio.h Makefile
+	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) 
+
+sampleBC_undirect.o: sampleBC_undirect.cu sampleBC_undirect.h GASEngine.h graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) 
 
 samplePageRank.o: samplePageRank.cu GASEngine.h pagerank.h graphio.h Makefile
@@ -53,6 +59,12 @@ adaptiveBC_undirect: adaptiveBC_undirect.o graphio.o
 	nvcc -o $@ $^ $(LD_LIBS)
 	
 adaptiveBC_direct: adaptiveBC_direct.o graphio.o
+	nvcc -o $@ $^ $(LD_LIBS)
+
+sampleBC_direct: sampleBC_direct.o graphio.o
+	nvcc -o $@ $^ $(LD_LIBS)
+
+sampleBC_undirect: sampleBC_undirect.o graphio.o
 	nvcc -o $@ $^ $(LD_LIBS)
 
 clean:
