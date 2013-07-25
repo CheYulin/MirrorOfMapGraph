@@ -112,7 +112,12 @@ static int loadGraph_common(gzFile f
       --src;
       --dst;
     }
-
+		
+		if(src < 0 || dst < 0)
+		{
+				printf("Negative index skipped, src = %d, dst = %d at line %d\n", src, dst, lineNum);
+				continue;
+    }
     if (ignoreFirstDataLine && firstDataLine) {
       firstDataLine = false;
       continue;
@@ -231,7 +236,7 @@ int loadGraph_MatrixMarket(const char* fname
 
   int ret = loadGraph_common(f, '%', true, true, true, st, nVertices, &srcs, &dsts, edgeValues);
   gzclose(f);
-  return ispattern;
+  return (st != stNone);
 }
 
 int loadGraph(const char* fname

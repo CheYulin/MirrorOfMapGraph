@@ -2,13 +2,13 @@ NVCC = nvcc
 
 NVCC_OPTS = -O3 -Xptxas -dlcm=cg
 #NVCC_OPTS = -g -G
-NVCC_ARCHS = -gencode arch=compute_20,code=sm_20
+NVCC_ARCHS = -gencode arch=compute_35,code=sm_35
 LD_LIBS = -lz
 
 # Uncomment if you have	gcc 4.5	and would like to use its improved random number facility.
 #RAND_OPTS=--compiler-options "-std=c++0x"
 
-all: graphio.o sampleBC_direct sampleBC_undirect adaptiveBC_direct adaptiveBC_undirect simpleBFS simplePageRank simpleSSSP samplePageRank simpleCC
+all: graphio.o  sampleBC simpleBFS simplePageRank simpleSSSP samplePageRank simpleCC
 
 graphio.o: graphio.cpp graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) $(RAND_OPTS)
@@ -21,17 +21,8 @@ simplePageRank.o: simplePageRank.cu GASEngine.h pagerank.h graphio.h Makefile
 
 simpleCC.o: simpleCC.cu GASEngine.h concomp.h graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) 
-
-adaptiveBC_undirect.o: adaptiveBC_undirect.cu adaptiveBC_undirect.h GASEngine.h graphio.h Makefile
-	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) 
-
-adaptiveBC_direct.o: adaptiveBC_direct.cu adaptiveBC_direct.h GASEngine.h graphio.h Makefile
-	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) 
-
-sampleBC_direct.o: sampleBC_direct.cu sampleBC_direct.h GASEngine.h graphio.h Makefile
-	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) 
-
-sampleBC_undirect.o: sampleBC_undirect.cu sampleBC_undirect.h GASEngine.h graphio.h Makefile
+				
+sampleBC.o: sampleBC.cu sampleBC.h GASEngine.h graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(NVCC_ARCHS) 
 
 samplePageRank.o: samplePageRank.cu GASEngine.h pagerank.h graphio.h Makefile
@@ -54,21 +45,12 @@ simpleSSSP: simpleSSSP.o graphio.o
 
 simpleCC: simpleCC.o graphio.o
 	nvcc -o $@ $^ $(LD_LIBS)
-	
-adaptiveBC_undirect: adaptiveBC_undirect.o graphio.o
+				
+sampleBC: sampleBC.o graphio.o
 	nvcc -o $@ $^ $(LD_LIBS)
 	
-adaptiveBC_direct: adaptiveBC_direct.o graphio.o
-	nvcc -o $@ $^ $(LD_LIBS)
-
-sampleBC_direct: sampleBC_direct.o graphio.o
-	nvcc -o $@ $^ $(LD_LIBS)
-
-sampleBC_undirect: sampleBC_undirect.o graphio.o
-	nvcc -o $@ $^ $(LD_LIBS)
-
 clean:
-	rm -f adaptiveBC_direct adaptiveBC_undirect simpleBFS simplePageRank simpleCC simpleSSSP samplePageRank *.o
+	rm -f sampleBC simpleBFS simplePageRank simpleCC simpleSSSP samplePageRank *.o
 
 
 regress:

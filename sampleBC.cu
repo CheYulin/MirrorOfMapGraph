@@ -27,7 +27,7 @@ under the License.
 typedef unsigned int uint;
 
 #include "GASEngine.h"
-#include "sampleBC_direct.h"
+#include "sampleBC.h"
 #include <thrust/random/linear_congruential_engine.h>
 #include <thrust/random/normal_distribution.h>
 #include <thrust/random/uniform_int_distribution.h>
@@ -78,8 +78,8 @@ int main(int argc, char **argv) {
 
   int numVertices;
   const char* outFileName = 0;
-  int ispattern; // result for strcmp with "pattern", 0 if the file is pattern
   double samplerate = 1.0;
+  int issym;
 
   //generate simple random graph
   std::vector<int> h_edge_src_vertex;
@@ -98,20 +98,30 @@ int main(int argc, char **argv) {
   }
   else if (argc == 3 || argc == 4) {
     samplerate = atof(argv[1]);
-    ispattern = loadGraph( argv[2], numVertices, h_edge_src_vertex, h_edge_dst_vertex, &h_edge_data );
+    
+    //TODO: now the loadGraph has problem parsing the matrix size information
+    issym = loadGraph( argv[2], numVertices, h_edge_src_vertex, h_edge_dst_vertex, &h_edge_data );
     if (argc == 4)
       outFileName = argv[3];
   }
   else {
-    std::cerr << "Wrong arguments!" << std::endl;
+    std::cerr << "Wrong arguments!\n Usage: sampleBC sample-rate graph(.mtx) outputfilename(optional)" << std::endl;
     exit(1);
   }
   
   const uint numEdges = h_edge_src_vertex.size();
   printf("Graph number of vertices is: %d, number is edges is %d\n", numVertices, numEdges);
   
-  if(ispattern == 0) // if it is pattern mtx
-      h_edge_data = std::vector<int>(numEdges, 1);
+  h_edge_data = std::vector<int>(numEdges, 1);//enforce unweight graph
+  
+  if(issym == 0)
+  {
+    printf("This is a directed graph\n");
+  }
+  else
+  {
+    printf("This is a undirected graph\n");
+  }
 
   thrust::device_vector<int> d_edge_src_vertex = h_edge_src_vertex; //sort by dst
   thrust::device_vector<int> d_edge_dst_vertex = h_edge_dst_vertex; //sort by dst
@@ -232,7 +242,7 @@ int main(int argc, char **argv) {
 
     for ( int i = 0; i < numVertices; ++i)
     {
-      fprintf( f, "%d\t%f\n", i, h_bc[i]*numVertices/(double)num_srcs); //final BC is bc*n/k
+      fprintf( f, "%d\t%d\t%d\t%f\n", i, h_vertex_data[i].dist, h_vertex_data[i].sigma, h_bc[i]);
     }
 
     fclose(f);
