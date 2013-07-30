@@ -115,6 +115,12 @@ static int loadGraph_common(gzFile f
 		
 		if(src < 0 || dst < 0)
 		{
+			/*
+			 * The large testing graph files (in largePerformanceGraphs
+			 * folder, such as delaunay_13n.mtx, ak2010.mtx) all have a
+			 * line Ò-1 -1Ó, which is supposed to be the matrix size line
+			 * ÒNROW NCOL VALÓ .
+			 */
 				printf("Negative index skipped, src = %d, dst = %d at line %d\n", src, dst, lineNum);
 				continue;
     }
