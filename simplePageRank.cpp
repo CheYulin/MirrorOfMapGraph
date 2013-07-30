@@ -26,7 +26,6 @@ under the License.
 
 typedef unsigned int uint;
 
-#include <cstdio>
 #include <cmath>
 #include "GASEngine.h"
 #include "pagerank.h"
@@ -34,7 +33,8 @@ typedef unsigned int uint;
 #include <thrust/random/normal_distribution.h>
 #include <thrust/random/uniform_int_distribution.h>
 #include "graphio.h"
-#include <algorithm>
+#include <iostream>
+#include <cstdio>
 #include <omp.h>
 using namespace std;
 
@@ -46,7 +46,7 @@ void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
   thrust::uniform_int_distribution<int> u_dist(0, numVertices - 1);
 
   for (int v = 0; v < numVertices; ++v) {
-    int numEdges = min(std::max((int)roundf(n_dist(rng)), 1), 1000);
+    int numEdges = std::min(std::max((int)roundf(n_dist(rng)), 1), 1000);
     for (int e = 0; e < numEdges; ++e) {
       uint dst_v = u_dist(rng);
       h_edge_src_vertex.push_back(v);
@@ -60,12 +60,12 @@ int main(int argc, char **argv) {
   int numVertices = 50000;
   const int avgEdgesPerVertex = 10;
 
+  const char* outFileName = 0;
+
 #ifdef GPU_DEVICE_NUMBER
   cudaSetDevice(GPU_DEVICE_NUMBER);
   cerr << "Running on device " << GPU_DEVICE_NUMBER << endl;
 #endif
-
-  const char* outFileName = 0;
 
   //generate simple random graph
   std::vector<int> h_edge_src_vertex;
@@ -129,20 +129,22 @@ int main(int argc, char **argv) {
   d_active_vertex_flags[0].resize(numVertices, 1);
   d_active_vertex_flags[1].resize(numVertices, 1);
 
+  std::vector<int> ret(2);
   GASEngine<pagerank, pagerank::VertexType, int, float, float> engine;
 
   double startTime = omp_get_wtime();
 
-  int diameter = engine.run(d_edge_dst_vertex,
+  ret = engine.run(d_edge_dst_vertex,
                             d_edge_src_vertex,
                             d_vertex_vals,
-                            d_active_vertex_flags);
+                            d_active_vertex_flags, INT_MAX);
 
 #ifdef GPU_DEVICE_NUMBER
   cudaDeviceSynchronize();
 #endif
+  double elapsed = (omp_get_wtime()-startTime)*1000;
 
-  double elapsed = omp_get_wtime()-startTime;
+  int diameter  = ret[0];
   std::cout << "Took: " << elapsed << " ms" << std::endl;
   std::cout << "Number iterations to convergence: " << diameter << std::endl;
 

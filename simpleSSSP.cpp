@@ -46,7 +46,7 @@ void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
   thrust::uniform_int_distribution<int> u_dist(0, numVertices - 1);
 
   for (int v = 0; v < numVertices; ++v) {
-    int numEdges = min(std::max((int)roundf(n_dist(rng)), 1), 1000);
+    int numEdges = std::min(std::max((int)roundf(n_dist(rng)), 1), 1000);
     for (int e = 0; e < numEdges; ++e) {
       uint dst_v = u_dist(rng);
       h_edge_src_vertex.push_back(v);
@@ -69,7 +69,8 @@ int main(int argc, char **argv) {
   std::vector<int> h_edge_src_vertex;
   std::vector<int> h_edge_dst_vertex;
   std::vector<int> h_edge_data;
-
+  int ispattern;
+  
   if (argc == 1) {
     numVertices = 1000000;
     const int avgEdgesPerVertex = 10;
@@ -80,7 +81,7 @@ int main(int argc, char **argv) {
     }
   }
   else if (argc == 2 || argc == 3) {
-    loadGraph( argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex, &h_edge_data );
+    ispattern = loadGraph( argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex, &h_edge_data );
     if (argc == 3)
       outFileName = argv[2];
   }
@@ -90,6 +91,8 @@ int main(int argc, char **argv) {
   }
 
   const uint numEdges = h_edge_src_vertex.size();
+  if(ispattern == 0) // if it is pattern mtx
+      h_edge_data = std::vector<int>(numEdges, 1);
 
   thrust::device_vector<int> d_edge_src_vertex = h_edge_src_vertex;
   thrust::device_vector<int> d_edge_dst_vertex = h_edge_dst_vertex;
@@ -133,21 +136,23 @@ int main(int argc, char **argv) {
   d_active_vertex_flags[0][startVertex] = 1;
   d_vertex_data[startVertex] = sssp::VertexType(0, true);
 
+  std::vector<int> ret(2);
   GASEngine<sssp, sssp::VertexType, int, int, int> engine;
 
   double startTime = omp_get_wtime();
 
-  int diameter = engine.run(d_edge_dst_vertex,
+  ret = engine.run(d_edge_dst_vertex,
                             d_edge_src_vertex,
                             d_vertex_data,
                             d_edge_data,
-                            d_active_vertex_flags);
+                            d_active_vertex_flags, INT_MAX);
 
 #ifdef GPU_DEVICE_NUMBER
   cudaDeviceSynchronize();
 #endif
+  double elapsed = (omp_get_wtime()-startTime)*1000;
 
-  double elapsed = omp_get_wtime()-startTime;
+  int diameter = ret[0]; 
   std::cout << "Took: " << elapsed << " ms" << std::endl;
   std::cout << "Iterations to convergence: " << diameter << std::endl;
 

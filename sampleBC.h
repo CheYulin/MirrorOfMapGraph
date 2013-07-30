@@ -5,9 +5,6 @@
  * Created on July 9, 2013, 9:49 AM
  */
 
-#ifndef ADAPTIVEBC_H
-#define	ADAPTIVEBC_H
-
 template<int HOST>
 __host__ __device__ int
 new_atomicAdd(int *addr, int val)
@@ -25,9 +22,17 @@ new_atomicAdd(int *addr, int val)
     return atomicAdd( addr, val ) ;
 #else
     printf("AtomicAdd does not support sm1!\n");
+    exit(0);
 #endif
 #else
-    return 0 ;
+#ifndef GPU_DEVICE_NUMBER
+    int old = addr[0];
+    #pragma omp atomic
+    addr[0] += val;
+    return old;
+#else
+    return 0;
+#endif
 #endif
   }
 }
@@ -148,6 +153,7 @@ struct adaptiveBC_backward {
   };
 };
 
+#ifdef GPU_DEVICE_NUMBER
 __global__ void kernel_reinit_active(int nv, adaptiveBC::VertexType* vertex_data, int* flags, int diameter)
 {
   int tidx = blockDim.x*blockIdx.x + threadIdx.x;
@@ -165,14 +171,35 @@ __global__ void kernel_reinit_active(int nv, adaptiveBC::VertexType* vertex_data
     }
   }   
 }
+#else
+void kernel_reinit_active(int nv, adaptiveBC::VertexType* vertex_data, int* flags, int diameter)
+{
+#pragma omp parallel for
+  for(int v = 0; v < nv; v++) {
+    if(vertex_data[v].dist == diameter - 1) {
+      flags[v] = 1;
+      vertex_data[v].changed = true;
+    } else {
+      flags[v] = 0;
+      vertex_data[v].changed = false;
+    }
+  }   
+}
+#endif
+
 void reinit_active_flags(thrust::device_vector<adaptiveBC::VertexType>& d_vertex_data, thrust::device_vector<int> &flags, int diameter)
 {
   int nthreads = 256;
   int nv = d_vertex_data.size();
   int nblocks = min( (int)65535, (int)ceil( (double)nv/nthreads));
+  #ifdef GPU_DEVICE_NUMBER
   kernel_reinit_active<<<nblocks, nthreads>>>(nv, thrust::raw_pointer_cast(&d_vertex_data[0]), thrust::raw_pointer_cast(&flags[0]), diameter);
+  #else
+  kernel_reinit_active(nv, thrust::raw_pointer_cast(&d_vertex_data[0]), thrust::raw_pointer_cast(&flags[0]), diameter);
+  #endif
 }
 
+#ifdef GPU_DEVICE_NUMBER
 __global__ void kernel_accum_BC(int nv, double* bc, adaptiveBC::VertexType* vertex_data, int startVertex)
 {
   int tidx = blockDim.x*blockIdx.x + threadIdx.x;
@@ -181,13 +208,27 @@ __global__ void kernel_accum_BC(int nv, double* bc, adaptiveBC::VertexType* vert
     if(v != startVertex) bc[v] += vertex_data[v].BC;
   }   
 }
+#else
+void kernel_accum_BC(int nv, double* bc, adaptiveBC::VertexType* vertex_data, int startVertex)
+{
+#pragma omp parallel for
+  for(int v = 0; v < nv; v++) {
+    if(v != startVertex) bc[v] += vertex_data[v].BC;
+  }   
+}
+#endif
+
 void accum_BC(thrust::device_vector<double>& d_BC, thrust::device_vector<adaptiveBC::VertexType>& d_vertex_data, int startVertex)
 {
   int nthreads = 256;
   int nv = d_vertex_data.size();
   int nblocks = min( (int)65535, (int)ceil( (double)nv/nthreads));
+  
+#ifdef GPU_DEVICE_NUMBER
   kernel_accum_BC<<<nblocks, nthreads>>>(nv, thrust::raw_pointer_cast(&d_BC[0]), thrust::raw_pointer_cast(&d_vertex_data[0]), startVertex);
+#else
+  kernel_accum_BC(nv, thrust::raw_pointer_cast(&d_BC[0]), thrust::raw_pointer_cast(&d_vertex_data[0]), startVertex);
+#endif
 }
 
-#endif	/* ADAPTIVEBC_H */
 

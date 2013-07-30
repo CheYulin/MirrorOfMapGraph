@@ -27,7 +27,6 @@ under the License.
 typedef unsigned int uint;
 
 #include "GASEngine.h"
-#include "bfs.h"
 #include <thrust/random/linear_congruential_engine.h>
 #include <thrust/random/normal_distribution.h>
 #include <thrust/random/uniform_int_distribution.h>
@@ -37,6 +36,7 @@ typedef unsigned int uint;
 #include <cstdio>
 #include <omp.h>
 using namespace std;
+#include "bfs.h"
 
 void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
                          std::vector<int> &h_edge_dst_vertex,
@@ -44,9 +44,9 @@ void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
   thrust::minstd_rand rng;
   thrust::random::normal_distribution<float> n_dist(avgEdgesPerVertex, sqrtf(avgEdgesPerVertex));
   thrust::uniform_int_distribution<int> u_dist(0, numVertices - 1);
-  
+
   for (int v = 0; v < numVertices; ++v) {
-    int numEdges = min( std::max((int)roundf(n_dist(rng)), 1), 1000);
+    int numEdges = std::min(std::max((int)roundf(n_dist(rng)), 1), 1000);
     for (int e = 0; e < numEdges; ++e) {
       uint dst_v = u_dist(rng);
       h_edge_src_vertex.push_back(v);
@@ -56,23 +56,23 @@ void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
 }
 
 int main(int argc, char **argv) {
-  
+
   int numVertices;
   const char* outFileName = 0;
-  
+
 #ifdef GPU_DEVICE_NUMBER
   cudaSetDevice(GPU_DEVICE_NUMBER);
   cerr << "Running on device " << GPU_DEVICE_NUMBER << endl;
 #endif
+
   //generate simple random graph
   std::vector<int> h_edge_src_vertex;
   std::vector<int> h_edge_dst_vertex;
 
   if (argc == 1) {
-    numVertices = 500000;
+    numVertices = 8000;
     const int avgEdgesPerVertex = 10;
     generateRandomGraph(h_edge_src_vertex, h_edge_dst_vertex, numVertices, avgEdgesPerVertex);
-cerr << avgEdgesPerVertex << " Ave edge" << endl;
   }
   else if (argc == 2 || argc == 3) {
     loadGraph( argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex );
@@ -117,24 +117,26 @@ cerr << avgEdgesPerVertex << " Ave edge" << endl;
     startVertex = std::max_element(h_out_edges.begin(), h_out_edges.end()) - h_out_edges.begin();
   }
 
+  startVertex = 0;
   d_vertex_vals[startVertex] = 0;
   d_active_vertex_flags[0][startVertex] = 1;
+  std::vector<int> ret(2);
 
   GASEngine<bfs, int, int, int, int> engine;
 
   double startTime = omp_get_wtime();
 
-  int diameter = engine.run(d_edge_dst_vertex,
+  ret = engine.run(d_edge_dst_vertex,
                             d_edge_src_vertex,
                             d_vertex_vals,
-                            d_active_vertex_flags);
+                            d_active_vertex_flags, INT_MAX);
+
 #ifdef GPU_DEVICE_NUMBER
   cudaDeviceSynchronize();
 #endif
-
-  double elapsed = omp_get_wtime()-startTime;
+  double elapsed = (omp_get_wtime()-startTime)*1000;
   std::cout << "Took: " << elapsed << " ms" << std::endl;
-  std::cout << "Graph Diameter: " << diameter << std::endl;
+  std::cout << "Graph Diameter: " << ret[0] << std::endl;
   std::cout << "M-Edges / sec: " << numEdges / (elapsed * 1000.f) << std::endl;
 
   if( outFileName )

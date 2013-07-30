@@ -33,6 +33,7 @@ under the License.
 #include <thrust/transform.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/permutation_iterator.h>
+#include <thrust/iterator/discard_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/reduce.h>
 #include <thrust/copy.h>
@@ -48,7 +49,11 @@ enum ScatterEdges
   NO_SCATTER_EDGES, SCATTER_IN_EDGES, SCATTER_OUT_EDGES, SCATTER_ALL_EDGES
 } ;
 
+#ifdef GPU_DEVICE_NUMBER
 __device__ __constant__ int d_iterations;
+#else
+int d_iterations;
+#endif
 
 template<typename Program,
 typename VertexType,
@@ -227,13 +232,21 @@ public:
 //    for (int i=0; i< maxiter; i++)
     for(;;)
     {
+#ifdef GPU_DEVICE_NUMBER
        cudaMemcpyToSymbol(d_iterations, &iterations, sizeof(int));
+#else
+       d_iterations = iterations;
+#endif
        //gather
       if (Program::gatherOverEdges() == GATHER_IN_EDGES)
       {
         indexPermuteIterator flagIt(d_active_vertex_flags[selector].begin(), d_edge_dst_vertex.begin());
         thrust::transform_iterator<graph_gather, zipIterator2, GatherType> graph_gather_iterator2(thrust::make_zip_iterator(thrust::make_tuple(dstValsIt, srcValsIt, d_edge_vals.begin(), flagIt)), graph_gather());
+#ifdef GPU_DEVICE_NUMBER
         cudaMemcpyToSymbol(d_iterations, &iterations, sizeof (int));
+#else
+       d_iterations = iterations;
+#endif
         thrust::pair<IndexIterator, typename thrust::device_vector<ReduceType>::iterator> it =
             thrust::reduce_by_key(d_edge_dst_vertex.begin(),
                                   d_edge_dst_vertex.end(),
@@ -262,7 +275,11 @@ public:
       {
         indexPermuteIterator flagIt(d_active_vertex_flags[selector].begin(), d_edge_src_vertex.begin());
         thrust::transform_iterator<graph_gather, zipIterator2, GatherType> graph_gather_iterator2(thrust::make_zip_iterator(thrust::make_tuple(dstValsIt, srcValsIt, d_edge_vals.begin(), flagIt)), graph_gather());
+#ifdef GPU_DEVICE_NUMBER
         cudaMemcpyToSymbol(d_iterations, &iterations, sizeof (int));
+#else
+	d_iterations = iterations;
+#endif
         thrust::pair<IndexIterator, typename thrust::device_vector<ReduceType>::iterator> it =
             thrust::reduce_by_key(d_edge_src_vertex.begin(),
                                   d_edge_src_vertex.end(),

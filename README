@@ -8,7 +8,7 @@ The executables are built in the following directories:
 - make_tbb: Buid using Intel Thread Building Blocks
 - make_mic: Buid for Intel Xeon Phi native mode
 
-The CUDA Makefile assumes that CUDA (we recommend version >= 5.0) has
+The CUDA Makefile assumes that CUDA (we recommend version >= 5.5) has
 been installed and is in the PATH. Further the CUDA Makefile builds
 the executable for a specified CUDA device number. This is a total
 hack put in place to get multiple GPUs working quickly without
@@ -16,10 +16,22 @@ changing the command-line parser or trying to read a shell
 variable. Assume this will go away once a real build system (eithe
 cmake or GNU autoconf is put in place.)
 
+Older version of CUDA has some thrust random number methods in an
+experimental namespace. Thus you will have to add experimental:: 
+to those methods. The compiler will tell you which they are.
+
+Altenatively, you can add the latest version of thrust to the compiler
+include paths. The latest version can be downloaded from
+http://thrust.github.io/.
+
+TBB and Intel Xeon Phi users will need to download Thrust and add the
+include files to the compilation include paths. The latest version can 
+be downloaded from http://thrust.github.io/
+
 
 You also need to have zlib installed.
 
-In the appropriate build directory vertexAPI, type 'make' to build the
+In the appropriate build directory, type 'make' to build the
 three example programs:
 
 1) simpleBFS (Breadth-First Search)
