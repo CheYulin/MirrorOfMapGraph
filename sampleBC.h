@@ -131,7 +131,8 @@ struct adaptiveBC {
 };
 
 struct adaptiveBC_backward {
-  typedef typename adaptiveBC::VertexType VertexType;
+  // Note: typename here caused error when compiling on a RedHat system with g++ 4.4.6-3
+  typedef /*typename*/ adaptiveBC::VertexType VertexType;
 
   static GatherEdges gatherOverEdges() {
     return GATHER_OUT_EDGES;
