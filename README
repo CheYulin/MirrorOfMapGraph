@@ -28,6 +28,9 @@ Note: TBB and Intel Xeon Phi users will need to download Thrust and add the
 include files to the compilation include paths. The latest version can 
 be downloaded from http://thrust.github.io/
 
+Note: OpenMP users will need the omp library
+ - http://gcc.gnu.org/projects/gomp/
+
 You also need to have zlib installed:
  - zlib code: http://www.zlib.net/
  - zlib license: http://www.zlib.net/zlib_license.html
