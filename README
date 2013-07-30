@@ -8,31 +8,32 @@ The executables are built in the following directories:
 - make_tbb: Buid using Intel Thread Building Blocks
 - make_mic: Buid for Intel Xeon Phi native mode
 
-The CUDA Makefile assumes that CUDA (version >= 5.5) has
-been installed and is in the PATH. Further the CUDA Makefile builds
-the executable for a specified CUDA device number. This is a total
-hack put in place to allow you to compile and run on a machine with
-more than one GPU by specifying the target GPU using environment
-variables. Assume this will go away once a real build system (either
-cmake or GNU autoconf is put in place.)
+The CUDA Makefile assumes that CUDA (version >= 5.0) has been installed and
+is in the PATH. 
 
-Older version of CUDA has some thrust random number methods in an
-experimental namespace. Thus you will have to add experimental:: 
-to those methods. The compiler will tell you which they are.
+Note: The CUDA Makefile builds the executable for a specified CUDA device
+number. This is a total hack put in place to allow you to compile and run
+on a machine with more than one GPU by specifying the target GPU using
+environment variables. This should go away once we develop a real build
+system (either cmake or GNU autoconf is put in place.)
 
-Altenatively, you can add the latest version of thrust to the compiler
-include paths. The latest version can be downloaded from
-http://thrust.github.io/.
+Note: If you want to run with an older version of CUDA (e.g., 5.0), there
+are some thrust random number methods that are in an experimental namespace.
+Thus, you will have to add experimental:: to those methods. The compiler
+will tell you which they are. Alteratively, you can add the latest version
+of thrust to the compiler include paths. The latest version can be downloaded
+from http://thrust.github.io/.
 
-TBB and Intel Xeon Phi users will need to download Thrust and add the
+Note: TBB and Intel Xeon Phi users will need to download Thrust and add the
 include files to the compilation include paths. The latest version can 
 be downloaded from http://thrust.github.io/
 
+You also need to have zlib installed:
+ - zlib code: http://www.zlib.net/
+ - zlib license: http://www.zlib.net/zlib_license.html
 
-You also need to have zlib installed.
-
-In the appropriate build directory, type 'make' to build the
-three example programs:
+In the appropriate build directory, type 'make' to build the sample programs.
+These are all based on the GraphLab 2.1 Gather Apply Scatter (GAS) API:
 
 1) simpleBFS (Breadth-First Search)
 2) simplePageRank (Pagerank implementation with dynamic vertex activation)
@@ -96,4 +97,3 @@ powergraph (which can be very complex to install).
   for the powergraph API that are also implemented by mpgraph.  This is to
   support regression testing.
 - dataset - generators for some random data sets.
-
