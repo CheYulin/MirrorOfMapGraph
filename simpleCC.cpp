@@ -58,6 +58,7 @@ int main(int argc, char **argv) {
   int numVertices = 50;
   const int avgEdgesPerVertex = 10;
   const char* outFileName = 0;
+  int issym;
 
 #ifdef GPU_DEVICE_NUMBER
   cudaSetDevice(GPU_DEVICE_NUMBER);
@@ -73,7 +74,7 @@ int main(int argc, char **argv) {
     generateRandomGraph(h_edge_src_vertex, h_edge_dst_vertex, numVertices, avgEdgesPerVertex);
   else if (argc == 2 || argc == 3)
   {
-    loadGraph( argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex );
+    issym = loadGraph( argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex );
     if (argc == 3)
       outFileName = argv[2];
   }
@@ -83,12 +84,15 @@ int main(int argc, char **argv) {
   }
 
   const uint numEdges = h_edge_src_vertex.size();
-  h_edge_src_vertex.resize(numEdges*2); // treat it as undirected graph
-  h_edge_dst_vertex.resize(numEdges*2);
-  for(int i=0; i<numEdges; i++)
+  if(issym == 0)
   {
-    h_edge_src_vertex[i+numEdges] = h_edge_dst_vertex[i];
-    h_edge_dst_vertex[i+numEdges] = h_edge_src_vertex[i];
+    h_edge_src_vertex.resize(numEdges*2); // treat it as undirected graph
+    h_edge_dst_vertex.resize(numEdges*2);
+    for(int i=0; i<numEdges; i++)
+    {
+      h_edge_src_vertex[i+numEdges] = h_edge_dst_vertex[i];
+      h_edge_dst_vertex[i+numEdges] = h_edge_src_vertex[i];
+    }
   }
 
   thrust::device_vector<int> d_edge_src_vertex = h_edge_src_vertex;

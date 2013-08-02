@@ -393,10 +393,10 @@ public:
 
       int numActive = thrust::reduce(d_active_vertex_flags[selector].begin(),
                                      d_active_vertex_flags[selector].end());
-      std::vector<int> tmp(d_active_vertex_flags[selector].size());
-      thrust::copy(d_active_vertex_flags[selector].begin(), d_active_vertex_flags[selector].end(), tmp.begin());
- 
-      std::cout << "numActive: " << numActive << ", iteration: " << iterations << "\n";
+//      std::vector<int> tmp(d_active_vertex_flags[selector].size());
+//      thrust::copy(d_active_vertex_flags[selector].begin(), d_active_vertex_flags[selector].end(), tmp.begin());
+// 
+//      std::cout << "numActive: " << numActive << ", iteration: " << iterations << "\n";
 
       if (numActive == 0)
         break;
