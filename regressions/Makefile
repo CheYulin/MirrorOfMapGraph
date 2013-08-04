@@ -5,8 +5,20 @@ GRAPHS = ak2010 belgium_osm delaunay_n13 coAuthorsDBLP delaunay_n21 kron_g500-lo
 #GRAPHS = ak2010 belgium_osm delaunay_n13 coAuthorsDBLP delaunay_n21 soc-LiveJournal1 webbase-1M
 
 #which algorithms to check
-ALGORITHMS = pagerank sssp bfs cc
-ALGORITHMS = cc
+#TODO sampleBC not patterned correctly to permit use here.
+ALGORITHMS = bfs sssp pagerank cc
+#ALGORITHMS = cc
+
+# The implementation path to test. This is any of the make_XXX
+# directories at the project root. The implementation must be
+# compiled before you run the tests.
+#
+# See https://sourceforge.net/p/mpgraph/tickets/8/
+#
+IMPLEMENTATION=../make_cuda_dev0
+#IMPLEMENTATION=../make_cuda_dev1
+#IMPLEMENTATION=../make_omp
+#IMPLEMENTATION=../make_tbb
 
 #Match this to number of cores on your system
 POWERGRAPH_OPTS = --ncpus 4
@@ -33,16 +45,19 @@ define MAKEGOLD
 endef
 
 # TODO Add reference implementation and comparison for CC. See the pagerank example below.
-%.cc.test: ../simpleCC
-	../simpleCC $(GRAPH_DIR)/$*/$*.mtx __tmp$* | awk '/Took/{print $$2}' > $*.cc.timing_gpu
+#
+# See https://sourceforge.net/p/mpgraph/tickets/2/ 
+
+%.cc.test: $(IMPLEMENTATION)/simpleCC
+	$(IMPLEMENTATION)/simpleCC $(GRAPH_DIR)/$*/$*.mtx __tmp$* | awk '/Took/{print $$2}' > $*.cc.timing_gpu
 	sort -n __tmp$* > $@
 	rm -f __tmp$*
 
 %.pagerank.gold: ../PowerGraphReferenceImplementations/pagerank.x
 	$(call MAKEGOLD,$*,pagerank)
 
-%.pagerank.test: ../simplePageRank
-	../simplePageRank $(GRAPH_DIR)/$*/$*.mtx __tmp$* | awk '/Took/{print $$2}' > $*.pagerank.timing_gpu
+%.pagerank.test: $(IMPLEMENTATION)/simplePageRank
+	$(IMPLEMENTATION)/simplePageRank $(GRAPH_DIR)/$*/$*.mtx __tmp$* | awk '/Took/{print $$2}' > $*.pagerank.timing_gpu
 	sort -n __tmp$* > $@
 	rm -f __tmp$*
 
@@ -53,8 +68,8 @@ endef
 %.sssp.gold: ../PowerGraphReferenceImplementations/sssp.x
 	$(call MAKEGOLD,$*,sssp)
 
-%.sssp.test: ../simpleSSSP
-	../simpleSSSP $(GRAPH_DIR)/$*/$*.mtx __tmp$* | awk '/Took/{print $$2}' > $*.sssp.timing_gpu
+%.sssp.test: $(IMPLEMENTATION)/simpleSSSP
+	$(IMPLEMENTATION)/simpleSSSP $(GRAPH_DIR)/$*/$*.mtx __tmp$* | awk '/Took/{print $$2}' > $*.sssp.timing_gpu
 	sort -n __tmp$* > $@
 	rm -f __tmp$*
 
@@ -65,8 +80,8 @@ endef
 %.bfs.gold: ../PowerGraphReferenceImplementations/bfs.x
 	$(call MAKEGOLD,$*,bfs)
 
-%.bfs.test: ../simpleBFS
-	../simpleBFS $(GRAPH_DIR)/$*/$*.mtx __tmp$* | awk '/Took/{print $$2}' > $*.bfs.timing_gpu
+%.bfs.test: $(IMPLEMENTATION)/simpleBFS
+	$(IMPLEMENTATION)/simpleBFS $(GRAPH_DIR)/$*/$*.mtx __tmp$* | awk '/Took/{print $$2}' > $*.bfs.timing_gpu
 	sort -n __tmp$* > $@
 	rm -f __tmp$*
 

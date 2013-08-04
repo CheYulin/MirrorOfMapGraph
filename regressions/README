@@ -28,10 +28,10 @@ To run the regressions go into regressions/. Type:
 
 The generated files have the following format:
 
-[graph_name].[algorithm].gold       - reference result file
-[graph_name].[algorithm].test       - GPU result file
-[graph_name].[algorithm].timing     - reference time in msec
-[graph_name].[algorithm].timing_gpu - GPU time in msec
+[graph_name].[algorithm].gold       - Reference result file
+[graph_name].[algorithm].timing     - Reference time in msec
+[graph_name].[algorithm].test       - MPGraph result file
+[graph_name].[algorithm].timing     - MPGraph implementation time in fractional seconds.
 [graph_name].[algorithm].pass       - exists if the regression test passed
 
 The largest graph kron_g500-logn21 requires a card with 6GB of RAM to run, if you have
