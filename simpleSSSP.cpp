@@ -17,12 +17,12 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 
-**********************************************************/
+ **********************************************************/
 
 /* Written by Erich Elsen and Vishal Vaidyanathan
    of Royal Caliber, LLC
    Contact us at: info@royal-caliber.com
-*/
+ */
 
 typedef unsigned int uint;
 
@@ -40,13 +40,14 @@ using namespace std;
 
 void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
                          std::vector<int> &h_edge_dst_vertex,
-                         int numVertices, int avgEdgesPerVertex) {
+                         int numVertices, int avgEdgesPerVertex)
+{
   thrust::minstd_rand rng;
   thrust::random::normal_distribution<float> n_dist(avgEdgesPerVertex, sqrtf(avgEdgesPerVertex));
   thrust::uniform_int_distribution<int> u_dist(0, numVertices - 1);
 
   for (int v = 0; v < numVertices; ++v) {
-    int numEdges = std::min(std::max((int)roundf(n_dist(rng)), 1), 1000);
+    int numEdges = std::min(std::max((int) roundf(n_dist(rng)), 1), 1000);
     for (int e = 0; e < numEdges; ++e) {
       uint dst_v = u_dist(rng);
       h_edge_src_vertex.push_back(v);
@@ -55,7 +56,8 @@ void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
   }
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
 
   int numVertices;
   const char* outFileName = 0;
@@ -70,7 +72,7 @@ int main(int argc, char **argv) {
   std::vector<int> h_edge_dst_vertex;
   std::vector<int> h_edge_data;
   int ispattern;
-  
+
   if (argc == 1) {
     numVertices = 1000000;
     const int avgEdgesPerVertex = 10;
@@ -81,7 +83,7 @@ int main(int argc, char **argv) {
     }
   }
   else if (argc == 2 || argc == 3) {
-    ispattern = loadGraph( argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex, &h_edge_data );
+    ispattern = loadGraph(argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex, &h_edge_data);
     if (argc == 3)
       outFileName = argv[2];
   }
@@ -90,9 +92,23 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+//  int deviceCount;
+//  cudaGetDeviceCount(&deviceCount);
+//  int device;
+//  for (device = 0; device < deviceCount; ++device) {
+//    cudaDeviceProp deviceProp;
+//    cudaGetDeviceProperties(&deviceProp, device);
+//    printf("Device %d has compute capability %d.%d.\n",
+//           device, deviceProp.major, deviceProp.minor);
+//  }
+//
+//  cudaSetDevice(0);
+//  if (cudaDeviceReset() != cudaSuccess)
+//    exit(0);
+
   const uint numEdges = h_edge_src_vertex.size();
-  if(ispattern == 0) // if it is pattern mtx
-      h_edge_data = std::vector<int>(numEdges, 1);
+  if (ispattern == 0) // if it is pattern mtx
+    h_edge_data = std::vector<int>(numEdges, 1);
 
   thrust::device_vector<int> d_edge_src_vertex = h_edge_src_vertex;
   thrust::device_vector<int> d_edge_dst_vertex = h_edge_dst_vertex;
@@ -100,9 +116,9 @@ int main(int argc, char **argv) {
 
   //use PSW ordering
   thrust::sort_by_key(d_edge_dst_vertex.begin(), d_edge_dst_vertex.end(), thrust::make_zip_iterator(
-                                                                          thrust::make_tuple(
-                                                                            d_edge_src_vertex.begin(),
-                                                                            d_edge_data.begin())));
+                                                                                                    thrust::make_tuple(
+                                                                                                                       d_edge_src_vertex.begin(),
+                                                                                                                       d_edge_data.begin())));
 
   thrust::device_vector<sssp::VertexType> d_vertex_data(numVertices); //each vertex value starts at "infinity"
 
@@ -126,6 +142,8 @@ int main(int argc, char **argv) {
 
     startVertex = std::max_element(h_out_edges.begin(), h_out_edges.end()) - h_out_edges.begin();
   }
+
+  startVertex = 0;
   std::cout << "Starting at " << startVertex << " of " << numVertices << std::endl;
 
   //one vertex starts active in sssp
@@ -142,17 +160,17 @@ int main(int argc, char **argv) {
   double startTime = omp_get_wtime();
 
   ret = engine.run(d_edge_dst_vertex,
-                            d_edge_src_vertex,
-                            d_vertex_data,
-                            d_edge_data,
-                            d_active_vertex_flags, INT_MAX);
+                   d_edge_src_vertex,
+                   d_vertex_data,
+                   d_edge_data,
+                   d_active_vertex_flags, INT_MAX);
 
 #ifdef GPU_DEVICE_NUMBER
   cudaDeviceSynchronize();
 #endif
-  double elapsed = (omp_get_wtime()-startTime)*1000;
+  double elapsed = (omp_get_wtime() - startTime)*1000;
 
-  int diameter = ret[0]; 
+  int diameter = ret[0];
   std::cout << "Took: " << elapsed << " ms" << std::endl;
   std::cout << "Iterations to convergence: " << diameter << std::endl;
 
@@ -161,15 +179,14 @@ int main(int argc, char **argv) {
     std::vector<sssp::VertexType> h_vertex_data(d_vertex_data.size());
     thrust::copy(d_vertex_data.begin(), d_vertex_data.end(), h_vertex_data.begin());
 
-    for ( int i = 0; i < existing_vertices.size(); ++i)
-    {
+    for (int i = 0; i < existing_vertices.size(); ++i) {
       if (!existing_vertices[i])
         continue;
-      fprintf( f, "%d\t%d\n", i, h_vertex_data[i].dist);
+      fprintf(f, "%d\t%d\n", i, h_vertex_data[i].dist);
     }
 
     fclose(f);
   }
-  
+
   return 0;
 }
