@@ -17,12 +17,12 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 
-**********************************************************/
+ **********************************************************/
 
 /* Written by Erich Elsen and Vishal Vaidyanathan
    of Royal Caliber, LLC
    Contact us at: info@royal-caliber.com
-*/
+ */
 
 typedef unsigned int uint;
 
@@ -40,13 +40,14 @@ using namespace std;
 
 void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
                          std::vector<int> &h_edge_dst_vertex,
-                         int numVertices, int avgEdgesPerVertex) {
+                         int numVertices, int avgEdgesPerVertex)
+{
   thrust::minstd_rand rng;
   thrust::random::normal_distribution<float> n_dist(avgEdgesPerVertex, sqrtf(avgEdgesPerVertex));
   thrust::uniform_int_distribution<int> u_dist(0, numVertices - 1);
 
   for (int v = 0; v < numVertices; ++v) {
-    int numEdges = std::min(std::max((int)roundf(n_dist(rng)), 1), 1000);
+    int numEdges = std::min(std::max((int) roundf(n_dist(rng)), 1), 1000);
     for (int e = 0; e < numEdges; ++e) {
       uint dst_v = u_dist(rng);
       h_edge_src_vertex.push_back(v);
@@ -55,10 +56,12 @@ void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
   }
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
 
   int numVertices;
   const char* outFileName = 0;
+  int startVertex = 0;
 
 #ifdef GPU_DEVICE_NUMBER
   cudaSetDevice(GPU_DEVICE_NUMBER);
@@ -74,13 +77,13 @@ int main(int argc, char **argv) {
     const int avgEdgesPerVertex = 10;
     generateRandomGraph(h_edge_src_vertex, h_edge_dst_vertex, numVertices, avgEdgesPerVertex);
   }
-  else if (argc == 2 || argc == 3) {
-    loadGraph( argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex );
-    if (argc == 3)
-      outFileName = argv[2];
+  else if (argc == 4) {
+    loadGraph(argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex);
+    outFileName = argv[2];
+    startVertex = atoi(argv[3]);
   }
   else {
-    std::cerr << "Too many arguments!" << std::endl;
+    std::cerr << "Usage: ./simpleBFS graph (.mtx) output_filename start_vertex" << std::endl;
     exit(1);
   }
 
@@ -105,11 +108,11 @@ int main(int argc, char **argv) {
   d_active_vertex_flags[1].resize(numVertices, 0);
 
   //set starting node for bfs
-  int startVertex = 0;
   std::vector<char> existing_vertices(numVertices, 0);
+  if (argc == 1) 
   {
     std::vector<int> h_out_edges(numVertices);
-    for(int e = 0; e < h_edge_src_vertex.size(); ++e) {
+    for (int e = 0; e < h_edge_src_vertex.size(); ++e) {
       h_out_edges[h_edge_src_vertex[e]]++;
       existing_vertices[h_edge_src_vertex[e]] = 1;
       existing_vertices[h_edge_dst_vertex[e]] = 1;
@@ -117,7 +120,6 @@ int main(int argc, char **argv) {
     startVertex = std::max_element(h_out_edges.begin(), h_out_edges.end()) - h_out_edges.begin();
   }
 
-  startVertex = 0;
   d_vertex_vals[startVertex] = 0;
   d_active_vertex_flags[0][startVertex] = 1;
   std::vector<int> ret(2);
@@ -127,30 +129,27 @@ int main(int argc, char **argv) {
   double startTime = omp_get_wtime();
 
   ret = engine.run(d_edge_dst_vertex,
-                            d_edge_src_vertex,
-                            d_vertex_vals,
-                            d_active_vertex_flags, INT_MAX);
+                   d_edge_src_vertex,
+                   d_vertex_vals,
+                   d_active_vertex_flags, INT_MAX);
 
 #ifdef GPU_DEVICE_NUMBER
   cudaDeviceSynchronize();
 #endif
-  double elapsed = (omp_get_wtime()-startTime)*1000;
+  double elapsed = (omp_get_wtime() - startTime)*1000;
   std::cout << "Took: " << elapsed << " ms" << std::endl;
   std::cout << "Graph Diameter: " << ret[0] << std::endl;
   std::cout << "M-Edges / sec: " << numEdges / (elapsed * 1000.f) << std::endl;
 
-  if( outFileName )
-  {
-    FILE* f = fopen( outFileName, "w" );
+  if (outFileName) {
+    FILE* f = fopen(outFileName, "w");
     thrust::host_vector<int> h_vertex_vals(numVertices);
-    thrust::copy( d_vertex_vals.begin(), d_vertex_vals.end(), h_vertex_vals.begin() );
-    for( int i = 0; i < existing_vertices.size(); ++i) {
-      if (!existing_vertices[i])
-        continue;
-      fprintf( f, "%d\t%d\n", i, h_vertex_vals[i] );
+    thrust::copy(d_vertex_vals.begin(), d_vertex_vals.end(), h_vertex_vals.begin());
+    for (int i = 0; i < numVertices; ++i) {
+      fprintf(f, "%d\t%d\n", i, h_vertex_vals[i]);
     }
     fclose(f);
   }
-  
+
   return 0;
 }

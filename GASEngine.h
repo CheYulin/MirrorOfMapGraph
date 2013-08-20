@@ -231,20 +231,6 @@ public:
     thrust::transform_iterator<graph_gather, zipIterator, GatherType> graph_gather_iterator(thrust::make_zip_iterator(thrust::make_tuple(dstValsIt, srcValsIt, d_edge_vals.begin())), graph_gather());
     permuteIterator vertexVals(d_vertex_vals.begin(), d_participating_vertices.begin());
 
-
-    //sort by src
-    thrust::device_vector<int> d_edge_dst_vertex2 = d_edge_dst_vertex;
-    thrust::device_vector<int> d_edge_src_vertex2 = d_edge_src_vertex;
-    thrust::device_vector<EdgeType> &d_edge_vals2 = d_edge_vals;
-
-    thrust::sort_by_key(d_edge_src_vertex2.begin(), d_edge_src_vertex2.end(), thrust::make_zip_iterator(
-                                                                                                        thrust::make_tuple(
-                                                                                                                           d_edge_dst_vertex2.begin(),
-                                                                                                                           d_edge_vals2.begin())));
-
-    permuteIterator srcValsIt2(d_vertex_vals.begin(), d_edge_src_vertex2.begin());
-    permuteIterator dstValsIt2(d_vertex_vals.begin(), d_edge_dst_vertex2.begin());
-
     int selector = 0;
     int iterations = 0;
     thrust::device_vector<int> seq(numEdges);

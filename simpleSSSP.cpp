@@ -72,6 +72,7 @@ int main(int argc, char **argv)
   std::vector<int> h_edge_dst_vertex;
   std::vector<int> h_edge_data;
   int ispattern;
+  int startVertex = 0;
 
   if (argc == 1) {
     numVertices = 1000000;
@@ -82,29 +83,15 @@ int main(int argc, char **argv)
       h_edge_data.push_back(rand() % 100);
     }
   }
-  else if (argc == 2 || argc == 3) {
+  else if (argc == 4) {
     ispattern = loadGraph(argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex, &h_edge_data);
-    if (argc == 3)
-      outFileName = argv[2];
+    outFileName = argv[2];
+    startVertex = atoi(argv[3]);
   }
   else {
-    std::cerr << "Too many arguments!" << std::endl;
+    std::cerr << "Usage: ./simpleSSSP graph (.mtx) output_filename start_vertex" << std::endl;
     exit(1);
   }
-
-//  int deviceCount;
-//  cudaGetDeviceCount(&deviceCount);
-//  int device;
-//  for (device = 0; device < deviceCount; ++device) {
-//    cudaDeviceProp deviceProp;
-//    cudaGetDeviceProperties(&deviceProp, device);
-//    printf("Device %d has compute capability %d.%d.\n",
-//           device, deviceProp.major, deviceProp.minor);
-//  }
-//
-//  cudaSetDevice(0);
-//  if (cudaDeviceReset() != cudaSuccess)
-//    exit(0);
 
   const uint numEdges = h_edge_src_vertex.size();
   if (ispattern == 0) // if it is pattern mtx
@@ -130,9 +117,8 @@ int main(int argc, char **argv)
   }
 
   //find max out degree vertex to start
-  int startVertex;
   std::vector<char> existing_vertices(numVertices, 0);
-  {
+  if (argc == 1) {
     std::vector<int> h_out_edges(numVertices);
     for (int i = 0; i < h_edge_src_vertex.size(); ++i) {
       h_out_edges[h_edge_src_vertex[i]]++;
@@ -142,8 +128,7 @@ int main(int argc, char **argv)
 
     startVertex = std::max_element(h_out_edges.begin(), h_out_edges.end()) - h_out_edges.begin();
   }
-
-  startVertex = 0;
+  //startVertex = 0;
   std::cout << "Starting at " << startVertex << " of " << numVertices << std::endl;
 
   //one vertex starts active in sssp
@@ -179,9 +164,7 @@ int main(int argc, char **argv)
     std::vector<sssp::VertexType> h_vertex_data(d_vertex_data.size());
     thrust::copy(d_vertex_data.begin(), d_vertex_data.end(), h_vertex_data.begin());
 
-    for (int i = 0; i < existing_vertices.size(); ++i) {
-      if (!existing_vertices[i])
-        continue;
+    for (int i = 0; i < numVertices; ++i) {
       fprintf(f, "%d\t%d\n", i, h_vertex_data[i].dist);
     }
 
