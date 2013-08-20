@@ -56,6 +56,38 @@ void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
   }
 }
 
+void run_test(thrust::device_vector<int> &d_edge_dst_vertex,
+              thrust::device_vector<int> &d_edge_src_vertex,
+              thrust::device_vector<sssp::VertexType> &d_vertex_data,
+              thrust::device_vector<int> d_edge_data,
+              std::vector<thrust::device_vector<int> > &d_active_vertex_flags, int startVertex, int numEdges)
+{
+  thrust::fill(d_active_vertex_flags[0].begin(), d_active_vertex_flags[0].end(), 0);
+  thrust::fill(d_active_vertex_flags[1].begin(), d_active_vertex_flags[1].end(), 0);
+  d_active_vertex_flags[0][startVertex] = 1;
+  d_vertex_data[startVertex] = sssp::VertexType(0, true);
+
+  std::vector<int> ret(2);
+  GASEngine<sssp, sssp::VertexType, int, int, int> engine;
+
+  double startTime = omp_get_wtime();
+
+  ret = engine.run(d_edge_dst_vertex,
+                   d_edge_src_vertex,
+                   d_vertex_data,
+                   d_edge_data,
+                   d_active_vertex_flags, INT_MAX);
+
+#ifdef GPU_DEVICE_NUMBER
+  cudaDeviceSynchronize();
+#endif
+  double elapsed = (omp_get_wtime() - startTime)*1000;
+
+  int diameter = ret[0];
+  std::cout << "Took: " << elapsed << " ms" << std::endl;
+  std::cout << "Iterations to convergence: " << diameter << std::endl;
+}
+
 int main(int argc, char **argv)
 {
 
@@ -106,9 +138,6 @@ int main(int argc, char **argv)
                                                                                                     thrust::make_tuple(
                                                                                                                        d_edge_src_vertex.begin(),
                                                                                                                        d_edge_data.begin())));
-
-  thrust::device_vector<sssp::VertexType> d_vertex_data(numVertices); //each vertex value starts at "infinity"
-
   std::vector<thrust::device_vector<int> > d_active_vertex_flags;
   {
     thrust::device_vector<int> foo;
@@ -118,15 +147,22 @@ int main(int argc, char **argv)
 
   //find max out degree vertex to start
   std::vector<char> existing_vertices(numVertices, 0);
-  if (argc == 1) {
-    std::vector<int> h_out_edges(numVertices);
-    for (int i = 0; i < h_edge_src_vertex.size(); ++i) {
-      h_out_edges[h_edge_src_vertex[i]]++;
-      existing_vertices[h_edge_src_vertex[i]] = 1;
-      existing_vertices[h_edge_dst_vertex[i]] = 1;
-    }
 
+  std::vector<int> h_out_edges(numVertices);
+  for (int i = 0; i < h_edge_src_vertex.size(); ++i) {
+    h_out_edges[h_edge_src_vertex[i]]++;
+    existing_vertices[h_edge_src_vertex[i]] = 1;
+    existing_vertices[h_edge_dst_vertex[i]] = 1;
+  }
+
+  if (argc == 1) {
     startVertex = std::max_element(h_out_edges.begin(), h_out_edges.end()) - h_out_edges.begin();
+  }
+  
+  if(h_out_edges[startVertex] == 0)
+  {
+    printf("Start vertex has 0 out edges!\n");
+    exit(1);
   }
   //startVertex = 0;
   std::cout << "Starting at " << startVertex << " of " << numVertices << std::endl;
@@ -135,29 +171,36 @@ int main(int argc, char **argv)
   d_active_vertex_flags[0].resize(numVertices, 0);
   d_active_vertex_flags[1].resize(numVertices, 0);
 
+  //run test
+  thrust::device_vector<sssp::VertexType> d_vertex_data(numVertices); //each vertex value starts at "infinity"
+  run_test(d_edge_dst_vertex,
+           d_edge_src_vertex,
+           d_vertex_data,
+           d_edge_data,
+           d_active_vertex_flags, startVertex, numEdges);
 
-  d_active_vertex_flags[0][startVertex] = 1;
-  d_vertex_data[startVertex] = sssp::VertexType(0, true);
-
-  std::vector<int> ret(2);
-  GASEngine<sssp, sssp::VertexType, int, int, int> engine;
-
-  double startTime = omp_get_wtime();
-
-  ret = engine.run(d_edge_dst_vertex,
-                   d_edge_src_vertex,
-                   d_vertex_data,
-                   d_edge_data,
-                   d_active_vertex_flags, INT_MAX);
-
-#ifdef GPU_DEVICE_NUMBER
-  cudaDeviceSynchronize();
-#endif
-  double elapsed = (omp_get_wtime() - startTime)*1000;
-
-  int diameter = ret[0];
-  std::cout << "Took: " << elapsed << " ms" << std::endl;
-  std::cout << "Iterations to convergence: " << diameter << std::endl;
+  //  d_active_vertex_flags[0][startVertex] = 1;
+  //  d_vertex_data[startVertex] = sssp::VertexType(0, true);
+  //
+  //  std::vector<int> ret(2);
+  //  GASEngine<sssp, sssp::VertexType, int, int, int> engine;
+  //
+  //  double startTime = omp_get_wtime();
+  //
+  //  ret = engine.run(d_edge_dst_vertex,
+  //                   d_edge_src_vertex,
+  //                   d_vertex_data,
+  //                   d_edge_data,
+  //                   d_active_vertex_flags, INT_MAX);
+  //
+  //#ifdef GPU_DEVICE_NUMBER
+  //  cudaDeviceSynchronize();
+  //#endif
+  //  double elapsed = (omp_get_wtime() - startTime)*1000;
+  //
+  //  int diameter = ret[0];
+  //  std::cout << "Took: " << elapsed << " ms" << std::endl;
+  //  std::cout << "Iterations to convergence: " << diameter << std::endl;
 
   if (outFileName) {
     FILE* f = fopen(outFileName, "w");
