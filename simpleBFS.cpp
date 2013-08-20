@@ -56,6 +56,36 @@ void generateRandomGraph(std::vector<int> &h_edge_src_vertex,
   }
 }
 
+void run_test(thrust::device_vector<int> &d_edge_dst_vertex,
+              thrust::device_vector<int> &d_edge_src_vertex,
+              thrust::device_vector<int> &d_vertex_vals,
+              std::vector<thrust::device_vector<int> > &d_active_vertex_flags, int startVertex, int numEdges)
+{
+  thrust::fill(d_active_vertex_flags[0].begin(), d_active_vertex_flags[0].end(), 0);
+  thrust::fill(d_active_vertex_flags[1].begin(), d_active_vertex_flags[1].end(), 0);
+  d_vertex_vals[startVertex] = 0;
+  d_active_vertex_flags[0][startVertex] = 1;
+  std::vector<int> ret(2);
+
+  GASEngine<bfs, int, int, int, int> engine;
+
+  double startTime = omp_get_wtime();
+
+  ret = engine.run(d_edge_dst_vertex,
+                   d_edge_src_vertex,
+                   d_vertex_vals,
+                   d_active_vertex_flags, INT_MAX);
+
+#ifdef GPU_DEVICE_NUMBER
+  cudaDeviceSynchronize();
+#endif
+  double elapsed = (omp_get_wtime() - startTime)*1000;
+  std::cout << "Took: " << elapsed << " ms" << std::endl;
+  std::cout << "Graph Diameter: " << ret[0] << std::endl;
+  std::cout << "M-Edges / sec: " << numEdges / (elapsed * 1000.f) << std::endl;
+
+}
+
 int main(int argc, char **argv)
 {
 
@@ -96,8 +126,6 @@ int main(int argc, char **argv)
   //thrust::sort_by_key(d_edge_dst_vertex.begin(), d_edge_dst_vertex.end(), d_edge_src_vertex.begin());
   thrust::sort_by_key(d_edge_src_vertex.begin(), d_edge_src_vertex.end(), d_edge_dst_vertex.begin());
 
-  thrust::device_vector<int> d_vertex_vals(numVertices, -1);
-
   std::vector<thrust::device_vector<int> > d_active_vertex_flags;
   {
     thrust::device_vector<int> foo;
@@ -109,37 +137,29 @@ int main(int argc, char **argv)
 
   //set starting node for bfs
   std::vector<char> existing_vertices(numVertices, 0);
-  if (argc == 1) 
-  {
-    std::vector<int> h_out_edges(numVertices);
-    for (int e = 0; e < h_edge_src_vertex.size(); ++e) {
-      h_out_edges[h_edge_src_vertex[e]]++;
-      existing_vertices[h_edge_src_vertex[e]] = 1;
-      existing_vertices[h_edge_dst_vertex[e]] = 1;
-    }
+
+  std::vector<int> h_out_edges(numVertices);
+  for (int e = 0; e < h_edge_src_vertex.size(); ++e) {
+    h_out_edges[h_edge_src_vertex[e]]++;
+    existing_vertices[h_edge_src_vertex[e]] = 1;
+    existing_vertices[h_edge_dst_vertex[e]] = 1;
+  }
+
+  if (argc == 1) {
     startVertex = std::max_element(h_out_edges.begin(), h_out_edges.end()) - h_out_edges.begin();
   }
 
-  d_vertex_vals[startVertex] = 0;
-  d_active_vertex_flags[0][startVertex] = 1;
-  std::vector<int> ret(2);
+  if (h_out_edges[startVertex] == 0) {
+    printf("Start vertex has 0 out edges!\n");
+    exit(1);
+  }
 
-  GASEngine<bfs, int, int, int, int> engine;
-
-  double startTime = omp_get_wtime();
-
-  ret = engine.run(d_edge_dst_vertex,
-                   d_edge_src_vertex,
-                   d_vertex_vals,
-                   d_active_vertex_flags, INT_MAX);
-
-#ifdef GPU_DEVICE_NUMBER
-  cudaDeviceSynchronize();
-#endif
-  double elapsed = (omp_get_wtime() - startTime)*1000;
-  std::cout << "Took: " << elapsed << " ms" << std::endl;
-  std::cout << "Graph Diameter: " << ret[0] << std::endl;
-  std::cout << "M-Edges / sec: " << numEdges / (elapsed * 1000.f) << std::endl;
+  //run test
+  thrust::device_vector<int> d_vertex_vals(numVertices, -1);
+  run_test(d_edge_dst_vertex,
+           d_edge_src_vertex,
+           d_vertex_vals,
+           d_active_vertex_flags, startVertex, numEdges);
 
   if (outFileName) {
     FILE* f = fopen(outFileName, "w");
