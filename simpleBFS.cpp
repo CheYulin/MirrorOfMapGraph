@@ -110,7 +110,7 @@ int main(int argc, char **argv)
   else if (argc == 4) {
     loadGraph(argv[1], numVertices, h_edge_src_vertex, h_edge_dst_vertex);
     outFileName = argv[2];
-    startVertex = atoi(argv[3]);
+    startVertex = atoi(argv[3]) - 1;
   }
   else {
     std::cerr << "Usage: ./simpleBFS graph (.mtx) output_filename start_vertex" << std::endl;
@@ -166,7 +166,7 @@ int main(int argc, char **argv)
     thrust::host_vector<int> h_vertex_vals(numVertices);
     thrust::copy(d_vertex_vals.begin(), d_vertex_vals.end(), h_vertex_vals.begin());
     for (int i = 0; i < numVertices; ++i) {
-      fprintf(f, "%d\t%d\n", i, h_vertex_vals[i]);
+      fprintf(f, "%d\n", h_vertex_vals[i]);
     }
     fclose(f);
   }

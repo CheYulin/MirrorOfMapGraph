@@ -396,12 +396,13 @@ public:
 //      std::vector<int> tmp(d_active_vertex_flags[selector].size());
 //      thrust::copy(d_active_vertex_flags[selector].begin(), d_active_vertex_flags[selector].end(), tmp.begin());
 // 
-//      std::cout << "numActive: " << numActive << ", iteration: " << iterations << "\n";
+      std::cout << "numActive: " << numActive << ", iteration: " << iterations << "\n";
+      iterations++;
 
       if (numActive == 0)
         break;
 
-      iterations++;
+      
     }
 
     std::vector<int> ret(2);
