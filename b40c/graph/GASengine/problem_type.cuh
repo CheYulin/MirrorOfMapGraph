@@ -38,6 +38,7 @@ namespace GASengine {
  * Type of BC problem
  */
 template <
+    typename    _Program,
 	typename 	_VertexId,						// Type of signed integer to use as vertex id (e.g., uint32)
 	typename 	_SizeT,							// Type of unsigned integer to use for array indexing (e.g., uint32)
 	typename	_EValue,						// Type of edge value (e.g., float)
@@ -50,6 +51,8 @@ struct ProblemType : partition::ProblemType<
 	typename util::If<_MARK_PREDECESSORS, _VertexId, util::NullType>::Type,										// ValueType
 	_SizeT>																		// SizeT
 {
+	typedef _Program                                                     Program;
+	typedef typename _Program::VertexType                                         VertexType;
 	typedef _VertexId														VertexId;
 	typedef _VisitedMask													VisitedMask;
 	typedef _ValidFlag														ValidFlag;

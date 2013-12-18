@@ -54,6 +54,7 @@ namespace contract_atomic {
  * types.
  */
 template <
+typename Program,
 	// ProblemType type parameters
 	typename _ProblemType,								// BFS problem type (e.g., b40c::graph::bfs::ProblemType)
 
@@ -87,6 +88,7 @@ struct KernelPolicy : _ProblemType
 	typedef typename ProblemType::VertexId 	VertexId;
 	typedef typename ProblemType::SizeT 	SizeT;
     typedef typename ProblemType::EValue    EValue;
+    typedef typename Program::VertexType VertexType;
 
 	static const util::io::ld::CacheModifier QUEUE_READ_MODIFIER 	= _QUEUE_READ_MODIFIER;
 	static const util::io::st::CacheModifier QUEUE_WRITE_MODIFIER 	= _QUEUE_WRITE_MODIFIER;

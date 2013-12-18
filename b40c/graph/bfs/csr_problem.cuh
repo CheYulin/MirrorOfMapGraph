@@ -32,7 +32,7 @@
 #include <b40c/util/error_utils.cuh>
 #include <b40c/util/multiple_buffering.cuh>
 
-#include <b40c/graph/bfs/problem_type.cuh>
+#include <b40c/graph/GASengine/problem_type.cuh>
 
 #include <vector>
 

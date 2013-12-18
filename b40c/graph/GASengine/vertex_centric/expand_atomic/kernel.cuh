@@ -41,17 +41,19 @@ namespace expand_atomic {
 /**
  * Expansion pass (non-workstealing)
  */
-template <typename KernelPolicy, bool WORK_STEALING>
+template <typename KernelPolicy, typename Program, bool WORK_STEALING>
 struct SweepPass
 {
 	template <typename SmemStorage>
 	static __device__ __forceinline__ void Invoke(
+			int & iteration,
 		typename KernelPolicy::VertexId 		&queue_index,
 		typename KernelPolicy::VertexId 		&steal_index,
 		int								 		&num_gpus,
 		typename KernelPolicy::VertexId 		*&d_vertex_frontier,
 		typename KernelPolicy::VertexId 		*&d_edge_frontier,
 		typename KernelPolicy::VertexId 		*&d_predecessor,
+		typename KernelPolicy::VertexType       &vertex_list,
 		typename KernelPolicy::VertexId			*&d_column_indices,
 		typename KernelPolicy::SizeT			*&d_row_offsets,
 		util::CtaWorkProgress 					&work_progress,
@@ -59,7 +61,7 @@ struct SweepPass
 		typename KernelPolicy::SizeT			&max_edge_frontier,
 		SmemStorage								&smem_storage)
 	{
-		typedef Cta<KernelPolicy>			 			Cta;
+		typedef Cta<KernelPolicy, Program>			 			Cta;
 		typedef typename KernelPolicy::SizeT 			SizeT;
 
 		// Determine our threadblock's work range
@@ -74,13 +76,14 @@ struct SweepPass
 		}
 
 		// CTA processing abstraction
-		Cta cta(
+		Cta cta(iteration,
 			queue_index,
 			num_gpus,
 			smem_storage,
 			d_vertex_frontier,
 			d_edge_frontier,
 			d_predecessor,
+			vertex_list,
 			d_column_indices,
 			d_row_offsets,
 			work_progress,
@@ -128,17 +131,19 @@ __device__ __forceinline__ SizeT StealWork(
 /**
  * Expansion pass (workstealing)
  */
-template <typename KernelPolicy>
-struct SweepPass <KernelPolicy, true>
+template <typename KernelPolicy, typename Program>
+struct SweepPass <KernelPolicy, Program, true>
 {
 	template <typename SmemStorage>
 	static __device__ __forceinline__ void Invoke(
+			int & iteration,
 		typename KernelPolicy::VertexId 		&queue_index,
 		typename KernelPolicy::VertexId 		&steal_index,
 		int 									&num_gpus,
 		typename KernelPolicy::VertexId 		*&d_vertex_frontier,
 		typename KernelPolicy::VertexId 		*&d_edge_frontier,
 		typename KernelPolicy::VertexId 		*&d_predecessor,
+		typename KernelPolicy::VertexType       &vertex_list,
 		typename KernelPolicy::VertexId			*&d_column_indices,
 		typename KernelPolicy::SizeT			*&d_row_offsets,
 		util::CtaWorkProgress 					&work_progress,
@@ -146,17 +151,19 @@ struct SweepPass <KernelPolicy, true>
 		typename KernelPolicy::SizeT			&max_edge_frontier,
 		SmemStorage								&smem_storage)
 	{
-		typedef Cta<KernelPolicy> 						Cta;
+		typedef Cta<KernelPolicy, Program> 						Cta;
 		typedef typename KernelPolicy::SizeT 			SizeT;
 
 		// CTA processing abstraction
 		Cta cta(
+				iteration,
 			queue_index,
 			num_gpus,
 			smem_storage,
 			d_vertex_frontier,
 			d_edge_frontier,
 			d_predecessor,
+			vertex_list,
 			d_column_indices,
 			d_row_offsets,
 			work_progress,
@@ -189,6 +196,7 @@ struct SweepPass <KernelPolicy, true>
  */
 template <
     typename    KernelPolicy,
+    typename Program,
     bool        VALID = (__B40C_CUDA_ARCH__ >= KernelPolicy::CUDA_ARCH)>
 struct Dispatch
 {
@@ -220,15 +228,17 @@ struct Dispatch
 /**
  * Valid for this arch (policy matches compiler-inserted macro)
  */
-template <typename KernelPolicy>
-struct Dispatch<KernelPolicy, true>
+template <typename KernelPolicy, typename Program>
+struct Dispatch<KernelPolicy, Program, true>
 {
 	typedef typename KernelPolicy::VertexId VertexId;
 	typedef typename KernelPolicy::SizeT SizeT;
     typedef typename KernelPolicy::EValue EValue;
 	typedef typename KernelPolicy::VisitedMask VisitedMask;
+	typedef typename KernelPolicy::VertexType VertexType;
 
 	static __device__ __forceinline__ void Kernel(
+			int &iteration,
 		VertexId 					&queue_index,
 		VertexId 					&steal_index,
 		int							&num_gpus,
@@ -236,6 +246,7 @@ struct Dispatch<KernelPolicy, true>
 		VertexId 					*&d_vertex_frontier,
 		VertexId 					*&d_edge_frontier,
 		VertexId 					*&d_predecessor,
+		VertexType                  &vertex_list,
 		VertexId					*&d_column_indices,
 		SizeT						*&d_row_offsets,
 		util::CtaWorkProgress 		&work_progress,
@@ -243,6 +254,8 @@ struct Dispatch<KernelPolicy, true>
 		SizeT						&max_edge_frontier,
 		util::KernelRuntimeStats	&kernel_stats)
 	{
+//		printf("In expand dispatch\n");
+//		__syncthreads();
 
 		// Shared storage for the kernel
 		__shared__ typename KernelPolicy::SmemStorage smem_storage;
@@ -282,13 +295,15 @@ struct Dispatch<KernelPolicy, true>
 		// Barrier to protect work decomposition
 		__syncthreads();
 
-		SweepPass<KernelPolicy, KernelPolicy::WORK_STEALING>::Invoke(
+		SweepPass<KernelPolicy, Program, KernelPolicy::WORK_STEALING>::Invoke(
+				iteration,
 			queue_index,
 			steal_index,
 			num_gpus,
 			d_vertex_frontier,
 			d_edge_frontier,
 			d_predecessor,
+			vertex_list,
 			d_column_indices,
 			d_row_offsets,
 			work_progress,
@@ -311,10 +326,11 @@ struct Dispatch<KernelPolicy, true>
 /**
  * Expansion kernel entry point
  */
-template <typename KernelPolicy>
+template <typename KernelPolicy, typename Program>
 __launch_bounds__ (KernelPolicy::THREADS, KernelPolicy::CTA_OCCUPANCY)
 __global__
 void Kernel(
+		int                         iteration, //
 	typename KernelPolicy::VertexId 		queue_index,				// Current frontier queue counter index
 	typename KernelPolicy::VertexId 		steal_index,				// Current workstealing counter index
 	int										num_gpus,					// Number of GPUs
@@ -322,6 +338,7 @@ void Kernel(
 	typename KernelPolicy::VertexId 		*d_vertex_frontier,			// Incoming vertex frontier
 	typename KernelPolicy::VertexId 		*d_edge_frontier,			// Outgoing edge frontier
 	typename KernelPolicy::VertexId 		*d_predecessor,				// Outgoing predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
+	typename KernelPolicy::VertexType        vertex_list, //
 	typename KernelPolicy::VertexId			*d_column_indices,			// CSR column-indices array
 	typename KernelPolicy::SizeT			*d_row_offsets,				// CSR row-offsets array
 	util::CtaWorkProgress 					work_progress,				// Atomic workstealing and queueing counters
@@ -329,7 +346,10 @@ void Kernel(
 	typename KernelPolicy::SizeT			max_edge_frontier, 			// Maximum number of elements we can place into the outgoing edge frontier
 	util::KernelRuntimeStats				kernel_stats)				// Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
 {
-	Dispatch<KernelPolicy>::Kernel(
+//	printf("In expand Kernel\n");
+//	__syncthreads();
+	Dispatch<KernelPolicy, Program>::Kernel(
+			iteration,
 		queue_index,
 		steal_index,
 		num_gpus,
@@ -337,6 +357,7 @@ void Kernel(
 		d_vertex_frontier,
 		d_edge_frontier,
 		d_predecessor,
+		vertex_list,
 		d_column_indices,
 		d_row_offsets,
 		work_progress,

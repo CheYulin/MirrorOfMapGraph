@@ -178,8 +178,9 @@ public:
 	__device__ __forceinline__ SizeT LoadQueueLength(IterationT iteration)
 	{
 		SizeT queue_length;
-		util::io::ModifiedLoad<util::io::ld::cg>::Ld(
-			queue_length, GetQueueCounter<SizeT>(iteration));
+		queue_length = GetQueueCounter<SizeT>(iteration)[0];
+//		util::io::ModifiedLoad<util::io::ld::cg>::Ld(
+//			queue_length, GetQueueCounter<SizeT>(iteration));
 		return queue_length;
 	}
 
@@ -189,8 +190,9 @@ public:
 	template <typename SizeT, typename IterationT>
 	__device__ __forceinline__ void StoreQueueLength(SizeT queue_length, IterationT iteration)
 	{
-		util::io::ModifiedStore<util::io::st::cg>::St(
-			queue_length, GetQueueCounter<SizeT>(iteration));
+		GetQueueCounter<SizeT>(iteration)[0] = queue_length;
+//		util::io::ModifiedStore<util::io::st::cg>::St(
+//			queue_length, GetQueueCounter<SizeT>(iteration));
 	}
 
 	/**

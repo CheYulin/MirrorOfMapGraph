@@ -158,6 +158,7 @@ struct CooperativeSoaTileScan
 		TileSoa tile_soa,
 		ReductionOp scan_op)
 	{
+//		if(blockIdx.x == 0 && threadIdx.x == 0)printf("RakingSoaDetails::SCAN_LANES=%d\n", RakingSoaDetails::SCAN_LANES);
 		// Reduce vectors in tile, placing resulting partial into corresponding raking grid lanes
 		reduction::soa::CooperativeSoaTileReduction<VEC_SIZE>::template
 			ReduceLane<0, RakingSoaDetails::SCAN_LANES>::Invoke(

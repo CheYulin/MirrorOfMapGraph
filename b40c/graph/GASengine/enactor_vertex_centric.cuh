@@ -27,13 +27,14 @@
 
 #include <b40c/util/spine.cuh>
 #include <b40c/util/kernel_runtime_stats.cuh>
+#include <b40c/util/global_barrier.cuh>
 
 #include <b40c/graph/GASengine/problem_type.cuh>
 #include <b40c/graph/GASengine/csr_problem.cuh>
 #include <b40c/graph/GASengine/enactor_base.cuh>
 
-#include <b40c/graph/GASengine/vertex_centric/filter_atomic/kernel.cuh>
-#include <b40c/graph/GASengine/vertex_centric/filter_atomic/kernel_policy.cuh>
+//#include <b40c/graph/GASengine/vertex_centric/filter_atomic/kernel.cuh>
+//#include <b40c/graph/GASengine/vertex_centric/filter_atomic/kernel_policy.cuh>
 #include <b40c/graph/GASengine/vertex_centric/gather/kernel.cuh>
 #include <b40c/graph/GASengine/vertex_centric/gather/kernel_policy.cuh>
 #include <b40c/graph/GASengine/vertex_centric/expand_atomic/kernel.cuh>
@@ -116,7 +117,7 @@ namespace b40c
          * Prepare enactor for search.  Must be called prior to each search.
          */
         template<typename CsrProblem>
-        cudaError_t Setup(CsrProblem &csr_problem, int expand_grid_size, int contract_grid_size, int filter_grid_size, int iter)
+        cudaError_t Setup(CsrProblem &csr_problem, int expand_grid_size, int contract_grid_size, int iter)
         {
           typedef typename CsrProblem::SizeT SizeT;
           typedef typename CsrProblem::VertexId VertexId;
@@ -163,7 +164,7 @@ namespace b40c
             // Make sure our runtime stats are initialized
             if (retval = expand_kernel_stats.Setup(expand_grid_size)) break;
             if (retval = contract_kernel_stats.Setup(contract_grid_size)) break;
-            if (retval = filter_kernel_stats.Setup(filter_grid_size)) break;
+//            if (retval = filter_kernel_stats.Setup(filter_grid_size)) break;
             if (retval = backward_sum_kernel_stats.Setup(expand_grid_size)) break;
             if (retval = backward_contract_kernel_stats.Setup(contract_grid_size)) break;
 
@@ -183,8 +184,8 @@ namespace b40c
             if (retval = util::B40CPerror(cudaBindTexture(0, vertex_centric::contract_atomic::BitmaskTex<VisitedMask>::ref, graph_slice->d_visited_mask, bitmask_desc, bytes),
                                           "EnactorVertexCentric cudaBindTexture bitmask_tex_ref failed", __FILE__, __LINE__)) break;
 
-            if (retval = util::B40CPerror(cudaBindTexture(0, vertex_centric::filter_atomic::BitmaskTex<VisitedMask>::ref, graph_slice->d_visited_mask, bitmask_desc, bytes),
-                                          "EnactorVertexCentric cudaBindTexture bitmask_tex_ref failed", __FILE__, __LINE__)) break;
+//            if (retval = util::B40CPerror(cudaBindTexture(0, vertex_centric::filter_atomic::BitmaskTex<VisitedMask>::ref, graph_slice->d_visited_mask, bitmask_desc, bytes),
+//                                          "EnactorVertexCentric cudaBindTexture bitmask_tex_ref failed", __FILE__, __LINE__)) break;
 
             // Bind row-offsets texture
             cudaChannelFormatDesc row_offsets_desc = cudaCreateChannelDesc<SizeT>();
@@ -254,22 +255,23 @@ namespace b40c
          *
          * @return cudaSuccess on success, error enumeration otherwise
          */
-        template<typename ExpandPolicy, typename GatherPolicy, typename FilterPolicy, typename ContractPolicy, typename BackwardContractPolicy, typename BackwardSumPolicy, typename CsrProblem>
+        template<typename ExpandPolicy, typename GatherPolicy, typename ContractPolicy, typename Program, typename CsrProblem>
         cudaError_t EnactIterativeSearch(CsrProblem &csr_problem, typename CsrProblem::VertexId src_node, char* source_file_name, typename CsrProblem::SizeT* h_row_offsets, int max_grid_size = 0, double max_queue_sizing = 3.0)
         {
           typedef typename CsrProblem::SizeT SizeT;
           typedef typename CsrProblem::VertexId VertexId;
+          typedef typename CsrProblem::EValue EValue;
           typedef typename CsrProblem::VisitedMask VisitedMask;
 
-          DEBUG = false;
+          DEBUG = true;
           cudaError_t retval = cudaSuccess;
 
           // Determine grid size(s)
           int expand_occupancy = ExpandPolicy::CTA_OCCUPANCY;
           int expand_grid_size = MaxGridSize(expand_occupancy, max_grid_size);
 
-          int filter_occupancy = FilterPolicy::CTA_OCCUPANCY;
-          int filter_grid_size = MaxGridSize(filter_occupancy, max_grid_size);
+//          int filter_occupancy = FilterPolicy::CTA_OCCUPANCY;
+//          int filter_grid_size = MaxGridSize(filter_occupancy, max_grid_size);
 
           int gather_occupancy = GatherPolicy::CTA_OCCUPANCY;
           int gather_grid_size = MaxGridSize(gather_occupancy, max_grid_size);
@@ -277,18 +279,10 @@ namespace b40c
           int contract_occupancy = ContractPolicy::CTA_OCCUPANCY;
           int contract_grid_size = MaxGridSize(contract_occupancy, max_grid_size);
 
-          int backward_contract_occupancy = BackwardContractPolicy::CTA_OCCUPANCY;
-          int backward_contract_grid_size = MaxGridSize(backward_contract_occupancy, max_grid_size);
-
-          int backward_sum_occupancy = BackwardSumPolicy::CTA_OCCUPANCY;
-          int backward_sum_grid_size = MaxGridSize(backward_sum_occupancy, max_grid_size);
-
           if (DEBUG)
           {
             printf("BFS expand occupancy %d, level-grid size %d\n", expand_occupancy, expand_grid_size);
             printf("BFS contract occupancy %d, level-grid size %d\n", contract_occupancy, contract_grid_size);
-            printf("BFS backward contract occupancy %d, level-grid size %d\n", backward_contract_occupancy, backward_contract_grid_size);
-            printf("BFS backward sum occupancy %d, level-grid size %d\n", backward_sum_occupancy, backward_sum_grid_size);
           }
 
           //          FILE* src_file;
@@ -315,7 +309,7 @@ namespace b40c
             // Reset data
             if (retval = csr_problem.Reset(GetFrontierType(), max_queue_sizing)) break;
 
-            if (retval = Setup(csr_problem, expand_grid_size, contract_grid_size, filter_grid_size, 0)) break;
+            if (retval = Setup(csr_problem, expand_grid_size, contract_grid_size, 0)) break;
 
             // Single-gpu graph slice
             typename CsrProblem::GraphSlice *graph_slice = csr_problem.graph_slices[0];
@@ -340,17 +334,17 @@ namespace b40c
 
             // Forward phase BC iterations
             while (done[0] < 0)
-              //            for (int i = 0; i < 10; i++)
+//                          for (int i = 0; i < 1; i++)
             {
               if (DEBUG) printf("Iteration: %lld\n", (long long) iteration[0]);
               if (DEBUG) startcontract = omp_get_wtime();
               //
               // Contraction
               //
-              vertex_centric::contract_atomic::Kernel<ContractPolicy> << <contract_grid_size, ContractPolicy::THREADS >> >(
+              vertex_centric::contract_atomic::Kernel<ContractPolicy, Program> << <contract_grid_size, ContractPolicy::THREADS >> >(
                       src_node,
                       iteration[0],
-                      0, // num_elements (unused: we obtain this from device-side counters instead)
+                      graph_slice->num_srcs, // num_elements (unused: we obtain this from device-side counters instead)
                       queue_index, // queue counter index
                       queue_index, // steal counter index
                       1, // number of GPUs
@@ -358,6 +352,7 @@ namespace b40c
                       graph_slice->frontier_queues.d_keys[selector ^ 1], // filtered edge frontier in
                       graph_slice->frontier_queues.d_keys[selector], // vertex frontier out
                       graph_slice->frontier_queues.d_values[selector^1], // predecessor in
+                      graph_slice->vertex_list,
                       graph_slice->d_labels, // source distance out
                       graph_slice->d_preds, // prtedecessor out
                       graph_slice->d_sigmas,
@@ -386,15 +381,36 @@ namespace b40c
               {
                 if (retval = work_progress.GetQueueLength(queue_index, queue_length)) break;
                 printf("queue_length after contraction: %lld\n", (long long) queue_length);
-                //                VertexId* test_vid = new VertexId[graph_slice->nodes];
-                //                cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
-                //                printf("Frontier after contraction: ");
-                //                for (int i = 0; i < queue_length; ++i)
-                //                {
-                //                  printf("%d, ", test_vid[i]);
-                //                }
-                //                printf("\n");
-                //                delete[] test_vid;
+
+//				VertexId* test_vid = new VertexId[graph_slice->nodes];
+//				cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//				printf("Frontier after contraction: ");
+//				for (int i = 0; i < queue_length; ++i)
+//				{
+//				  printf("%d, ", test_vid[i]);
+//				}
+//				printf("\n");
+//				delete[] test_vid;
+//
+//				EValue *test_vid2 = new EValue[graph_slice->nodes];
+//				  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
+//				  printf("d_dists after contract: ");
+//				  for (int i = 0; i < graph_slice->nodes; ++i)
+//				  {
+//					printf("%d, ", test_vid2[i]);
+//				  }
+//				  printf("\n");
+//				  delete[] test_vid2;
+//
+//				  test_vid2 = new EValue[graph_slice->nodes];
+//				  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_min_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
+//				  printf("d_dists after contract: ");
+//				  for (int i = 0; i < graph_slice->nodes; ++i)
+//				  {
+//					printf("%d, ", test_vid2[i]);
+//				  }
+//				  printf("\n");
+//				  delete[] test_vid2;
               }
 
               // Throttle
@@ -410,89 +426,154 @@ namespace b40c
               // Check if done
               if (done[0] == 0) break;
 
-              //              //
-              //              //gather only: gather stage of the GASengine, does not modify frontier
-              //              //
-              //              vertex_centric::gather::Kernel<GatherPolicy><<<gather_grid_size, GatherPolicy::THREADS>>>(
-              //                  queue_index,                // queue counter index
-              //                  queue_index,// steal counter index
-              //                  1,// number of GPUs
-              //                  d_done,
-              //                  graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
-              //                  graph_slice->frontier_queues.d_keys[selector],// edge frontier out
-              //                  graph_slice->frontier_queues.d_values[selector],// predecessor out
-              //                  graph_slice->d_row_indices,//pass in the CSC graph to gather for destination vertices
-              //                  graph_slice->d_column_offsets,//pass in the CSC graph to gather for destination vertices
-              //                  graph_slice->d_dists,
-              //                  graph_slice->d_changed,
-              //                  graph_slice->d_visit_flags,
-              //                  this->work_progress,
-              //                  graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-              //                  graph_slice->frontier_elements[selector],// max edge frontier vertices
-              //                  this->expand_kernel_stats);
-              //
-              //              if (DEBUG && (retval = util::B40CPerror(cudaThreadSynchronize(), "gather::Kernel failed ", __FILE__, __LINE__))) break;
-              //              cudaEventQuery(throttle_event);                // give host memory mapped visibility to GPU updates
-              //
-              //              //                queue_index++;
-              //              //                selector ^= 1;
-              //
-              //              if (INSTRUMENT || DEBUG)
-              //              {
-              //                if (work_progress.GetQueueLength(queue_index, queue_length)) break;
-              //                total_queued += queue_length;
-              //
-              //                if (DEBUG) printf("queue_length after gather: %lld\n", (long long) queue_length);
-              //
-              ////                VertexId *test_vid = new VertexId[graph_slice->nodes];
-              ////                cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector^1], graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
-              ////                printf("frontier after gather: ");
-              ////                for (int i = 0; i < queue_length; ++i)
-              ////                {
-              ////                  printf("%d, ", test_vid[i]);
-              ////                }
-              ////                printf("\n");
-              ////                delete[] test_vid;
-              //
-              //                if (INSTRUMENT)
-              //                {
-              //                  if (retval = expand_kernel_stats.Accumulate(gather_grid_size, total_runtimes, total_lifetimes)) break;
-              //                }
-              //              }
-              //
-              ////              if (DEBUG) printf("\n%lld", (long long) iteration[0]);
-              //
-              //              // Check if done
-              //              if (done[0] == 0) break;
+			if (iteration[0] != 0 && Program::gatherOverEdges() == GATHER_IN_EDGES)
+			{
+
+//                if (retval = util::B40CPerror(cudaMemcpy(graph_slice->d_gather_results, graph_slice->d_dists, graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToDevice),
+//                    "CsrProblem cudaMemcpy d_gather_results failed", __FILE__, __LINE__)) break;
+
+			  //
+			  //gather only: gather stage of the GASengine, does not modify frontier
+			  //
+			  vertex_centric::gather::Kernel<GatherPolicy, Program><<<gather_grid_size, GatherPolicy::THREADS>>>(
+				  queue_index,                // queue counter index
+				  queue_index,// steal counter index
+				  1,// number of GPUs
+				  d_done,
+				  graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
+				  graph_slice->frontier_queues.d_keys[selector],// edge frontier out
+//                  graph_slice->frontier_queues.d_values[selector],// predecessor out
+				  graph_slice->d_row_indices,//pass in the CSC graph to gather for destination vertices
+				  graph_slice->d_column_offsets,//pass in the CSC graph to gather for destination vertices
+				  graph_slice->vertex_list,
+//                  graph_slice->d_visit_flags,
+				  this->work_progress,
+				  graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
+				  graph_slice->frontier_elements[selector],// max edge frontier vertices
+				  this->expand_kernel_stats);
+
+			  if (DEBUG && (retval = util::B40CPerror(cudaThreadSynchronize(), "gather::Kernel failed ", __FILE__, __LINE__))) break;
+			  cudaEventQuery(throttle_event);// give host memory mapped visibility to GPU updates
+
+			  //                queue_index++;
+			  //                selector ^= 1;
+
+			  if (DEBUG)
+			  {
+				if (work_progress.GetQueueLength(queue_index, queue_length)) break;
+				total_queued += queue_length;
+
+//                  if (DEBUG) printf("queue_length after gather: %lld\n", (long long) queue_length);
+
+//                  EValue *test_vid2 = new EValue[graph_slice->nodes];
+//                  cudaMemcpy(test_vid2, graph_slice->d_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
+//                  printf("d_dists after gather: ");
+//                  for (int i = 0; i < graph_slice->nodes; ++i)
+//                  {
+//                    printf("%d, ", test_vid2[i]);
+//                  }
+//                  printf("\n");
+//                  delete[] test_vid2;
+
+//                  EValue* test_vid2 = new EValue[graph_slice->nodes];
+//                  cudaMemcpy(test_vid2, graph_slice->d_gather_results, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
+//                  printf("d_gather_results after gather: ");
+//                  for (int i = 0; i < graph_slice->nodes; ++i)
+//                  {
+//                    printf("%d, ", test_vid2[i]);
+//                  }
+//                  printf("\n");
+//                  delete[] test_vid2;
+
+//                  VertexId* test_vid = new VertexId[graph_slice->nodes];
+//                  cudaMemcpy(test_vid, graph_slice->d_changed, graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//                  printf("changed after gather: ");
+//                  for (int i = 0; i < graph_slice->nodes; ++i)
+//                  {
+//                    printf("%d, ", test_vid[i]);
+//                  }
+//                  printf("\n");
+//                  delete[] test_vid;
+			  }
+			}
+
 
               if (DEBUG) startexpand = omp_get_wtime();
-              //
-              // Expansion
-              //
-              vertex_centric::expand_atomic::Kernel<ExpandPolicy> << <expand_grid_size, ExpandPolicy::THREADS >> >(
-                      queue_index, // queue counter index
-                      queue_index, // steal counter index
-                      1, // number of GPUs
-                      d_done,
-                      graph_slice->frontier_queues.d_keys[selector ^ 1], // vertex frontier in
-                      graph_slice->frontier_queues.d_keys[selector], // edge frontier out
-                      graph_slice->frontier_queues.d_values[selector], // predecessor out
-                      graph_slice->d_column_indices,
-                      graph_slice->d_row_offsets,
-                      this->work_progress,
-                      graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
-                      graph_slice->frontier_elements[selector], // max edge frontier vertices
-                      this->expand_kernel_stats);
 
-              if (DEBUG && (retval = util::B40CPerror(cudaThreadSynchronize(), "expand_atomic::Kernel failed ", __FILE__, __LINE__))) break;
-              cudaEventQuery(throttle_event); // give host memory mapped visibility to GPU updates
-
-              if (DEBUG)
+              if(iteration[0] != 0 && Program::applyOverEdges() == APPLY_FRONTIER)
               {
-                cudaDeviceSynchronize();
-                endexpand = omp_get_wtime();
-                elapsedexpand += endexpand - startexpand;
+				  //
+				  //apply stage
+				  //
+				  vertex_centric::gather::apply<GatherPolicy, Program><<<gather_grid_size, GatherPolicy::THREADS>>>(iteration[0], queue_index, this->work_progress, graph_slice->frontier_queues.d_keys[selector ^ 1],
+						  graph_slice->vertex_list);
+
+				  //
+				  //                //reset dists and gather_results
+				  //                //
+				  vertex_centric::gather::reset_gather_result<GatherPolicy, Program><<<gather_grid_size, GatherPolicy::THREADS>>>(iteration[0], queue_index, this->work_progress, graph_slice->frontier_queues.d_keys[selector ^ 1],
+						  graph_slice->vertex_list, graph_slice->d_visited_mask);
+
+
+				  if (DEBUG && (retval = util::B40CPerror(cudaThreadSynchronize(), "gather::reset_changed Kernel failed ", __FILE__, __LINE__))) break;
+
+				  if (INSTRUMENT && DEBUG)
+				  {
+//					  EValue *test_vid2 = new EValue[graph_slice->nodes];
+//						cudaMemcpy(test_vid2, graph_slice->d_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
+//						printf("d_dists after apply: ");
+//						for (int i = 0; i < graph_slice->nodes; ++i)
+//						{
+//						  printf("%d, ", test_vid2[i]);
+//						}
+//						printf("\n");
+//						delete[] test_vid2;
+//
+//						VertexId *test_vid = new VertexId[graph_slice->nodes];
+//						cudaMemcpy(test_vid, graph_slice->d_changed, graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//						printf("changed after apply: ");
+//						for (int i = 0; i < graph_slice->nodes; ++i)
+//						{
+//						  printf("%d, ", test_vid[i]);
+//						}
+//						printf("\n");
+//						delete[] test_vid;
+				  }
               }
+
+			  if (Program::expandOverEdges() == EXPAND_OUT_EDGES)
+			  {
+				  //
+				  // Expansion
+				  //
+				  vertex_centric::expand_atomic::Kernel<ExpandPolicy, Program> << <expand_grid_size, ExpandPolicy::THREADS >> >(
+						  iteration[0],
+						  queue_index, // queue counter index
+						  queue_index, // steal counter index
+						  1, // number of GPUs
+						  d_done,
+						  graph_slice->frontier_queues.d_keys[selector ^ 1], // vertex frontier in
+						  graph_slice->frontier_queues.d_keys[selector], // edge frontier out
+						  graph_slice->frontier_queues.d_values[selector], // predecessor out
+						  graph_slice->vertex_list,
+						  graph_slice->d_column_indices,
+						  graph_slice->d_row_offsets,
+						  this->work_progress,
+						  graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+						  graph_slice->frontier_elements[selector], // max edge frontier vertices
+						  this->expand_kernel_stats);
+
+				  if (DEBUG && (retval = util::B40CPerror(cudaThreadSynchronize(), "expand_atomic::Kernel failed ", __FILE__, __LINE__))) break;
+				  cudaEventQuery(throttle_event); // give host memory mapped visibility to GPU updates
+
+
+				  if (DEBUG)
+				  {
+					cudaDeviceSynchronize();
+					endexpand = omp_get_wtime();
+					elapsedexpand += endexpand - startexpand;
+				  }
+			  }
 
               queue_index++;
               selector ^= 1;
@@ -514,55 +595,41 @@ namespace b40c
                 total_queued += queue_length;
                 printf("queue_length after expansion: %lld\n", (long long) queue_length);
 
-                //                VertexId* test_vid = new VertexId[graph_slice->nodes];
-                //                cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
-                //                printf("Frontier after expansion: ");
-                //                for (int i = 0; i < queue_length; ++i)
-                //                {
-                //                  printf("%d, ", test_vid[i]);
-                //                }
-                //                printf("\n");
-                //                delete[] test_vid;
+//				VertexId* test_vid = new VertexId[queue_length];
+//				cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], queue_length * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//				printf("Frontier after expansion: ");
+//				for (int i = 0; i < queue_length; ++i)
+//				{
+//				  printf("%d, ", test_vid[i]);
+//				}
+//				printf("\n");
+//				delete[] test_vid;
+//
+//				test_vid = new VertexId[graph_slice->nodes];
+//				cudaMemcpy(test_vid, graph_slice->d_dists, graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//				printf("d_dists after expansion: ");
+//				for (int i = 0; i < graph_slice->nodes; ++i)
+//				{
+//				  printf("%d, ", test_vid[i]);
+//				}
+//				printf("\n");
+//				delete[] test_vid;
+//
+//				test_vid = new VertexId[queue_length];
+//				cudaMemcpy(test_vid, graph_slice->frontier_queues.d_values[selector^1], queue_length * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//				printf("d_predecesor after expansion: ");
+//				for (int i = 0; i < queue_length; ++i)
+//				{
+//				  printf("%d, ", test_vid[i]);
+//				}
+//				printf("\n");
+//				delete[] test_vid;
               }
 
               //              if (DEBUG) printf("\n%lld", (long long) iteration[0]);
 
               // Check if done
               if (done[0] == 0) break;
-
-
-              //              //
-              //              // Filter
-              //              //
-              //
-              //              vertex_centric::filter_atomic::Kernel<FilterPolicy><<<filter_grid_size, FilterPolicy::THREADS>>>(
-              //                  queue_index,                                            // queue counter index
-              //                  queue_index,// steal counter index
-              //                  d_done,
-              //                  graph_slice->frontier_queues.d_keys[selector ^ 1],// edge frontier in
-              //                  graph_slice->frontier_queues.d_keys[selector],// vertex frontier out
-              //                  graph_slice->frontier_queues.d_values[selector ^ 1],// predecessor in
-              //                  graph_slice->frontier_queues.d_values[selector],// predecessor out
-              //                  graph_slice->d_visited_mask,
-              //                  this->work_progress,
-              //                  graph_slice->frontier_elements[selector ^ 1],// max edge frontier vertices
-              //                  graph_slice->frontier_elements[selector],// max vertex frontier vertices
-              //                  this->filter_kernel_stats);
-              //
-              //              if (DEBUG && (retval = util::B40CPerror(cudaThreadSynchronize(), "filter_atomic::Kernel failed ", __FILE__, __LINE__))) break;
-              //
-              //              queue_index++;
-              //              selector ^= 1;
-              //
-              //              if (DEBUG)
-              //              {
-              //                if (retval = work_progress.GetQueueLength(queue_index, queue_length)) break;
-              //                printf("queue_length after filter: %lld\n", (long long) queue_length);
-              //              }
-              //              if (INSTRUMENT)
-              //              {
-              //                if (retval = filter_kernel_stats.Accumulate(filter_grid_size, total_runtimes, total_lifetimes)) break;
-              //              }
 
             }
 
@@ -610,128 +677,6 @@ namespace b40c
             std::cout << "retval: " << retval << std::endl;
 
 
-            //            // Call Setup again to initialize kernel stats vars
-            //            int max_search_depth = --iteration[0];
-            //            if (retval = Setup(csr_problem, expand_grid_size, contract_grid_size, max_search_depth)) break;
-            //
-            //            // Check if any of the frontiers overflowed due to redundant expansion
-            //            bool overflowed = false;
-            //            if (retval = work_progress.CheckOverflow<SizeT>(overflowed)) break;
-            //            if (overflowed)
-            //            {
-            //              retval = util::B40CPerror(cudaErrorInvalidConfiguration, "Frontier queue overflow.  Please increase queue-sizing factor. ", __FILE__, __LINE__);
-            //              break;
-            //            }
-            //
-            //            // Backward phase here
-            //            // backward_contract
-            //            // backward_sum
-            //            //
-            //            queue_index = 0;					// Reset work stealing/queue index
-            //            selector = 0;                    // Reset selector for ping-pong
-            //
-            //            // Ignore the most outside layer
-            //            iteration[0]--;
-            //
-            //            while (iteration[0] > 0)
-            //            {
-            //              //
-            //              // Backward contraction
-            //              //
-            //
-            //              vertex_centric::backward_contract_atomic::Kernel<BackwardContractPolicy><<<backward_contract_grid_size, BackwardContractPolicy::THREADS>>>(
-            //                  max_search_depth,
-            //                  iteration[0],
-            //                  graph_slice->nodes,										// num_elements
-            //                  queue_index,// queue counter index
-            //                  queue_index,// steal counter index
-            //                  1,// number of GPUs
-            //                  d_done,
-            //                  graph_slice->d_vertex_ids,// filtered edge frontier in
-            //                  graph_slice->frontier_queues.d_keys[selector],// vertex frontier out
-            //                  graph_slice->d_preds,// predecessor in
-            //                  graph_slice->d_labels,
-            //                  graph_slice->d_visited_mask,
-            //                  this->work_progress,
-            //                  graph_slice->frontier_elements[selector ^ 1],// max filtered edge frontier vertices
-            //                  graph_slice->frontier_elements[selector],// max vertex frontier vertices
-            //                  this->backward_contract_kernel_stats);
-            //
-            //              if (DEBUG && (retval = util::B40CPerror(cudaThreadSynchronize(), "backward_contract_atomic::Kernel failed ", __FILE__, __LINE__))) break;
-            //              cudaEventQuery(throttle_event);// give host memory mapped visibility to GPU updates
-            //
-            //              queue_index++;
-            //              selector ^= 1;
-            //
-            //              if (DEBUG)
-            //              {
-            //                if (retval = work_progress.GetQueueLength(queue_index, queue_length)) break;
-            //              }
-            //              if (INSTRUMENT)
-            //              {
-            //                if (retval = backward_contract_kernel_stats.Accumulate(
-            //                        contract_grid_size,
-            //                        total_runtimes,
-            //                        total_lifetimes)) break;
-            //              }
-            //
-            //              // Throttle
-            //              if ((max_search_depth - iteration[0]) & 1)
-            //              {
-            //                if (retval = util::B40CPerror(cudaEventRecord(throttle_event),
-            //                        "EnactorVertexCentric cudaEventRecord throttle_event failed", __FILE__, __LINE__)) break;
-            //              }
-            //              else
-            //              {
-            //                if (retval = util::B40CPerror(cudaEventSynchronize(throttle_event),
-            //                        "EnactorVertexCentric cudaEventSynchronize throttle_event failed", __FILE__, __LINE__)) break;
-            //              };
-            //
-            //              //
-            //              // Backward sum
-            //
-            //              vertex_centric::backward_sum_atomic::Kernel<BackwardSumPolicy>
-            //              <<<expand_grid_size, BackwardSumPolicy::THREADS>>>(
-            //                  iteration[0],
-            //                  queue_index,// queue counter index
-            //                  queue_index,// steal counter index
-            //                  1,// number of GPUs
-            //                  d_done,
-            //                  graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
-            //                  graph_slice->d_column_indices,
-            //                  graph_slice->d_row_offsets,
-            //                  graph_slice->d_node_values,
-            //                  graph_slice->d_labels,
-            //                  graph_slice->d_sigmas,
-            //                  graph_slice->d_deltas,
-            //                  graph_slice->d_visit_flags,
-            //                  this->work_progress,
-            //                  graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-            //                  graph_slice->frontier_elements[selector],// max edge frontier vertices
-            //                  this->backward_sum_kernel_stats);
-            //
-            //              if (DEBUG && (retval = util::B40CPerror(cudaThreadSynchronize(), "backward_sum_atomic::Kernel failed ", __FILE__, __LINE__))) break;
-            //
-            //              cudaEventQuery(throttle_event);// give host memory mapped visibility to GPU updates
-            //
-            //              queue_index++;
-            //              selector ^= 1;
-            //              iteration[0]--;
-            //
-            //              if (INSTRUMENT || DEBUG)
-            //              {
-            //                if (work_progress.GetQueueLength(queue_index, queue_length)) break;
-            //                total_queued += queue_length;
-            //                if (INSTRUMENT)
-            //                {
-            //                  if (retval = backward_sum_kernel_stats.Accumulate(
-            //                          expand_grid_size,
-            //                          total_runtimes,
-            //                          total_lifetimes)) break;
-            //                }
-            //              }
-            //            }
-
           }
           //          delete [] srcs;
 
@@ -744,7 +689,7 @@ namespace b40c
          *
          * @return cudaSuccess on success, error enumeration otherwise
          */
-        template<typename CsrProblem>
+        template<typename CsrProblem, typename Program>
         cudaError_t EnactIterativeSearch(CsrProblem &csr_problem, typename CsrProblem::VertexId src_node, char* source_file_name, typename CsrProblem::SizeT* h_row_offsets, int max_grid_size = 0, double max_queue_sizing = 5.0)
         {
           typedef typename CsrProblem::VertexId VertexId;
@@ -755,9 +700,9 @@ namespace b40c
           {
 
             // Expansion kernel config
-            typedef vertex_centric::expand_atomic::KernelPolicy<typename CsrProblem::ProblemType, 200, // CUDA_ARCH
+            typedef vertex_centric::expand_atomic::KernelPolicy<Program, typename CsrProblem::ProblemType, 200, // CUDA_ARCH
                     INSTRUMENT, // INSTRUMENT
-                    8, // CTA_OCCUPANCY
+                    1, // CTA_OCCUPANCY
                     7, // LOG_THREADS
                     0, // LOG_LOAD_VEC_SIZE
                     0, // LOG_LOADS_PER_TILE
@@ -775,9 +720,9 @@ namespace b40c
                     ExpandPolicy;
 
             // Gather kernel config
-            typedef vertex_centric::gather::KernelPolicy<typename CsrProblem::ProblemType, 200, // CUDA_ARCH
+            typedef vertex_centric::gather::KernelPolicy<Program, typename CsrProblem::ProblemType, 200, // CUDA_ARCH
                     INSTRUMENT, // INSTRUMENT
-                    8, // CTA_OCCUPANCY
+                    1, // CTA_OCCUPANCY
                     7, // LOG_THREADS
                     0, // LOG_LOAD_VEC_SIZE
                     0, // LOG_LOADS_PER_TILE
@@ -794,23 +739,23 @@ namespace b40c
                     7 > // LOG_SCHEDULE_GRANULARITY
                     GatherPolicy;
 
-            // Filter kernel config
-            typedef vertex_centric::filter_atomic::KernelPolicy<typename CsrProblem::ProblemType, 200, // CUDA_ARCH
-                    INSTRUMENT, // INSTRUMENT
-                    0, // SATURATION_QUIT
-                    8, // CTA_OCCUPANCY
-                    7, // LOG_THREADS
-                    1, // LOG_LOAD_VEC_SIZE
-                    1, // LOG_LOADS_PER_TILE
-                    5, // LOG_RAKING_THREADS
-                    util::io::ld::NONE, // QUEUE_READ_MODIFIER,
-                    util::io::st::NONE, // QUEUE_WRITE_MODIFIER,
-                    false, // WORK_STEALING
-                    9 > // LOG_SCHEDULE_GRANULARITY
-                    FilterPolicy;
+//            // Filter kernel config
+//            typedef vertex_centric::filter_atomic::KernelPolicy<typename CsrProblem::ProblemType, 200, // CUDA_ARCH
+//                    INSTRUMENT, // INSTRUMENT
+//                    0, // SATURATION_QUIT
+//                    8, // CTA_OCCUPANCY
+//                    7, // LOG_THREADS
+//                    1, // LOG_LOAD_VEC_SIZE
+//                    1, // LOG_LOADS_PER_TILE
+//                    5, // LOG_RAKING_THREADS
+//                    util::io::ld::NONE, // QUEUE_READ_MODIFIER,
+//                    util::io::st::NONE, // QUEUE_WRITE_MODIFIER,
+//                    false, // WORK_STEALING
+//                    9 > // LOG_SCHEDULE_GRANULARITY
+//                    FilterPolicy;
 
             // Contraction kernel config
-            typedef vertex_centric::contract_atomic::KernelPolicy<typename CsrProblem::ProblemType, 200, // CUDA_ARCH
+            typedef vertex_centric::contract_atomic::KernelPolicy<Program, typename CsrProblem::ProblemType, 200, // CUDA_ARCH
                     INSTRUMENT, // INSTRUMENT
                     0, // SATURATION_QUIT
                     true, // DEQUEUE_PROBLEM_SIZE
@@ -822,48 +767,11 @@ namespace b40c
                     util::io::ld::NONE, // QUEUE_READ_MODIFIER,
                     util::io::st::NONE, // QUEUE_WRITE_MODIFIER,
                     false, // WORK_STEALING
-                    -1, // END_BITMASK_CULL (never cull b/c filter does the bitmask culling)
+                    -1, // END_BITMASK_CULL 0 to never perform bitmask filtering, -1 to always perform bitmask filtering
                     8 > // LOG_SCHEDULE_GRANULARITY
                     ContractPolicy;
 
-            // Contraction kernel config
-            typedef vertex_centric::backward_contract_atomic::KernelPolicy<typename CsrProblem::ProblemType, 200, // CUDA_ARCH
-                    INSTRUMENT, // INSTRUMENT
-                    0, // SATURATION_QUIT
-                    true, // DEQUEUE_PROBLEM_SIZE
-                    8, // CTA_OCCUPANCY
-                    7, // LOG_THREADS
-                    1, // LOG_LOAD_VEC_SIZE
-                    0, // LOG_LOADS_PER_TILE
-                    5, // LOG_RAKING_THREADS
-                    util::io::ld::NONE, // QUEUE_READ_MODIFIER,
-                    util::io::st::NONE, // QUEUE_WRITE_MODIFIER,
-                    false, // WORK_STEALING
-                    0, // END_BITMASK_CULL (never cull b/c filter does the bitmask culling)
-                    8 > // LOG_SCHEDULE_GRANULARITY
-                    BackwardContractPolicy;
-
-            // Backward sum kernel config
-            typedef vertex_centric::backward_sum_atomic::KernelPolicy<typename CsrProblem::ProblemType, 200, // CUDA_ARCH
-                    INSTRUMENT, // INSTRUMENT
-                    8, // CTA_OCCUPANCY
-                    7, // LOG_THREADS
-                    0, // LOG_LOAD_VEC_SIZE
-                    0, // LOG_LOADS_PER_TILE
-                    5, // LOG_RAKING_THREADS
-                    util::io::ld::cg, // QUEUE_READ_MODIFIER,
-                    util::io::ld::NONE, // COLUMN_READ_MODIFIER,
-                    util::io::ld::NONE, // EDGE_VALUES_READ_MODIFIER,
-                    util::io::ld::cg, // ROW_OFFSET_ALIGNED_READ_MODIFIER,
-                    util::io::ld::NONE, // ROW_OFFSET_UNALIGNED_READ_MODIFIER,
-                    util::io::st::cg, // QUEUE_WRITE_MODIFIER,
-                    true, // WORK_STEALING
-                    32, // WARP_GATHER_THRESHOLD
-                    128 * 4, // CTA_GATHER_THRESHOLD,
-                    7 > // LOG_SCHEDULE_GRANULARITY
-                    BackwardSumPolicy;
-
-            return EnactIterativeSearch<ExpandPolicy, GatherPolicy, FilterPolicy, ContractPolicy, BackwardContractPolicy, BackwardSumPolicy>(csr_problem, src_node, source_file_name, h_row_offsets, max_grid_size, max_queue_sizing);
+            return EnactIterativeSearch<ExpandPolicy, GatherPolicy, ContractPolicy, Program>(csr_problem, src_node, source_file_name, h_row_offsets, max_grid_size, max_queue_sizing);
           }
 
           printf("Not yet tuned for this architecture\n");

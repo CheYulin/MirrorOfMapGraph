@@ -63,7 +63,7 @@ namespace b40c
           /**
            * Derivation of KernelPolicy that encapsulates tile-processing routines
            */
-          template<typename KernelPolicy>
+          template<typename KernelPolicy, typename Program>
           struct Cta
           {
 
@@ -101,12 +101,16 @@ namespace b40c
 
             typedef typename KernelPolicy::VertexId VertexId;
             typedef typename KernelPolicy::SizeT SizeT;
+            typedef typename KernelPolicy::VertexType       VertexType;
 
             typedef typename KernelPolicy::SmemStorage SmemStorage;
 
             typedef typename KernelPolicy::SoaScanOp SoaScanOp;
             typedef typename KernelPolicy::RakingSoaDetails RakingSoaDetails;
             typedef typename KernelPolicy::TileTuple TileTuple;
+
+            typedef typename KernelPolicy::CoarseGrid CoarseGrid;
+            typedef typename KernelPolicy::FineGrid FineGrid;
 
             typedef util::Tuple<SizeT (*)[KernelPolicy::LOAD_VEC_SIZE], SizeT (*)[KernelPolicy::LOAD_VEC_SIZE]> RankSoa;
 
@@ -120,12 +124,14 @@ namespace b40c
             VertexId *d_predecessor_out;			// Outgoing predecessor edge frontier
             VertexId *d_column_indices;			// CSR column-indices array
             SizeT *d_row_offsets;				// CSR row-offsets array
+            VertexType              vertex_list;
 
             // Work progress
             VertexId queue_index;				// Current frontier queue counter index
             util::CtaWorkProgress &work_progress;				// Atomic workstealing and queueing counters
             SizeT max_edge_frontier;			// Maximum size (in elements) of outgoing edge frontier
             int num_gpus;					// Number of GPUs
+            int iteration;
 
             // Operational details for raking grid
             RakingSoaDetails raking_soa_details;
@@ -216,6 +222,8 @@ namespace b40c
                     // Node is previously unvisited: compute row offset and length
                     tile->row_offset[LOAD][VEC] = row_range.x;
                     tile->row_length[LOAD][VEC] = row_range.y - row_range.x;
+//                    if(row_id == 33)
+//                    	printf("row_length=%d\n", tile->row_length[LOAD][VEC]);
                   }
 
                   tile->fine_row_rank[LOAD][VEC] = (tile->row_length[LOAD][VEC] < KernelPolicy::WARP_GATHER_THRESHOLD) ? tile->row_length[LOAD][VEC] : 0;
@@ -274,36 +282,61 @@ namespace b40c
                     SizeT coop_rank = cta->smem_storage.state.warp_comm[0][1] + threadIdx.x;
                     SizeT coop_oob = cta->smem_storage.state.warp_comm[0][2];
 
-                    VertexId predecessor_id = cta->smem_storage.state.warp_comm[0][3];
+                    VertexId row_id = cta->smem_storage.state.warp_comm[0][3];
+                    VertexId predecessor_id = row_id;
 
-                    VertexId neighbor_id;
+                    VertexId neighbor_id, neighbor_id_tmp;
+                    VertexId frontier, misc_value;
 
-                    while (coop_offset + KernelPolicy::THREADS < coop_oob)
+                    typename Program::expand_vertex expand_vertex_functor;
+                    bool changed = expand_vertex_functor(row_id, cta->vertex_list);
+
+//                    while (coop_offset + KernelPolicy::THREADS < coop_oob)
+                    while (coop_offset + threadIdx.x < coop_oob)
                     {
-
                       // Gather
-                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + threadIdx.x);
+//                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + threadIdx.x);
+                    	neighbor_id_tmp = cta->d_column_indices[coop_offset + threadIdx.x];
+
+                    	typename Program::expand_edge expand_edge_functor;
+                    	expand_edge_functor(changed, cta->iteration, row_id, neighbor_id_tmp, cta->vertex_list,
+                    			cta->d_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank],
+                    			cta->d_predecessor_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank]);
+
+//                    	neighbor_id = neighbor_id_tmp;
+
+//                      if(cta->smem_storage.state.warp_comm[0][3] == 33 && neighbor_id < 1000)
+//                          printf("CTA: bidx=%d, tidx=%d, row_id = %d, neighbor_id = %d\n", blockIdx.x, threadIdx.x, cta->smem_storage.state.warp_comm[0][3], neighbor_id);
 
                       // Scatter neighbor
-                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                      cta->d_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank] = neighbor_id;
+//                      misc_value = row_id;
 
-                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                      cta->d_predecessor_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank] = misc_value;
 
                       coop_offset += KernelPolicy::THREADS;
                       coop_rank += KernelPolicy::THREADS;
                     }
 
-                    if (coop_offset + threadIdx.x < coop_oob)
-                    {
-                      // Gather
-                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + threadIdx.x);
-
-                      // Scatter neighbor
-                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-
-                      // Scatter predecessor
-                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-                    }
+//                    if (coop_offset + threadIdx.x < coop_oob)
+//                    {
+//                      // Gather
+////                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + threadIdx.x);
+//                      neighbor_id = cta->d_column_indices[coop_offset + threadIdx.x];
+////                      if(cta->smem_storage.state.warp_comm[0][3] == 33 && neighbor_id < 1000)
+////                             printf("CTA: bidx=%d, tidx=%d, row_id = %d, neighbor_id = %d\n", blockIdx.x, threadIdx.x, cta->smem_storage.state.warp_comm[0][3], neighbor_id);
+//
+//
+//                      // Scatter neighbor
+////                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                      cta->d_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank] = neighbor_id;
+//
+//                      // Scatter predecessor
+////                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                      cta->d_predecessor_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank] = predecessor_id;
+//                    }
 
                   }
 
@@ -350,36 +383,60 @@ namespace b40c
                       SizeT coop_rank = cta->smem_storage.state.warp_comm[warp_id][1] + lane_id;
                       SizeT coop_oob = cta->smem_storage.state.warp_comm[warp_id][2];
 
-                      VertexId predecessor_id = cta->smem_storage.state.warp_comm[warp_id][3];
+                      VertexId row_id = cta->smem_storage.state.warp_comm[warp_id][3];
+                      VertexId predecessor_id = row_id;
+                      VertexId neighbor_id, neighbor_id_tmp;
 
-                      VertexId neighbor_id;
-                      while (coop_offset + B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) < coop_oob)
+                      typename Program::expand_vertex expand_vertex_functor;
+					  bool changed = expand_vertex_functor(row_id, cta->vertex_list);
+//                      while (coop_offset + B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) < coop_oob)
+                      while (coop_offset + lane_id < coop_oob)
                       {
 
                         // Gather
-                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + lane_id);
+//                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + lane_id);
+                    	  neighbor_id_tmp = cta->d_column_indices[coop_offset + lane_id];
+//                    	  if(cta->smem_storage.state.warp_comm[warp_id][3] == 33 && neighbor_id < 1000)
+//                    	     printf("WARP: bidx=%d, tidx=%d, row_id = %d, neighbor_id = %d\n", blockIdx.x, threadIdx.x, cta->smem_storage.state.warp_comm[0][3], neighbor_id);
+
+                    	  typename Program::expand_edge expand_edge_functor;
+                    	  expand_edge_functor(changed, cta->iteration, row_id, neighbor_id_tmp, cta->vertex_list,
+								  cta->d_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank],
+								  cta->d_predecessor_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank]);
+
+//						  neighbor_id = neighbor_id_tmp;
 
                         // Scatter neighbor
-                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                          atomicAdd(cta->d_out+cta->smem_storage.state.coarse_enqueue_offset + coop_rank, 0);
+//                    	  cta->d_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank] = neighbor_id;
 
                         // Scatter predecessor
-                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                        cta->d_predecessor_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank] = predecessor_id;
 
                         coop_offset += B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH);
                         coop_rank += B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH);
                       }
 
-                      if (coop_offset + lane_id < coop_oob)
-                      {
-                        // Gather
-                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + lane_id);
-
-                        // Scatter neighbor
-                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-
-                        // Scatter predecessor
-                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-                      }
+//                      if (coop_offset + lane_id < coop_oob)
+//                      {
+//                        // Gather
+////                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + lane_id);
+//                    	  neighbor_id = cta->d_column_indices[coop_offset + lane_id];
+////                    	  if(cta->smem_storage.state.warp_comm[warp_id][3] == 33 && neighbor_id < 1000)
+////                    	                      	     printf("WARP: bidx=%d, tidx=%d, row_id = %d, neighbor_id = %d\n", blockIdx.x, threadIdx.x, cta->smem_storage.state.warp_comm[0][3], neighbor_id);
+//
+////                    	  atomicAdd(cta->d_out+cta->smem_storage.state.coarse_enqueue_offset + coop_rank, 0);
+//
+//                        // Scatter neighbor
+////                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                        cta->d_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank] = neighbor_id;
+//
+//                        // Scatter predecessor
+////                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//                        cta->d_predecessor_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank] = predecessor_id;
+//                      }
 
                     }
 
@@ -397,15 +454,27 @@ namespace b40c
                   // Attempt to make further progress on this dequeued item's neighbor
                   // list if its current offset into local scratch is in range
                   SizeT scratch_offset = tile->fine_row_rank[LOAD][VEC] + tile->row_progress[LOAD][VEC] - tile->progress;
-//                  if (tile->vertex_id[LOAD][VEC] < 0 || tile->vertex_id[LOAD][VEC] > 8191)
-//                  {
-//                    printf("EXPAND: Error tile->vertex_id[LOAD][VEC]=%d\n", tile->vertex_id[LOAD][VEC]);
-//                  }
+//                  if(blockIdx.x == 0 && threadIdx.x == 0)
+//                	  printf("sizeof(SmemStorage)=%d, sizeof(state)=%d, MAX_SCRATCH_BYTES_PER_CTA=%d, GATHER_ELEMENTS=%d, SCRATCH_ELEMENT_SIZE=%d, PARENT_ELEMENTS=%d\n",
+//                  				sizeof(SmemStorage), sizeof(SmemStorage::State),
+//                  				SmemStorage::MAX_SCRATCH_BYTES_PER_CTA,
+//                  				SmemStorage::GATHER_ELEMENTS,
+//                  				SmemStorage::SCRATCH_ELEMENT_SIZE,
+//                  				SmemStorage::PARENT_ELEMENTS);
+
 
                   while ((tile->row_progress[LOAD][VEC] < tile->row_length[LOAD][VEC]) && (scratch_offset < SmemStorage::GATHER_ELEMENTS))
                   {
                     // Put gather offset into scratch space
                     cta->smem_storage.gather_offsets[scratch_offset] = tile->row_offset[LOAD][VEC] + tile->row_progress[LOAD][VEC];
+
+//                    if (cta->smem_storage.gather_offsets[scratch_offset] < -1 || cta->smem_storage.gather_offsets[scratch_offset] >= 28143065
+////                    		|| (blockIdx.x == 0 && threadIdx.x == 0)
+//                    				)
+////                    if(cta->smem_storage.gather_offsets[scratch_offset] < -1)
+//                    {
+//                       printf("ExpandByScan: bidx=%d, tidx=%d, scratch_offset=%d, gather_offsets=%d, shared_ptr=%lld\n", blockIdx.x, threadIdx.x, scratch_offset, cta->smem_storage.gather_offsets[scratch_offset], cta->smem_storage.gather_offsets);
+//                    }
 
                     // Put dequeued vertex as the predecessor into scratch space
                     cta->smem_storage.gather_predecessors[scratch_offset] = tile->vertex_id[LOAD][VEC];
@@ -567,13 +636,15 @@ namespace b40c
             /**
              * Constructor
              */
-            __device__ __forceinline__ Cta(VertexId queue_index, int num_gpus, SmemStorage &smem_storage, VertexId *d_in, VertexId *d_out, VertexId *d_predecessor_out, VertexId *d_column_indices,
+            __device__ __forceinline__ Cta(int iteration, VertexId queue_index, int num_gpus, SmemStorage &smem_storage, VertexId *d_in, VertexId *d_out, VertexId *d_predecessor_out, VertexType &vertex_list, VertexId *d_column_indices,
                 SizeT *d_row_offsets, util::CtaWorkProgress &work_progress, SizeT max_edge_frontier) :
-
+		        iteration(iteration),
                 queue_index(queue_index), num_gpus(num_gpus), smem_storage(smem_storage), raking_soa_details(
                     typename RakingSoaDetails::GridStorageSoa(smem_storage.coarse_raking_elements, smem_storage.fine_raking_elements),
-                    typename RakingSoaDetails::WarpscanSoa(smem_storage.state.coarse_warpscan, smem_storage.state.fine_warpscan), TileTuple(0, 0)), d_in(d_in), d_out(d_out), d_predecessor_out(
-                    d_predecessor_out), d_column_indices(d_column_indices), d_row_offsets(d_row_offsets), work_progress(work_progress), max_edge_frontier(max_edge_frontier)
+                    typename RakingSoaDetails::WarpscanSoa(smem_storage.state.coarse_warpscan, smem_storage.state.fine_warpscan),
+                    TileTuple(0, 0)),
+                    d_in(d_in), d_out(d_out), d_predecessor_out(
+                    d_predecessor_out), vertex_list(vertex_list), d_column_indices(d_column_indices), d_row_offsets(d_row_offsets), work_progress(work_progress), max_edge_frontier(max_edge_frontier)
             {
               if (threadIdx.x == 0)
               {
@@ -587,6 +658,7 @@ namespace b40c
              */
             __device__ __forceinline__ void ProcessTile(SizeT cta_offset, SizeT guarded_elements = KernelPolicy::TILE_ELEMENTS)
             {
+//              if(blockIdx.x == 0 && threadIdx.x == 0) printf("In Expand ProcessTile\n");
               Tile<KernelPolicy::LOG_LOADS_PER_TILE, KernelPolicy::LOG_LOAD_VEC_SIZE> tile;
 
               // Load tile
@@ -596,14 +668,20 @@ namespace b40c
               // Inspect dequeued vertices, updating label and obtaining
               // edge-list details
               tile.Inspect(this);
+//              if(tile.vertex_id[0][0] != -1)
+//            	  printf("before scan: bidx=%d, tidx=%d, tile.vertex_id[0][0]=%d, tile.coarse_row_rank[0][0] = %d, tile.fine_row_rank[0][0]=%d\n", blockIdx.x, threadIdx.x, tile.vertex_id[0][0], tile.coarse_row_rank[0][0], tile.fine_row_rank[0][0]);
 
               // Scan tile with carry update in raking threads
               SoaScanOp scan_op;
               TileTuple totals;
               util::scan::soa::CooperativeSoaTileScan<KernelPolicy::LOAD_VEC_SIZE>::ScanTile(totals, raking_soa_details, RankSoa(tile.coarse_row_rank, tile.fine_row_rank), scan_op);
 
+//              if(tile.vertex_id[0][0] != -1)
+//                  printf("after scan: bidx=%d, tidx=%d, tile.vertex_id[0][0]=%d, tile.coarse_row_rank[0][0] = %d, tile.fine_row_rank[0][0]=%d\n", blockIdx.x, threadIdx.x, tile.vertex_id[0][0], tile.coarse_row_rank[0][0], tile.fine_row_rank[0][0]);
+
               SizeT coarse_count = totals.t0;
               tile.fine_count = totals.t1;
+//              printf("In Expand ProcessTile, coarse_count=%d, tile.fine_count=%d\n",coarse_count, tile.fine_count);
 
               // Use a single atomic add to reserve room in the queue
               if (threadIdx.x == 0)
@@ -618,8 +696,8 @@ namespace b40c
                 // Check for queue overflow due to redundant expansion
                 if (enqueue_offset + enqueue_amt >= max_edge_frontier)
                 {
-                  if(blockIdx.x == 0) 
-                    printf("Frontier queue overflow.  Please increase queue-sizing factor.\n");
+                  if(blockIdx.x == 0)
+                    printf("queue size: %d, Frontier queue overflow.  Please increase queue-sizing factor.\n", enqueue_offset + enqueue_amt);
                   smem_storage.state.overflowed = true;
                   work_progress.SetOverflow<SizeT>();
                 }
@@ -634,6 +712,9 @@ namespace b40c
 //                printf("EXPAND2: Overtflowed!!\n");
                 util::ThreadExit();
               }
+
+              if(coarse_count < 0)
+                 printf("processtile: bidx=%d, tidx=%d, coarse_count=%d\n", blockIdx.x, threadIdx.x, coarse_count);
 
               if (coarse_count > 0)
               {
@@ -651,30 +732,97 @@ namespace b40c
               // frontier queue.
               //
 
+//              if(blockIdx.x == 0 && threadIdx.x == 0)
+//                                              	  printf("MAX_SCRATCH_BYTES_PER_CTA=%d, GATHER_ELEMENTS=%d, SCRATCH_ELEMENT_SIZE=%d, PARENT_ELEMENTS=%d, CoarseGrid::TOTAL_RAKING_ELEMENTS=%d, FineGrid::TOTAL_RAKING_ELEMENTS=%d\n",
+//                                                				SmemStorage::MAX_SCRATCH_BYTES_PER_CTA,
+//                                                				SmemStorage::GATHER_ELEMENTS,
+//                                                				SmemStorage::SCRATCH_ELEMENT_SIZE,
+//                                                				SmemStorage::PARENT_ELEMENTS,
+//                                                				CoarseGrid::TOTAL_RAKING_ELEMENTS,
+//                                                				FineGrid::TOTAL_RAKING_ELEMENTS);
+
+
               tile.progress = 0;
               while (tile.progress < tile.fine_count)
               {
                 // Fill the scratch space with gather-offsets for neighbor-lists.
-                tile.ExpandByScan(this);
+//                tile.ExpandByScan(this);
+            	  // Attempt to make further progress on this dequeued item's neighbor
+				// list if its current offset into local scratch is in range
+				SizeT scratch_offset = tile.fine_row_rank[0][0] + tile.row_progress[0][0] - tile.progress;
+//                  if(blockIdx.x == 0 && threadIdx.x == 0)
+//                	  printf("sizeof(SmemStorage)=%d, sizeof(state)=%d, MAX_SCRATCH_BYTES_PER_CTA=%d, GATHER_ELEMENTS=%d, SCRATCH_ELEMENT_SIZE=%d, PARENT_ELEMENTS=%d\n",
+//                  				sizeof(SmemStorage), sizeof(SmemStorage::State),
+//                  				SmemStorage::MAX_SCRATCH_BYTES_PER_CTA,
+//                  				SmemStorage::GATHER_ELEMENTS,
+//                  				SmemStorage::SCRATCH_ELEMENT_SIZE,
+//                  				SmemStorage::PARENT_ELEMENTS);
+
+
+				while ((tile.row_progress[0][0] < tile.row_length[0][0]) && (scratch_offset < SmemStorage::GATHER_ELEMENTS))
+				{
+				  // Put gather offset into scratch space
+				  smem_storage.gather_offsets[scratch_offset] = tile.row_offset[0][0] + tile.row_progress[0][0];
+
+//                    if (cta->smem_storage.gather_offsets[scratch_offset] < -1 || cta->smem_storage.gather_offsets[scratch_offset] >= 28143065
+////                    		|| (blockIdx.x == 0 && threadIdx.x == 0)
+//                    				)
+////                    if(cta->smem_storage.gather_offsets[scratch_offset] < -1)
+//                    {
+//                       printf("ExpandByScan: bidx=%d, tidx=%d, scratch_offset=%d, gather_offsets=%d, shared_ptr=%lld\n", blockIdx.x, threadIdx.x, scratch_offset, cta->smem_storage.gather_offsets[scratch_offset], cta->smem_storage.gather_offsets);
+//                    }
+
+				  // Put dequeued vertex as the predecessor into scratch space
+				  smem_storage.gather_predecessors[scratch_offset] = tile.vertex_id[0][0];
+
+				  tile.row_progress[0][0]++;
+				  scratch_offset++;
+				}
 
                 __syncthreads();
 
                 // Copy scratch space into queue
                 int scratch_remainder = B40C_MIN(SmemStorage::GATHER_ELEMENTS, tile.fine_count - tile.progress);
-
+//                if(blockIdx.x == 0 && threadIdx.x == 0)
+//                    printf("GATHER_ELEMENTS=%d\n", SmemStorage::GATHER_ELEMENTS);
+//
                 for (int scratch_offset = threadIdx.x; scratch_offset < scratch_remainder; scratch_offset += KernelPolicy::THREADS)
                 {
                   // Gather a neighbor
-                  VertexId neighbor_id;
-                  util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, d_column_indices + smem_storage.gather_offsets[scratch_offset]);
+                  VertexId neighbor_id, neighbor_id_tmp;
+                  VertexId row_id = smem_storage.gather_predecessors[scratch_offset];
+                  typename Program::expand_vertex expand_vertex_functor;
+				  bool changed = expand_vertex_functor(row_id, vertex_list); //might use optimization for unique load for a vertex
+
+//                  util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, d_column_indices + smem_storage.gather_offsets[scratch_offset]);
+                  neighbor_id_tmp = d_column_indices[smem_storage.gather_offsets[scratch_offset]];
+//                  printf("row_id=%d, changed=%d, neighbor_id_tmp=%d\n", row_id, changed, neighbor_id_tmp);
+
+                  typename Program::expand_edge expand_edge_functor;
+                  expand_edge_functor(changed, iteration, row_id, neighbor_id_tmp, vertex_list, d_out[smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset], d_predecessor_out[smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset]);
+
+
+//                  neighbor_id = neighbor_id_tmp;
+
 
                   // Scatter it into queue
-                  util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, d_out + smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset);
+//                  util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, d_out + smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset);
+//                  d_out[smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset] = neighbor_id;
+
+
+//                  if (neighbor_id < -1 || neighbor_id >= 6297539 /*1851583*/
+////                	  || (blockIdx.x == 0 && threadIdx.x == 0)
+//                		  )
+////                  if(0)
+//                  {
+//                     printf("ProcessTile: bidx=%d, tidx=%d, neighbor_id=%d, scratch_offset=%d, gather_offsets=%d, shared_ptr=%lld\n", blockIdx.x, threadIdx.x, neighbor_id, scratch_offset, smem_storage.gather_offsets[scratch_offset], smem_storage.gather_offsets);
+//                  }
 
                   // Scatter predecessor it into queue
-                  VertexId predecessor_id = smem_storage.gather_predecessors[scratch_offset];
+                  VertexId predecessor_id = row_id;
                   //VertexId predecessor_id = 1;
-                  util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, d_predecessor_out + smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset);
+//                  util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, d_predecessor_out + smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset);
+//                  d_predecessor_out[smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset] = predecessor_id;
                 }
 
                 tile.progress += SmemStorage::GATHER_ELEMENTS;

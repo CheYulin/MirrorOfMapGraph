@@ -38,6 +38,7 @@
 #include <b40c/util/operators.cuh>
 #include <b40c/util/reduction/serial_reduce.cuh>
 #include <b40c/util/reduction/tree_reduce.cuh>
+#include <cuda.h>
 
 namespace b40c {
 namespace graph {
@@ -61,7 +62,7 @@ texture<VisitedMask, cudaTextureType1D, cudaReadModeElementType> BitmaskTex<Visi
 /**
  * CTA tile-processing abstraction for BFS frontier contraction
  */
-template <typename KernelPolicy>
+template <typename KernelPolicy, typename Program>
 struct Cta
 {
 	//---------------------------------------------------------------------
@@ -73,6 +74,7 @@ struct Cta
 	typedef typename KernelPolicy::VisitedMask 		VisitedMask;
 	typedef typename KernelPolicy::SizeT 			SizeT;
     typedef typename KernelPolicy::EValue           EValue;
+    typedef typename KernelPolicy::VertexType       VertexType;
 
 	typedef typename KernelPolicy::RakingDetails 	RakingDetails;
 	typedef typename KernelPolicy::SmemStorage		SmemStorage;
@@ -86,7 +88,9 @@ struct Cta
 	VertexId 				*d_out;						// Outgoing vertex frontier
 	VertexId 				*d_predecessor_in;			// Incoming predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
 	VertexId				*d_labels;					// BFS labels to set
-	VertexId                *d_preds;                   // BC predecessor 
+	VertexType              &vertex_list;
+//	VertexType              &gather_list;
+	VertexId                *d_preds;                   // BC predecessor
     EValue                  *d_sigmas;                  // BFS sigmas to set
 	VisitedMask 			*d_visited_mask;			// Mask for detecting visited status
 
@@ -195,8 +199,9 @@ struct Cta
 					} else {
 
 						VisitedMask mask_byte;
-						util::io::ModifiedLoad<util::io::ld::cg>::Ld(
-							mask_byte, cta->d_visited_mask + mask_byte_offset);
+//						util::io::ModifiedLoad<util::io::ld::cg>::Ld(
+//							mask_byte, cta->d_visited_mask + mask_byte_offset);
+						mask_byte = cta->d_visited_mask[mask_byte_offset];
 
 						mask_byte |= tex_mask_byte;
 
@@ -209,9 +214,16 @@ struct Cta
 
 							// Update with best effort
 							mask_byte |= mask_bit;
-							util::io::ModifiedStore<util::io::st::cg>::St(
-								mask_byte,
-								cta->d_visited_mask + mask_byte_offset);
+//							util::io::ModifiedStore<util::io::st::cg>::St(
+//								mask_byte,
+//								cta->d_visited_mask + mask_byte_offset);
+
+//							printf("cta->d_visited_mask + mask_byte_offset=%d, mask_byte=%d\n", (int)cta->d_visited_mask + mask_byte_offset, (int)mask_byte);
+//							printf("CTA contraction: %d %d\n", sizeof(B40C_REG8), sizeof(B40C_CAST8));
+//							asm volatile ("st.global.cg.u8 [%0], %1;" : : "l"( (VisitedMask*)(cta->d_visited_mask + mask_byte_offset) ), "h"((unsigned short)mask_byte));
+
+//							printf("bidx=%d, tidx=%d, cta->d_visited_mask=%d, mask_byte_offset=%d\n", blockIdx.x, threadIdx.x, (int)cta->d_visited_mask, mask_byte_offset);
+							cta->d_visited_mask[mask_byte_offset] = mask_byte;
 						}
 					}
 				}
@@ -233,39 +245,65 @@ struct Cta
 					// Row index on our GPU (vertex ids are striped across GPUs)
 					VertexId row_id = (tile->vertex_id[LOAD][VEC] & KernelPolicy::VERTEX_ID_MASK) / cta->num_gpus;
 
-					// Load label of node
-					VertexId label;
-					util::io::ModifiedLoad<util::io::ld::cg>::Ld(
-						label,
-						cta->d_labels + row_id);
+					typename Program::contract contract_functor;
+					contract_functor(cta->iteration, tile->vertex_id[LOAD][VEC], cta->vertex_list, tile->predecessor_id[LOAD][VEC]);
 
-
-					if (label != -1) {
-
-						// Seen it
-						tile->vertex_id[LOAD][VEC] = -1;
-                           
-//                        if (label == cta->iteration)
-//                        {
-//                            // Accumulate sigma values
-//                            atomicAdd(&cta->d_sigmas[row_id], cta->d_sigmas[tile->predecessor_id[LOAD][VEC]]);
-//                        }
-
-					} else {
-							// Update label with current iteration
-							util::io::ModifiedStore<util::io::st::cg>::St(
-								cta->iteration,
-								cta->d_labels + row_id);
-
-                            // Update predecessor with predecessor value
-							util::io::ModifiedStore<util::io::st::cg>::St(
-								tile->predecessor_id[LOAD][VEC],
-								cta->d_preds + row_id);
-
-                            // Accumulate sigma values
-//                            atomicAdd(&cta->d_sigmas[row_id], cta->d_sigmas[tile->predecessor_id[LOAD][VEC]]);
-
-					}
+//					// Load label of node
+//					VertexId label;
+////					util::io::ModifiedLoad<util::io::ld::cg>::Ld(
+////						label,
+////						cta->d_labels + row_id);
+////					label1 = cta->vertex_list->d_labels[row_id];
+//					label = cta->d_labels[row_id];
+//
+//
+//
+//					if (label != -1) {
+//
+//						// Seen it
+//						tile->vertex_id[LOAD][VEC] = -1;
+//
+////                        if (label == cta->iteration)
+////                        {
+////                            // Accumulate sigma values
+////                            atomicAdd(&cta->d_sigmas[row_id], cta->d_sigmas[tile->predecessor_id[LOAD][VEC]]);
+////                        }
+//
+//					} else {
+//
+//						if (KernelPolicy::MARK_PREDECESSORS) {
+//
+//													// Update label with predecessor vertex
+//													util::io::ModifiedStore<util::io::st::cg>::St(
+//														tile->predecessor_id[LOAD][VEC],
+//														cta->d_labels + row_id);
+//												} else {
+//
+//													// Update label with current iteration
+//													util::io::ModifiedStore<util::io::st::cg>::St(
+//														cta->iteration,
+//														cta->d_labels + row_id);
+//
+////													util::io::ModifiedStore<util::io::st::cg>::St(
+////														cta->iteration,
+////														cta->vertex_list->d_labels + row_id);
+//												}
+////							// Update label with current iteration
+//////							util::io::ModifiedStore<util::io::st::cg>::St(
+//////								cta->iteration,
+//////								cta->d_labels + row_id);
+////
+////							cta->d_labels[row_id] = cta->iteration;
+////
+////                            // Update predecessor with predecessor value
+//////							util::io::ModifiedStore<util::io::st::cg>::St(
+//////								tile->predecessor_id[LOAD][VEC],
+//////								cta->d_preds + row_id);
+////
+////							cta->d_preds[row_id] = tile->predecessor_id[LOAD][VEC];
+//
+//
+//					}
 				}
 
 				// Next
@@ -457,6 +495,8 @@ struct Cta
 		VertexId 				*d_in,
 		VertexId 				*d_out,
 		VertexId 				*d_predecessor_in,
+		VertexType              &vertex_list,
+//		VertexType              &gather_list,
 		VertexId 				*d_labels,
 		VertexId                *d_preds,
         EValue                  *d_sigmas,
@@ -475,6 +515,8 @@ struct Cta
 			d_in(d_in),
 			d_out(d_out),
 			d_predecessor_in(d_predecessor_in),
+			vertex_list(vertex_list),
+//			gather_list(gather_list),
 			d_labels(d_labels),
 			d_preds(d_preds),
             d_sigmas(d_sigmas),
@@ -517,6 +559,7 @@ struct Cta
 				guarded_elements,
 				(VertexId) -1);
 
+
         // Load predecessor vertices as well
         util::io::LoadTile<
             KernelPolicy::LOG_LOADS_PER_TILE,
@@ -529,11 +572,13 @@ struct Cta
                 cta_offset,
                 guarded_elements);
 
-		// Cull visited vertices and update discovered vertices
-		if (bitmask_cull) {
-			tile.BitmaskCull(this);		// using global visited mask
-		}
 		tile.VertexCull(this);			// using vertex visitation status (update discovered vertices)
+
+		// Cull visited vertices and update discovered vertices
+//		if (bitmask_cull) {
+			tile.BitmaskCull(this);		// using global visited mask
+//		}
+
 
 		// Cull duplicates using local CTA collision hashing
 		tile.HistoryCull(this);
@@ -558,7 +603,7 @@ struct Cta
 
 		// Check updated queue offset for overflow due to redundant expansion
 		if (new_queue_offset >= max_vertex_frontier) {
-            if(blockIdx.x == 0 && threadIdx.x == 0) 
+            if(blockIdx.x == 0 && threadIdx.x == 0)
                 printf("Frontier queue overflow.  Please increase queue-sizing factor.\n");
 			work_progress.SetOverflow<SizeT>();
 			util::ThreadExit();

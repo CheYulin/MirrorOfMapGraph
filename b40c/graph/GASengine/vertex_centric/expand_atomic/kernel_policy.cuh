@@ -55,6 +55,7 @@ namespace expand_atomic {
  * types.
  */
 template <
+typename Program,
 	// ProblemType type parameters
 	typename _ProblemType,				// BFS problem type (e.g., b40c::graph::bfs::ProblemType)
 
@@ -234,7 +235,9 @@ struct KernelPolicy : _ProblemType
 												- sizeof(State)
 												- 128,											// Fudge-factor to guarantee occupancy
 
-			SCRATCH_ELEMENT_SIZE 			= sizeof(SizeT) + sizeof(VertexId),			        // Need both gather offset and predecessor
+//			MAX_SCRATCH_BYTES_PER_CTA		= (B40C_SMEM_BYTES(CUDA_ARCH) - sizeof(State) - 128 ) / _MIN_CTA_OCCUPANCY,
+
+			SCRATCH_ELEMENT_SIZE 			= sizeof(SizeT) + sizeof(typename Program::MiscType),			        // Need both gather offset and predecessor
 
 			GATHER_ELEMENTS					= MAX_SCRATCH_BYTES_PER_CTA / SCRATCH_ELEMENT_SIZE,
 			PARENT_ELEMENTS					= GATHER_ELEMENTS,
@@ -250,7 +253,7 @@ struct KernelPolicy : _ProblemType
 			// Scratch elements
 			struct {
 				SizeT 						gather_offsets[GATHER_ELEMENTS];
-				VertexId 					gather_predecessors[PARENT_ELEMENTS];
+				typename Program::MiscType 					gather_predecessors[PARENT_ELEMENTS];
 			};
 		};
 
