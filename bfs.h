@@ -1,73 +1,144 @@
-/*********************************************************
+/*
+ * bfs.h
+ *
+ *  Created on: Dec 2, 2013
+ *      Author: zhisong
+ */
 
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+#ifndef BFS_H_
+#define BFS_H_
 
-http://www.apache.org/licenses/LICENSE-2.0
+#include <b40c/graph/GASengine/csr_problem.cuh>
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
-
-**********************************************************/
-
-/* Written by Erich Elsen and Vishal Vaidyanathan
-   of Royal Caliber, LLC
-   Contact us at: info@royal-caliber.com
-*/
-
-#ifndef BFS_H__
-#define BFS_H__
-
-//edge data not currently represented
+//TODO: edge data not currently represented
+//TODO: initialize frontier
 struct bfs {
-  static GatherEdges gatherOverEdges() {
-    return NO_GATHER_EDGES;
-  }
+	static const int INIT_VALUE = 100000000;
+	typedef int GatherType;
+	struct VertexType {
+		int* d_labels;
+		int nn;
+		int ne;
 
-  struct gather {
-    __device__
-      int operator()(const int dst, const int src, const int e, const int flag) {
-        return src;
-      }
-  };
+		VertexType () : d_labels(NULL), nn(0), ne(0){}
 
-  struct sum {
-    __device__
-      int operator()(int left, int right) {
-        return max(left, right);
-      }
-  };
+		void init(int nodes, int edges)
+		{
+			nn = nodes;
+			ne = edges;
+			b40c::util::B40CPerror(cudaMalloc((void**) &d_labels, nodes * sizeof(int)), "cudaMalloc VertexType::d_labels failed", __FILE__, __LINE__);
 
-  struct apply {
-    __device__
-      void operator()(int &cur_depth, const int parent_depth = 0) {
-        cur_depth = d_iterations; //parent_depth + 1;
-      }
-  };
+			int memset_block_size = 256;
+			int memset_grid_size_max = 32 * 1024;	// 32K CTAs
+			int memset_grid_size;
 
-  static ScatterEdges scatterOverEdges() {
-    return SCATTER_OUT_EDGES;
-  }
+			// Initialize d_labels elements to -1
+			memset_grid_size = B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
+			b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0, 0>>>(
+				d_labels,
+				-1,
+				nodes);
+		}
+	  };
 
-  struct scatter {
-    __host__ __device__
-      int operator()(const int dst, const int src, const int e) {
-        if (dst == -1)
-          return 1;
-        else
-          return 0;
-      }
-  };
+	  static GatherEdges gatherOverEdges() {
+		return NO_GATHER_EDGES;
+	  }
+
+	  struct contract {
+		  __device__
+		  void operator()(int &row_id, VertexType &vertex_list, int& iteration, int &vertex_id)
+		  {
+			// Load label of node
+			int label;
+			label = vertex_list.d_labels[row_id];
+
+			if (label != -1) {
+
+				// Seen it
+				vertex_id = -1;
+
+			} else {
+
+				// Update label with current iteration
+				vertex_list.d_labels[row_id] = iteration;
+			}
+		  }
+	  };
+
+	  /**
+	  	 * the binary operator
+	  	 */
+	  	  struct gather_sum {
+	  		__device__
+	  		GatherType operator()(GatherType left, GatherType right) {
+	              return left + right;
+	  		  }
+	  	  };
+
+	  	/**
+	   * For each vertex in the frontier,
+	   */
+		  struct gather_vertex {
+			__device__
+			  void operator()(int row_id, GatherType final_value, VertexType &vertex_list) {
+
+			  }
+		  };
+
+	  struct expand_vertex {
+	  		  __device__
+	  		  bool operator()(int &row_id, VertexType &vertex_list)
+	  		  {
+	  			  return true;
+	  		  }
+	  	  };
+
+	  struct expand_edge {
+		  __device__
+		  void operator()(bool &changed, int &row_id, VertexType &vertex_list, int& neighbor_id_in, int&neighbor_id_out, int& frontier, int& predecessor_out)
+		  {
+			  neighbor_id_out = neighbor_id_in;
+			  predecessor_out = row_id;
+			  frontier = neighbor_id_out;
+		  }
+	  };
+
+	  struct gather_edge {
+		__device__
+		  void operator()(int row_id, int neighbor_id_in, VertexType &vertex_list,  int& new_value) {
+
+		  }
+	  };
+
+	  struct sum {
+		__device__
+		  int operator()(int left, int right) {
+			return min(left, right);
+		  }
+	  };
+
+	  struct reset {
+		__device__
+		  void operator()(VertexType& vertex_list, int v) {
+		  }
+	  };
+
+	  struct apply {
+		__device__
+		  void operator()(VertexType& vertex_list, int iteration, int v) {
+		  }
+	  };
+
+	  static ApplyVertices applyOverEdges() {
+		return NO_APPLY_VERTICES;
+	  }
+
+	  static ExpandEdges expandOverEdges() {
+		return EXPAND_OUT_EDGES;
+	  }
+
 
 };
 
-#endif
+#endif /* BFS_H_ */
