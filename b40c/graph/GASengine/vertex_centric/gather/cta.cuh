@@ -63,7 +63,7 @@ namespace b40c
           /**
            * Derivation of KernelPolicy that encapsulates tile-processing routines
            */
-          template<typename KernelPolicy>
+          template<typename KernelPolicy, typename Program>
           struct Cta
           {
 
@@ -77,7 +77,8 @@ namespace b40c
             {
               for (size_t s = KernelPolicy::THREADS / 2; s > 0; s >>= 1)
               {
-                if (threadIdx.x < s) partial[threadIdx.x] += partial[threadIdx.x + s];
+            	typename Program::gather_sum gather_sum_functor;
+                if (threadIdx.x < s) partial[threadIdx.x] = gather_sum_functor(partial[threadIdx.x], partial[threadIdx.x + s]);
                 __syncthreads();
               }
               return partial[0];
@@ -100,7 +101,8 @@ namespace b40c
             {
               for (size_t s = B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) / 2; s > 0; s >>= 1)
               {
-                if (threadIdx.x < warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + s) partial[threadIdx.x] += partial[threadIdx.x + s];
+            	typename Program::gather_sum gather_sum_functor;
+                if (threadIdx.x < warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + s) partial[threadIdx.x] = gather_sum_functor(partial[threadIdx.x], partial[threadIdx.x + s]);
                 __syncthreads();
               }
               return partial[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH)];
@@ -142,6 +144,7 @@ namespace b40c
             typedef typename KernelPolicy::SoaScanOp SoaScanOp;
             typedef typename KernelPolicy::RakingSoaDetails RakingSoaDetails;
             typedef typename KernelPolicy::TileTuple TileTuple;
+            typedef typename KernelPolicy::VertexType VertexType;
 
             typedef util::Tuple<SizeT (*)[KernelPolicy::LOAD_VEC_SIZE], SizeT (*)[KernelPolicy::LOAD_VEC_SIZE]> RankSoa;
 
@@ -153,14 +156,15 @@ namespace b40c
             VertexId *d_in;						// Incoming vertex frontier
             VertexId *d_out;						// Outgoing edge frontier
             VertexId *d_labels;                 // BFS labels to set
-            EValue *d_dists; //
-            EValue* d_gather_results; //gather results
-            int *d_changed; //changed flag
-            SizeT *d_num_out_edges; // number of out edges
+//            EValue *d_dists; //
+//            EValue* d_gather_results; //gather results
+//            int *d_changed; //changed flag
+//            SizeT *d_num_out_edges; // number of out edges
 //            SizeT *d_visit_flags;             // Global vertex visit flag, preventing value on one vertex being multiple updated
 //            VertexId *d_predecessor_out;						// Outgoing predecessor edge frontier
             VertexId *d_column_indices;			// CSR column-indices array
             SizeT *d_row_offsets;				// CSR row-offsets array
+            VertexType vertex_list;
 
             // Work progress
             VertexId queue_index;			// Current frontier queue counter index
@@ -345,23 +349,29 @@ namespace b40c
 //                    SizeT num_out_edge;
                     int iter_count = 0;
 
-                    while (coop_offset + KernelPolicy::THREADS < coop_oob)
+                    while (coop_offset + threadIdx.x < coop_oob)
                     {
 
                       // Gather
                       util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + threadIdx.x);
 
-                      // Scatter neighbor
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+                      typename Program::gather_edge gather_edge_functor;
+				      gather_edge_functor(row_id, neighbor_id, cta->vertex_list, new_dist);
 
-                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(nb_dist, cta->d_dists + neighbor_id);
-//                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
-                      new_dist = nb_dist + 1;
-
-//                      if (iter_count == 0)
-//                        cta->smem_storage.gather_delta_values[threadIdx.x] = new_dist;
-//                      else
-                      cta->smem_storage.gather_delta_values[threadIdx.x] = min(new_dist, cta->smem_storage.gather_delta_values[threadIdx.x]);
+					  typename Program::gather_sum gather_sum_functor;
+					  cta->smem_storage.gather_delta_values[threadIdx.x] = gather_sum_functor(cta->smem_storage.gather_delta_values[threadIdx.x], new_dist);
+//
+//                      // Scatter neighbor
+////                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//
+//                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(nb_dist, cta->d_dists + neighbor_id);
+////                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
+//                      new_dist = nb_dist + 1;
+//
+////                      if (iter_count == 0)
+////                        cta->smem_storage.gather_delta_values[threadIdx.x] = new_dist;
+////                      else
+//                      cta->smem_storage.gather_delta_values[threadIdx.x] = min(new_dist, cta->smem_storage.gather_delta_values[threadIdx.x]);
 
 //                      printf("Gather_CTA323: bidx=%d, tidx=%d, vid=%d, neighbor_id=%d, gather_delta_values=%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], neighbor_id,
 //                          cta->smem_storage.gather_delta_values[threadIdx.x]);
@@ -374,38 +384,16 @@ namespace b40c
                       iter_count++;
                     }
 
-                    if (coop_offset + threadIdx.x < coop_oob)
-                    {
-                      // Gather
-                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + threadIdx.x);
-
-                      // Scatter neighbor
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-
-                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(nb_dist, cta->d_dists + neighbor_id);
-//                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
-                      new_dist = nb_dist + 1;
-
-//                      if (iter_count == 0)
-//                        cta->smem_storage.gather_delta_values[threadIdx.x] = new_dist;
-//                      else
-                      cta->smem_storage.gather_delta_values[threadIdx.x] = min(new_dist, cta->smem_storage.gather_delta_values[threadIdx.x]);
-
-//                      printf("Gather_CTA323: bidx=%d, tidx=%d, vid=%d, neighbor_id=%d, gather_delta_values=%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], neighbor_id,
-//                          cta->smem_storage.gather_delta_values[threadIdx.x]);
-
-                      // Scatter predecessor
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-                    }
-
-                    EValue final_delta_value = CTAReduceMIN<EValue>(cta->smem_storage.gather_delta_values);
+                    typename Program::GatherType final_delta_value = CTAReduce<EValue>(cta->smem_storage.gather_delta_values);
                     // vie for write into delta_value
                     if (threadIdx.x == 0)
                     {
+                    	typename Program::gather_vertex gather_vertex_functor;
+                    	gather_vertex_functor(row_id, final_delta_value, cta->vertex_list);
 //                    if (atomicCAS(cta->d_visit_flags + tile->vertex_id[LOAD][VEC], 0, 1) == 0)
 //                      if (atomicCAS(cta->d_visit_flags + row_id, 0, 1) == 0)
 //                      {
-                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(final_delta_value, cta->d_gather_results + row_id);
+//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(final_delta_value, cta->d_gather_results + row_id);
 
 //                        EValue current_dist, final_dist;
 //                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(current_dist, cta->d_dists + row_id);
@@ -489,23 +477,28 @@ namespace b40c
                       VertexId neighbor_id;
                       EValue nb_dist, new_dist;
 //                      SizeT num_out_edge;
-                      while (coop_offset + B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) < coop_oob)
+                      while (coop_offset + lane_id < coop_oob)
                       {
 
-                        // Gather
-                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + lane_id);
+                    	  typename Program::gather_edge gather_edge_functor;
+						  gather_edge_functor(row_id, neighbor_id, cta->vertex_list, new_dist);
 
-                        // Scatter neighbor
-                        //util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-
-                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(nb_dist, cta->d_dists + neighbor_id);
-//                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
-                        new_dist = nb_dist + 1;
-
-//                        printf("Gather_WARP465: bidx=%d, tidx=%d, vid=%d, neighbor_id=%d, nb_dist=%d, s_dist=%d, new_dist=%d\n", blockIdx.x, threadIdx.x, row_id, neighbor_id, nb_dist,
-//                            cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id], new_dist);
-
-                        cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id] = min(new_dist,cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id]);
+						  typename Program::gather_sum gather_sum_functor;
+						  cta->smem_storage.gather_delta_values[threadIdx.x] = gather_sum_functor(cta->smem_storage.gather_delta_values[threadIdx.x], new_dist);
+//                        // Gather
+//                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + lane_id);
+//
+//                        // Scatter neighbor
+//                        //util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
+//
+//                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(nb_dist, cta->d_dists + neighbor_id);
+////                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
+//                        new_dist = nb_dist + 1;
+//
+////                        printf("Gather_WARP465: bidx=%d, tidx=%d, vid=%d, neighbor_id=%d, nb_dist=%d, s_dist=%d, new_dist=%d\n", blockIdx.x, threadIdx.x, row_id, neighbor_id, nb_dist,
+////                            cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id], new_dist);
+//
+//                        cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id] = min(new_dist,cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id]);
 
                         // Scatter predecessor
                         //util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
@@ -514,40 +507,18 @@ namespace b40c
                         coop_rank += B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH);
                       }
 
-                      if (coop_offset + lane_id < coop_oob)
-                      {
-                        // Gather
-                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + lane_id);
-
-                        // Scatter neighbor
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-
-                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(nb_dist, cta->d_dists + neighbor_id);
-//                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
-                        new_dist = nb_dist + 1;
-
-//                        printf("Gather_WARP461: bidx=%d, tidx=%d, vid=%d, old_dist=%d, neighbor_id=%d\n", blockIdx.x, threadIdx.x, warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id,
-//                            neighbor_id, cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id], new_dist);
-
-//                        printf("Gather_WARP491: bidx=%d, tidx=%d, vid=%d, neighbor_id=%d, nb_dist=%d, s_dist=%d, new_dist=%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], neighbor_id,
-//                            nb_dist, cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id], new_dist);
-
-                        cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id] = min(new_dist,cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id]);
-
-                        // Scatter predecessor
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-                      }
-
 //                      if (row_id == 1049)
 //                        printf("bidx=%d, tidx=%d, warp_id=%d, lane_id=%d, smem_storage.gather_delta_values[%d]=%d\n", blockIdx.x, threadIdx.x, warp_id, lane_id, lane_id,
 //                            cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id]);
-                      EValue final_dist = WarpReduceMIN(cta->smem_storage.gather_delta_values, warp_id);
+                      typename Program::GatherType final_dist = WarpReduce(cta->smem_storage.gather_delta_values, warp_id);
 //                      printf("Gather_WARP522: bidx=%d, tidx=%d, reduce=%d\n", blockIdx.x, threadIdx.x, final_dist);
                       // vie for write into delta_values
 //                        if (threadIdx.x == 0) //correct? lane_id == 0??
                       if (lane_id == 0)
                       {
-                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(final_dist, cta->d_gather_results + row_id);
+                    	  typename Program::gather_vertex gather_vertex_functor;
+					      gather_vertex_functor(row_id, final_dist, cta->vertex_list);
+//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(final_dist, cta->d_gather_results + row_id);
 //                        EValue current_dist, dist;
 //                        //try to set the d_visit_flag in global memory
 ////                          if (atomicCAS(cta->d_visit_flags + tile->vertex_id[LOAD][VEC], 0, 1) == 0)
@@ -598,7 +569,9 @@ namespace b40c
 //                  SizeT scratch_offset = tile->fine_row_rank[LOAD][VEC] + tile->row_progress[LOAD][VEC] - tile->progress;
                   VertexId neighbor_id;
                   EValue new_dist, nb_dist;
-                  EValue dist = 100000000;
+
+                  typename Program::GatherType dist = Program::INIT_VALUE;
+
 //                  printf("Gather_SCAN586: bidx=%d, tidx=%d, vidx=%d, r_progress=%d, r_lenghth=%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], tile->row_progress[LOAD][VEC],  tile->row_length[LOAD][VEC]);
                   tile->row_progress[LOAD][VEC] = 0;
 
@@ -607,108 +580,37 @@ namespace b40c
 
                     while ((tile->row_progress[LOAD][VEC] < tile->row_length[LOAD][VEC]) /*&& (scratch_offset < SmemStorage::GATHER_ELEMENTS)*/)
                     {
-                      // Put gather offset into scratch space
-//                      cta->smem_storage.gather_offsets[scratch_offset] = tile->row_offset[LOAD][VEC] + tile->row_progress[LOAD][VEC];
 
-//                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + cta->smem_storage.gather_offsets[scratch_offset]);
+//                      // Put gather offset into scratch space
+////                      cta->smem_storage.gather_offsets[scratch_offset] = tile->row_offset[LOAD][VEC] + tile->row_progress[LOAD][VEC];
+//
+////                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + cta->smem_storage.gather_offsets[scratch_offset]);
                       util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + tile->row_offset[LOAD][VEC] + tile->row_progress[LOAD][VEC]);
-//                      int num_out_edge;
-//                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
-                      // Put dequeued vertex as the predecessor into scratch space
-                      //cta->smem_storage.gather_predecessors[scratch_offset] = tile->vertex_id[LOAD][VEC];
-                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(nb_dist, cta->d_dists + neighbor_id);
-                      new_dist = nb_dist+1;
-                      dist = min(new_dist, dist);
+
+                      typename Program::gather_edge gather_edge_functor;
+					  gather_edge_functor(tile->vertex_id[LOAD][VEC], neighbor_id, cta->vertex_list, new_dist);
+
+					  typename Program::gather_sum gather_sum_functor;
+					  dist = gather_sum_functor(dist, new_dist);
+
+                      ////                      int num_out_edge;
+////                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
+//                      // Put dequeued vertex as the predecessor into scratch space
+//                      //cta->smem_storage.gather_predecessors[scratch_offset] = tile->vertex_id[LOAD][VEC];
+//                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(nb_dist, cta->d_dists + neighbor_id);
+//                      new_dist = nb_dist+1;
+//                      dist = min(new_dist, dist);
 
 //                      printf("Gather_SCAN603: bidx=%d, tidx=%d, vid=%d, neighbor_id=%d, nb_dist=%d, dist=%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], neighbor_id, nb_dist, dist);
 
                       tile->row_progress[LOAD][VEC]++;
 //                      scratch_offset++;
                     }
+                    typename Program::gather_vertex gather_vertex_functor;
+				    gather_vertex_functor(tile->vertex_id[LOAD][VEC], dist, cta->vertex_list);
 
-//                  if(tile->vertex_id[LOAD][VEC] < 0 || tile->vertex_id[LOAD][VEC] > 8191)
-//                  {
-//                    printf("Error: tile->vertex_id[LOAD][VEC]=%d\n", tile->vertex_id[LOAD][VEC]);
-//                  }
+//                    util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(dist, cta->d_gather_results + tile->vertex_id[LOAD][VEC]);
 
-//                    SizeT visit_flag = 0;
-//                    util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(visit_flag, cta->d_visit_flags + tile->vertex_id[LOAD][VEC]);
-//
-//                    printf("Gather_SCAN618: bidx=%d, tidx=%d, vid=%d, dist=%d, visit_flag=%d\n",
-//                        blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], dist, visit_flag);
-
-//                    if (visit_flag == 0)
-//                    {
-                    //util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(result, cta->d_deltas + tile->vertex_id[LOAD][VEC]);
-//                    if (tile->row_progress[LOAD][VEC] < tile->row_length[LOAD][VEC])
-//                    {
-//                      //still has content to write, set visit_flag to 1
-//                      atomicCAS(cta->d_visit_flags + tile->vertex_id[LOAD][VEC], 0, 1);
-//                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(current_dist, cta->d_dists + tile->vertex_id[LOAD][VEC]);
-//                      dist = min(current_dist, dist);
-//                      if (dist != current_dist)
-//                      {
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(dist, cta->d_dists + tile->vertex_id[LOAD][VEC]);
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(1, cta->d_changed + tile->vertex_id[LOAD][VEC]);
-//                      }
-//                      else
-//                      {
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(0, cta->d_changed + tile->vertex_id[LOAD][VEC]);
-//                      }
-////                     if(tile->vertex_id[LOAD][VEC] == 8191)
-////                        printf("Gather_SCAN641: bidx=%d, tidx=%d, vid=%d, neighbor_id=%d, dist=%d, current_dist=%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], neighbor_id, dist,
-////                            current_dist);
-//
-//                    }
-//                    else
-//                    {
-
-                    //finished write vertex value, set visit_flag to 2
-//                      atomicCAS(cta->d_visit_flags + tile->vertex_id[LOAD][VEC], 0, 2);
-                    //Accumulate into node_values
-//                    util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(current_dist, cta->d_dists + tile->vertex_id[LOAD][VEC]);
-//                    dist = min(current_dist, dist);
-//                    if (tile->vertex_id[LOAD][VEC] == 1)
-//                      printf("tile->vertex_id[LOAD][VEC] == 1, tile->row_length[LOAD][VEC]=%d, current_dist=%d, dist%d\n", tile->row_length[LOAD][VEC], current_dist, dist);
-                    util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(dist, cta->d_gather_results + tile->vertex_id[LOAD][VEC]);
-//                    if (dist != current_dist)
-//                    {
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(dist, cta->d_dists + tile->vertex_id[LOAD][VEC]);
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(3, cta->d_changed + tile->vertex_id[LOAD][VEC]);
-//                    }
-//                    else
-//                    {
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(2, cta->d_changed + tile->vertex_id[LOAD][VEC]);
-//                    }
-//                      if(tile->vertex_id[LOAD][VEC] == 8191)
-//                    printf("Gather_SCAN662: bidx=%d, tidx=%d, vid=%d, dist=%d, current_dist=%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], dist,
-//                        current_dist);
-
-//                    }
-//                    }
-//                    else if (visit_flag == 1)
-//                    {
-////                    util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(edge_value, cta->d_deltas + tile->vertex_id[LOAD][VEC]);
-////                    result += edge_value;
-////                    util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(result, cta->d_deltas + tile->vertex_id[LOAD][VEC]);
-//
-//                      atomicCAS(cta->d_visit_flags + tile->vertex_id[LOAD][VEC], 1, 2);
-//                      //Accumulate into node_values
-//                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(current_dist, cta->d_dists + tile->vertex_id[LOAD][VEC]);
-//                      dist = min(current_dist, dist);
-//                      if (dist != current_dist)
-//                      {
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(dist, cta->d_dists + tile->vertex_id[LOAD][VEC]);
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(1, cta->d_changed + tile->vertex_id[LOAD][VEC]);
-//                      }
-//                      else
-//                      {
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(0, cta->d_changed + tile->vertex_id[LOAD][VEC]);
-//                      }
-////                  if(tile->vertex_id[LOAD][VEC] == 8191)
-////                      printf("Gather_SCAN688: bidx=%d, tidx=%d, vid=%d, neighbor_id=%d, dist=%d, current_dist%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], neighbor_id, dist,
-////                          current_dist);
-//                    }
                   }
                   //otherwise it's a repeating visit to old vertex, do nothing
 
@@ -865,13 +767,13 @@ namespace b40c
              * Constructor
              */
             __device__ __forceinline__
-            Cta(VertexId queue_index, int num_gpus, SmemStorage &smem_storage, VertexId *d_in, VertexId *d_out, VertexId *d_column_indices, SizeT *d_row_offsets, SizeT *d_num_out_edges,
-                EValue *d_dists, EValue *d_gather_results, int *d_changed, util::CtaWorkProgress &work_progress, SizeT max_edge_frontier) :
+            Cta(VertexId queue_index, int num_gpus, SmemStorage &smem_storage, VertexId *d_in, VertexId *d_out, VertexId *d_column_indices, SizeT *d_row_offsets,
+            		VertexType vertex_list, util::CtaWorkProgress &work_progress, SizeT max_edge_frontier) :
 
                 queue_index(queue_index), num_gpus(num_gpus), smem_storage(smem_storage), raking_soa_details(
                     typename RakingSoaDetails::GridStorageSoa(smem_storage.coarse_raking_elements, smem_storage.fine_raking_elements),
                     typename RakingSoaDetails::WarpscanSoa(smem_storage.state.coarse_warpscan, smem_storage.state.fine_warpscan), TileTuple(0, 0)), d_in(d_in), d_out(d_out), d_column_indices(
-                    d_column_indices), d_row_offsets(d_row_offsets), d_num_out_edges(d_num_out_edges), d_dists(d_dists), d_gather_results(d_gather_results), d_changed(d_changed), work_progress(
+                    d_column_indices), d_row_offsets(d_row_offsets),  vertex_list(vertex_list), work_progress(
                     work_progress), max_edge_frontier(max_edge_frontier)
             {
               if (threadIdx.x == 0)
