@@ -15,10 +15,6 @@
  */
 
 typedef unsigned int uint;
-
-//#include <thrust/random/linear_congruential_engine.h>
-//#include <thrust/random/normal_distribution.h>
-//#include <thrust/random/uniform_int_distribution.h>
 #include "graphio.h"
 #include <stdio.h> 
 #include <cstdlib>
@@ -30,17 +26,6 @@ typedef unsigned int uint;
 #include <vector>
 #include <bfs.h>
 #include <sssp.h>
-
-//#include <thrust/device_vector.h>
-//#include <thrust/host_vector.h>
-//#include <thrust/transform.h>
-//#include <thrust/iterator/transform_iterator.h>
-//#include <thrust/iterator/permutation_iterator.h>
-//#include <thrust/iterator/discard_iterator.h>
-//#include <thrust/sort.h>
-//#include <thrust/reduce.h>
-//#include <thrust/copy.h>
-//#include <thrust/execution_policy.h>
 #include <iostream>
 #include <omp.h>
 
@@ -54,32 +39,12 @@ typedef unsigned int uint;
 #include <b40c/graph/builder/market.cuh>
 #include <b40c/graph/builder/random.cuh>
 
-// BFS includes
-//#include <b40c/graph/bfs/csr_problem.cuh>
-//#include <b40c/graph/bfs/enactor_contract_expand.cuh>
-//#include <b40c/graph/bfs/enactor_expand_contract.cuh>
-//#include <b40c/graph/bfs/enactor_two_phase.cuh>
-//#include <b40c/graph/bfs/enactor_hybrid.cuh>
-//#include <b40c/graph/bfs/enactor_multi_gpu.cuh>
-
 #include <b40c/graph/GASengine/csr_problem.cuh>
 #include <b40c/graph/GASengine/enactor_vertex_centric.cuh>
 
 using namespace b40c;
 using namespace graph;
 using namespace std;
-
-//enum Strategy
-//{
-//  HOST = -1, EXPAND_CONTRACT, CONTRACT_EXPAND, TWO_PHASE, HYBRID, MULTI_GPU, VERTEX_CENTRIC
-//};
-
-//bool g_verbose;
-//bool g_verbose2;
-//bool g_undirected; // Whether to add a "backedge" for every edge parsed/generated
-//bool g_quick; // Whether or not to perform CPU traversal as reference
-//bool g_stream_from_host; // Whether or not to stream CSR representation from host mem
-//bool g_with_value; // Whether or not to load value
 
 void cudaInit(int device) {
 	int deviceCount = 0;
@@ -161,30 +126,28 @@ int main(int argc, char **argv) {
 	Config cfg;
 
 	for (int i = 1; i < argc; i++) {
-		if (strncmp(argv[i], "-help", 100) == 0)
+		if (strncmp(argv[i], "-help", 100) == 0) // print the usage information
 			printUsageAndExit();
 		else if (strncmp(argv[i], "-graph", 100) == 0
-				|| strncmp(argv[i], "-g", 100) == 0) {
+				|| strncmp(argv[i], "-g", 100) == 0) { //input graph
 			i++;
-			//readSystem(argv[i],A,b);
-			// load a matrix stored in MatrixMarket format
-//		cusp::io::read_matrix_market_file(A, argv[i]);
+
 			graph_file = argv[i];
 
-		} else if (strncmp(argv[i], "-output", 100) == 0) {
+		} else if (strncmp(argv[i], "-output", 100) == 0) { //output file name
 			i++;
 			outFileName = argv[i];
 		}
 
-		else if (strncmp(argv[i], "-sources", 100) == 0) {
+		else if (strncmp(argv[i], "-sources", 100) == 0) { //the file containing starting vertices
 			i++;
 			strcpy(source_file_name, argv[i]);
 		}
 
-		else if (strncmp(argv[i], "-SSSP", 100) == 0) {
+		else if (strncmp(argv[i], "-SSSP", 100) == 0) { //The SSSP specific options
 			i++;
 			cfg.parseParameterString(argv[i]);
-		} else if (strncmp(argv[i], "-c", 100) == 0) {
+		} else if (strncmp(argv[i], "-c", 100) == 0) { //use a configuration file to specify the SSSP options instead of command line
 			i++;
 			cfg.parseFile(argv[i]);
 		}
@@ -236,11 +199,6 @@ int main(int argc, char **argv) {
 
 	const bool INSTRUMENT = true;
 
-//  int max_grid_size = 0; // Maximum grid size (0: leave it up to the enactor)
-
-//  std::vector<int> strategies(1, VERTEX_CENTRIC);
-
-// Allocate BFS enactor map
 	GASengine::EnactorVertexCentric<INSTRUMENT> vertex_centric(cfg, g_verbose);
 
 	cudaError_t retval = cudaSuccess;

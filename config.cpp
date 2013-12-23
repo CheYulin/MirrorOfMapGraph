@@ -44,77 +44,12 @@ void Config::registerParameter(std::string name, std::string description, Type d
   param_desc[name]=ParameterDescription(&typeid(Type),name,description,default_value);
 }
 
-//template <typename Type>
-//Type Config::getParameter(std::string name) {
-//  //verify the paramter has been registered
-//  ParamDesc::iterator desc_iter=param_desc.find(name);
-//  if(desc_iter==param_desc.end()) {
-//    std::cout << "getParameter error: '" << name << "' not found\n";
-//    throw;
-//  }
-//  //verify the types match
-//  if(desc_iter->second.type!=&typeid(Type))
-//  {
-//    std::cout << "getParameter error: '" << name << "' type miss match\n";
-//    throw;
-//  }
-//
-//  //check if the paramter has been set
-//  ParamDB::iterator param_iter=params.find(name);
-//  if(param_iter==params.end()) {
-//    return desc_iter->second.default_value.get<Type>(); //return the default value
-//  }
-//  else {
-//    return param_iter->second.get<Type>();              //return the parameter value
-//  }
-//}
-//
-//template <typename Type>
-//void Config::setParameter(std::string name, Type value) {
-//  //verify that the parameter has been registered
-//  ParamDesc::iterator iter=param_desc.find(name);
-//  if(iter==param_desc.end()) {
-//    std::cout << "setParameter error: '" << name << "' not found\n";
-//    throw;
-//  }
-//  if(iter->second.type!=&typeid(Type)) {
-//    std::cout << "setParameter error: '" << name << "' type miss match\n";
-//    throw;
-//  }
-//  params[name]=value;
-//}
-
 void Config::printOptions() {
   for(ParamDesc::iterator iter=param_desc.begin();iter!=param_desc.end();iter++)
   {
     std::cout << "           " << iter->second.name << ": " << iter->second.description << std::endl;
   }
 }
-
-
-//#include <amg_level.h>
-//#include <norm.h>
-//#include <convergence.h>
-//#include <cycles/cycle.h>
-//#include <smoothers/smoother.h>
-//#include <smoothedMG/aggregators/aggregator.h>
-//
-//void Config::printAMGConfig() {
-//      std::cout << "AMG Configuration: "  << std::endl;
-//      std::cout << "  Setup Parameters: " << std::endl;
-//      std::cout << "    Algorithm: " << getString(getParameter<AlgorithmType>("algorithm")) << std::endl;
-//      std::cout << "    Max Levels: " << getParameter<int>("max_levels") << std::endl;
-//      std::cout << "  Solver Parameters: " << std::endl;
-//      std::cout << "    Solver: " << getString(getParameter<SolverType>("solver")) << std::endl;
-//      std::cout << "    Cycle: " << getString(getParameter<CycleType>("cycle")) << std::endl;
-//      std::cout << "    Smoother: " << getString(getParameter<SmootherType>("smoother")) << std::endl;
-//      std::cout << "      Presweeps: " << getParameter<int>("presweeps") << std::endl;
-//      std::cout << "      Postsweeps: " << getParameter<int>("postsweeps") << std::endl;
-//      std::cout << "    Convergence Type: " << getString(getParameter<ConvergenceType>("convergence")) << std::endl;
-//      std::cout << "      Tolerance: " << std::scientific << getParameter<double>("tolerance") << std::fixed << std::endl;
-//      std::cout << "    Max Iterations: " << getParameter<int>("max_iters") << std::endl;
-//      std::cout << "    Norm: " << getString(getParameter<NormType>("norm")) << std::endl;
-//}
 
 void Config::setParameter(const char* str) {
 
@@ -142,16 +77,6 @@ void Config::setParameter(const char* str) {
     setParameter(name, getValue<double>(value.c_str()));
   else if(*(iter->second.type)==typeid(bool))
       setParameter(name, getValue<bool>(value.c_str()));
-//  else if(*(iter->second.type)==typeid(SmootherType))
-//    setParameter(name, getValue<SmootherType>(value.c_str()));
-//  else if(*(iter->second.type)==typeid(CycleType))
-//    setParameter(name, getValue<CycleType>(value.c_str()));
-//  else if(*(iter->second.type)==typeid(SolverType))
-//    setParameter(name, getValue<SolverType>(value.c_str()));
-//  else if(*(iter->second.type)==typeid(NormType))
-//    setParameter(name, getValue<NormType>(value.c_str()));
-//  else if(*(iter->second.type)==typeid(ConvergenceType))
-//    setParameter(name, getValue<ConvergenceType>(value.c_str()));
   else
   {
 //    char error[100];
