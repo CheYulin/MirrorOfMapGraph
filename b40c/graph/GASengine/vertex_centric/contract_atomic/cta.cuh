@@ -243,7 +243,7 @@ struct Cta
 				if (tile->vertex_id[LOAD][VEC] != -1) {
 
 					// Row index on our GPU (vertex ids are striped across GPUs)
-					VertexId row_id = (tile->vertex_id[LOAD][VEC] & KernelPolicy::VERTEX_ID_MASK) / cta->num_gpus;
+//					VertexId row_id = (tile->vertex_id[LOAD][VEC] & KernelPolicy::VERTEX_ID_MASK) / cta->num_gpus;
 
 					typename Program::contract contract_functor;
 					contract_functor(cta->iteration, tile->vertex_id[LOAD][VEC], cta->vertex_list, tile->predecessor_id[LOAD][VEC]);

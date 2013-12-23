@@ -60,7 +60,7 @@ protected:
 public:
 
 	// Allows display to stdout of search details
-	bool DEBUG;
+	int DEBUG;
 
 	FrontierType GetFrontierType() { return frontier_type;}
 

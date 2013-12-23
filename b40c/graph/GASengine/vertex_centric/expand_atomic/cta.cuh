@@ -283,10 +283,10 @@ namespace b40c
                     SizeT coop_oob = cta->smem_storage.state.warp_comm[0][2];
 
                     VertexId row_id = cta->smem_storage.state.warp_comm[0][3];
-                    VertexId predecessor_id = row_id;
+//                    VertexId predecessor_id = row_id;
 
-                    VertexId neighbor_id, neighbor_id_tmp;
-                    VertexId frontier, misc_value;
+                    VertexId neighbor_id_tmp;
+//                    VertexId frontier, misc_value;
 
                     typename Program::expand_vertex expand_vertex_functor;
                     bool changed = expand_vertex_functor(row_id, cta->vertex_list);
@@ -384,8 +384,8 @@ namespace b40c
                       SizeT coop_oob = cta->smem_storage.state.warp_comm[warp_id][2];
 
                       VertexId row_id = cta->smem_storage.state.warp_comm[warp_id][3];
-                      VertexId predecessor_id = row_id;
-                      VertexId neighbor_id, neighbor_id_tmp;
+//                      VertexId predecessor_id = row_id;
+                      VertexId neighbor_id_tmp;
 
                       typename Program::expand_vertex expand_vertex_functor;
 					  bool changed = expand_vertex_functor(row_id, cta->vertex_list);
@@ -789,7 +789,7 @@ namespace b40c
                 for (int scratch_offset = threadIdx.x; scratch_offset < scratch_remainder; scratch_offset += KernelPolicy::THREADS)
                 {
                   // Gather a neighbor
-                  VertexId neighbor_id, neighbor_id_tmp;
+                  VertexId neighbor_id_tmp;
                   VertexId row_id = smem_storage.gather_predecessors[scratch_offset];
                   typename Program::expand_vertex expand_vertex_functor;
 				  bool changed = expand_vertex_functor(row_id, vertex_list); //might use optimization for unique load for a vertex
@@ -819,7 +819,7 @@ namespace b40c
 //                  }
 
                   // Scatter predecessor it into queue
-                  VertexId predecessor_id = row_id;
+//                  VertexId predecessor_id = row_id;
                   //VertexId predecessor_id = 1;
 //                  util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, d_predecessor_out + smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset);
 //                  d_predecessor_out[smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset] = predecessor_id;

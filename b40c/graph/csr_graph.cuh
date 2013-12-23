@@ -400,7 +400,7 @@ namespace b40c
        */
       ~CsrGraph()
       {
-        Free();
+//        Free();
       }
     };
 

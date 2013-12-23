@@ -344,7 +344,7 @@ namespace b40c
                     VertexId row_id = cta->smem_storage.state.warp_comm[0][3];
 
                     VertexId neighbor_id;
-                    EValue nb_dist;
+//                    EValue nb_dist;
                     EValue new_dist;
 //                    SizeT num_out_edge;
                     int iter_count = 0;
@@ -475,7 +475,7 @@ namespace b40c
                       // VertexId predecessor_id = cta->smem_storage.state.warp_comm[warp_id][3];
 
                       VertexId neighbor_id;
-                      EValue nb_dist, new_dist;
+                      EValue new_dist;
 //                      SizeT num_out_edge;
                       while (coop_offset + lane_id < coop_oob)
                       {
@@ -568,7 +568,7 @@ namespace b40c
                   // list if its current offset into local scratch is in range
 //                  SizeT scratch_offset = tile->fine_row_rank[LOAD][VEC] + tile->row_progress[LOAD][VEC] - tile->progress;
                   VertexId neighbor_id;
-                  EValue new_dist, nb_dist;
+                  EValue new_dist;
 
                   typename Program::GatherType dist = Program::INIT_VALUE;
 

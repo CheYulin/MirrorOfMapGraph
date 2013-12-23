@@ -1,7 +1,7 @@
 NVCC = nvcc
 
-NVCC_OPTS = -O3  -Xptxas -v  -Xcompiler -fopenmp  -I.
-#NVCC_OPTS = -G -g -Xcompiler -fopenmp  -I.
+#NVCC_OPTS = -O3 -Xcompiler -fopenmp  -I.
+NVCC_OPTS = -G -g -Xptxas -v -Xcompiler -fopenmp  -I.
 #NVCC_ARCHS = -gencode=arch=compute_20,code=sm_20
 #NVCC_ARCHS = -gencode arch=compute_35,code=sm_35
 LD_LIBS = -lz -lgomp
@@ -16,9 +16,12 @@ SM_TARGETS = $(GEN_SM20) $(GEN_SM35)
 # Uncomment if you have	gcc 4.5	and would like to use its improved random number facility.
 #RAND_OPTS=--compiler-options "-std=c++0x"
 
-all: graphio.o  simpleSSSP #sampleBC simpleBFS simplePageRank  simpleCC
+all: graphio.o config.o simpleSSSP #sampleBC simpleBFS simplePageRank  simpleCC
 
 graphio.o: graphio.cpp graphio.h Makefile
+	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) $(RAND_OPTS)
+	
+config.o: config.cpp getvalue.h config.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) $(RAND_OPTS)
 
 simpleBFS.o: simpleBFS.cu GASEngine.h bfs.h graphio.h Makefile
@@ -45,7 +48,7 @@ simpleBFS: simpleBFS.o graphio.o
 simplePageRank: simplePageRank.o graphio.o
 	nvcc -o $@ $^ $(LD_LIBS)
 
-simpleSSSP: simpleSSSP.o graphio.o
+simpleSSSP: simpleSSSP.o graphio.o config.o
 	nvcc -o $@ $^ $(LD_LIBS)
 
 simpleCC: simpleCC.o graphio.o
