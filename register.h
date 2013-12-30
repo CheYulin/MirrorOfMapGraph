@@ -8,5 +8,6 @@ inline void registerParameters() {
   Config::registerParameter<int>("origin","zero based indices or one based", 1); //vertex indices origin
   Config::registerParameter<int>("directed","the graph is directed", 1); //whether the graph is directed or not
   Config::registerParameter<int>("device","the device to use", 0); // the device number
+  Config::registerParameter<int>("num_src","the number of starting vertices when random sources is specified", 1); // the device number
   Config::registerParameter<double>("max_queue_sizing","frontier queue size", 3.0); //frontier queue size
 }

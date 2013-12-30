@@ -27,22 +27,34 @@
 
 #pragma once
 
-namespace b40c {
-namespace util {
-
-/**
- * Memset a device vector.
- */
-template <typename T>
-__global__ void MemsetKernel(T *d_out, T value, int length)
+namespace b40c
 {
-	const int STRIDE = gridDim.x * blockDim.x;
-	for (int idx = (blockIdx.x * blockDim.x) + threadIdx.x; idx < length; idx += STRIDE) {
-		d_out[idx] = value;
-	}
-}
+  namespace util
+  {
 
+    /**
+     * Memset a device vector.
+     */
+    template<typename T>
+    __global__ void MemsetKernel(T *d_out, T value, int length)
+    {
+      const int STRIDE = gridDim.x * blockDim.x;
+      for (int idx = (blockIdx.x * blockDim.x) + threadIdx.x; idx < length; idx += STRIDE)
+      {
+        d_out[idx] = value;
+      }
+    }
 
-} // namespace util
+    template<typename T>
+    __global__ void SequenceKernel(T *d_out, int length)
+    {
+      const int STRIDE = gridDim.x * blockDim.x;
+      for (int idx = (blockIdx.x * blockDim.x) + threadIdx.x; idx < length; idx += STRIDE)
+      {
+        d_out[idx] = idx;
+      }
+    }
+
+  } // namespace util
 } // namespace b40c
 

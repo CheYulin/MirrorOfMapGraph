@@ -1,7 +1,7 @@
 NVCC = nvcc
 
-#NVCC_OPTS = -O3 -Xcompiler -fopenmp  -I.
-NVCC_OPTS = -G -g -Xptxas -v -Xcompiler -fopenmp  -I.
+NVCC_OPTS = -O3 -Xcompiler -fopenmp  -I.
+#NVCC_OPTS = -G -g -Xptxas -v -Xcompiler -fopenmp  -I.
 #NVCC_ARCHS = -gencode=arch=compute_20,code=sm_20
 #NVCC_ARCHS = -gencode arch=compute_35,code=sm_35
 LD_LIBS = -lz -lgomp
@@ -16,7 +16,7 @@ SM_TARGETS = $(GEN_SM20) $(GEN_SM35)
 # Uncomment if you have	gcc 4.5	and would like to use its improved random number facility.
 #RAND_OPTS=--compiler-options "-std=c++0x"
 
-all: graphio.o config.o simpleSSSP #sampleBC simpleBFS simplePageRank  simpleCC
+all: graphio.o config.o  CC simpleSSSP BFS#sampleBC simpleBFS simplePageRank   
 
 graphio.o: graphio.cpp graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) $(RAND_OPTS)
@@ -24,13 +24,13 @@ graphio.o: graphio.cpp graphio.h Makefile
 config.o: config.cpp getvalue.h config.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) $(RAND_OPTS)
 
-simpleBFS.o: simpleBFS.cu GASEngine.h bfs.h graphio.h Makefile
+BFS.o: bfs.cu GASEngine.h bfs.h graphio.h Makefile b40c/graph/GASengine/enactor_vertex_centric.cuh
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS)
 
 simplePageRank.o: simplePageRank.cu GASEngine.h pagerank.h graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) 
 
-simpleCC.o: simpleCC.cu GASEngine.h concomp.h graphio.h Makefile
+CC.o: CC.cu GASEngine.h cc.h graphio.h Makefile b40c/graph/GASengine/enactor_vertex_centric.cuh
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) 
 				
 sampleBC.o: sampleBC.cu sampleBC.h GASEngine.h graphio.h Makefile
@@ -42,7 +42,7 @@ samplePageRank.o: samplePageRank.cu GASEngine.h pagerank.h graphio.h Makefile
 simpleSSSP.o: simpleSSSP.cu GASEngine.h sssp.h b40c/graph/GASengine/enactor_vertex_centric.cuh graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) 
 
-simpleBFS: simpleBFS.o graphio.o
+BFS: BFS.o graphio.o config.o
 	nvcc -o $@ $^ $(LD_LIBS)
 
 simplePageRank: simplePageRank.o graphio.o
@@ -51,14 +51,14 @@ simplePageRank: simplePageRank.o graphio.o
 simpleSSSP: simpleSSSP.o graphio.o config.o
 	nvcc -o $@ $^ $(LD_LIBS)
 
-simpleCC: simpleCC.o graphio.o
+CC: CC.o graphio.o config.o
 	nvcc -o $@ $^ $(LD_LIBS)
 				
 sampleBC: sampleBC.o graphio.o
 	nvcc -o $@ $^ $(LD_LIBS)
 	
 clean:
-	rm -f sampleBC simpleBFS simplePageRank simpleCC simpleSSSP samplePageRank *.o
+	rm -f sampleBC BFS simplePageRank simpleCC CC simpleSSSP samplePageRank *.o
 
 
 regress:

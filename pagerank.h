@@ -10,13 +10,13 @@
 
 #include <b40c/graph/GASengine/csr_problem.cuh>
 
-/* Single Source Shortest Path.
- */
-
-//TODO: edge data not currently represented
-//TODO: initialize frontier
 struct pagerank {
-	typedef float DataType; //must be 32 bit or smaller type
+
+	typedef float DataType;
+	typedef DataType MiscType;
+	typedef DataType GatherType;
+
+	static const typename DataType INIT_VALUE = 0.0;
 
 	struct VertexType {
 		int nodes; // #of nodes.
@@ -26,243 +26,308 @@ struct pagerank {
 		DataType* d_dists; // the actual distance computed by post_apply
 		DataType* d_min_dists; // intermediate value for global synchronization computed in contract. used by the next apply()
 
-		VertexType () : d_dists(NULL), d_dists_out(NULL), d_changed(NULL), d_min_dists(NULL), nodes(0), edges(0){}
-
-		void init(const int _nodes, const int _edges)
-		{
-			nodes = _nodes;
-			edges = _edges;
-
-			b40c::util::B40CPerror(cudaMalloc((void**) &d_dists, nodes * sizeof(int)), "cudaMalloc VertexType::d_dists failed", __FILE__, __LINE__);
-			b40c::util::B40CPerror(cudaMalloc((void**) &d_dists_out, nodes * sizeof(int)), "cudaMalloc VertexType::d_dists_out failed", __FILE__, __LINE__);
-			b40c::util::B40CPerror(cudaMalloc((void**) &d_changed, nodes * sizeof(int)), "cudaMalloc VertexType::d_changed failed", __FILE__, __LINE__);
-			b40c::util::B40CPerror(cudaMalloc((void**) &d_min_dists, nodes * sizeof(int)), "cudaMalloc VertexType::d_min_dists failed", __FILE__, __LINE__);
-
-			int memset_block_size = 256;
-			int memset_grid_size_max = 32 * 1024;	// 32K CTAs
-			int memset_grid_size;
-
-			// Initialize d_dists elements to 100000000
-			memset_grid_size = B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
-			b40c::util::MemsetKernel<DataType><<<memset_grid_size, memset_block_size, 0, 0>>>(
-					d_dists,
-				100000000,
-				nodes);
-
-			// Initialize d_labels elements to -1
-			memset_grid_size = B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
-			b40c::util::MemsetKernel<DataType><<<memset_grid_size, memset_block_size, 0, 0>>>(
-					d_dists_out,
-					100000000,
-					nodes);
-
-			// Initialize d_labels elements to -1
-			memset_grid_size = B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
-			b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0, 0>>>(
-					d_changed,
-				0,
-				nodes);
-
-			// Initialize d_labels elements to -1
-			memset_grid_size = B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
-			b40c::util::MemsetKernel<DataType><<<memset_grid_size, memset_block_size, 0, 0>>>(
-					d_min_dists,
-					100000000,
-					nodes);
+		VertexType() :
+				d_dists(NULL), d_dists_out(NULL), d_changed(NULL), d_min_dists(
+						NULL), nodes(0), edges(0) {
 		}
-	  };
+	};
 
-	  static GatherEdges gatherOverEdges() {
+	static void Initialize(const int nodes, const int edges, int num_srcs,
+			int* srcs, VertexType &vertex_list, int* d_frontier_keys[3],
+			MiscType* d_frontier_values[3]) {
+		vertex_list.nodes = nodes;
+		vertex_list.edges = edges;
+
+		b40c::util::B40CPerror(
+				cudaMalloc((void**) &vertex_list.d_dists,
+						nodes * sizeof(DataType)),
+				"cudaMalloc VertexType::d_dists failed", __FILE__, __LINE__);
+		b40c::util::B40CPerror(
+				cudaMalloc((void**) &vertex_list.d_dists_out,
+						nodes * sizeof(DataType)),
+				"cudaMalloc VertexType::d_dists_out failed", __FILE__,
+				__LINE__);
+		b40c::util::B40CPerror(
+				cudaMalloc((void**) &vertex_list.d_changed,
+						nodes * sizeof(int)),
+				"cudaMalloc VertexType::d_changed failed", __FILE__, __LINE__);
+		b40c::util::B40CPerror(
+				cudaMalloc((void**) &vertex_list.d_min_dists,
+						nodes * sizeof(DataType)),
+				"cudaMalloc VertexType::d_min_dists failed", __FILE__,
+				__LINE__);
+
+		int memset_block_size = 256;
+		int memset_grid_size_max = 32 * 1024;	// 32K CTAs
+		int memset_grid_size;
+
+		// Initialize d_dists elements to 100000000
+		memset_grid_size =
+				B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
+		b40c::util::MemsetKernel<DataType><<<memset_grid_size,
+				memset_block_size, 0, 0>>>(vertex_list.d_dists, INIT_VALUE,
+				nodes);
+
+		// Initialize d_labels elements to -1
+		memset_grid_size =
+				B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
+		b40c::util::MemsetKernel<DataType><<<memset_grid_size,
+				memset_block_size, 0, 0>>>(vertex_list.d_dists_out, INIT_VALUE,
+				nodes);
+
+		// Initialize d_labels elements to -1
+		memset_grid_size =
+				B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
+		b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
+				0>>>(vertex_list.d_changed, 0, nodes);
+
+		// Initialize d_labels elements to -1
+		memset_grid_size =
+				B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
+		b40c::util::MemsetKernel<DataType><<<memset_grid_size,
+				memset_block_size, 0, 0>>>(vertex_list.d_min_dists, INIT_VALUE,
+				nodes);
+
+		int* init_dists = new int[num_srcs];
+		for (int i = 0; i < num_srcs; i++)
+			init_dists[i] = 0;
+
+		if (b40c::util::B40CPerror(
+				cudaMemcpy(vertex_list.d_dists, init_dists,
+						num_srcs * sizeof(int), cudaMemcpyHostToDevice),
+				"CsrProblem cudaMemcpy d_dists failed", __FILE__, __LINE__))
+			exit(0);
+
+		if (b40c::util::B40CPerror(
+				cudaMemcpy(vertex_list.d_dists_out, init_dists,
+						num_srcs * sizeof(int), cudaMemcpyHostToDevice),
+				"CsrProblem cudaMemcpy d_dists_out failed", __FILE__, __LINE__))
+			exit(0);
+
+		if (b40c::util::B40CPerror(
+				cudaMemcpy(d_frontier_keys[0], srcs, num_srcs * sizeof(int),
+						cudaMemcpyHostToDevice),
+				"CsrProblem cudaMemcpy d_frontier_keys failed", __FILE__,
+				__LINE__))
+			exit(0);
+
+		if (b40c::util::B40CPerror(
+				cudaMemcpy(d_frontier_keys[1], srcs, num_srcs * sizeof(int),
+						cudaMemcpyHostToDevice),
+				"CsrProblem cudaMemcpy d_frontier_keys failed", __FILE__,
+				__LINE__))
+			exit(0);
+
+		int init_value[1] = { INIT_VALUE };
+		if (b40c::util::B40CPerror(
+				cudaMemcpy(d_frontier_values[0], init_value,
+						num_srcs * sizeof(int), cudaMemcpyHostToDevice),
+				"CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
+				__LINE__))
+			exit(0);
+
+		if (b40c::util::B40CPerror(
+				cudaMemcpy(d_frontier_values[1], init_value,
+						num_srcs * sizeof(int), cudaMemcpyHostToDevice),
+				"CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
+				__LINE__))
+			exit(0);
+
+		int init_changed[1] = { 1 };
+		if (b40c::util::B40CPerror(
+				cudaMemcpy(vertex_list.d_changed, init_changed,
+						num_srcs * sizeof(int), cudaMemcpyHostToDevice),
+				"CsrProblem cudaMemcpy d_changed failed", __FILE__, __LINE__))
+			exit(0);
+	}
+
+	static SrcVertex srcVertex() {
+		return SINGLE;
+	}
+
+	static GatherEdges gatherOverEdges() {
 		return NO_GATHER_EDGES;
-	  }
+	}
 
-	  static ApplyVertices applyOverEdges() {
+	static ApplyVertices applyOverEdges() {
 		return APPLY_FRONTIER;
-	  }
+	}
 
-	  static ExpandEdges expandOverEdges() {
+	static ExpandEdges expandOverEdges() {
 		return EXPAND_OUT_EDGES;
-	  }
+	}
 
-	  /**
-	   * For each vertex in the frontier,
-	   */
-		  struct gather_vertex {
-			__device__
-			  void operator()(int row_id, GatherType final_value, VertexType &vertex_list) {
-
-			  }
-		  };
-
-     /**
-      * For each vertex in the frontier,
-      */
-	  struct gather_edge {
+	/**
+	 * For each vertex in the frontier,
+	 */
+	struct gather_vertex {
 		__device__
-		  void operator()(int row_id, int neighbor_id_in, VertexType &vertex_list,  int& new_value) {
-            float nb_dist = vertex_list.d_dists[neighbor_id_in];
-            int num_out_edge = vertex_list.d_num_out_edges[neighbor_id_in];
-            new_value = nb_dist / (float)num_out_edge;
-		  }
-	  };
+		void operator()(const int row_id, const GatherType final_value,
+				VertexType &vertex_list) {
+
+		}
+	};
+
+	/**
+	 * For each vertex in the frontier,
+	 */
+	struct gather_edge {
+		__device__
+		void operator()(const int row_id, const int neighbor_id_in,
+				const VertexType &vertex_list, GatherType& new_value) {
+
+		}
+	};
 
 	/**
 	 * the binary operator
 	 */
-	  struct gather_sum {
-		__device__
-		GatherType operator()(GatherType left, GatherType right) {
-            return left + righ;
-		  }
-	  };
+	struct gather_sum {
+		__device__ GatherType operator()(const GatherType &left,
+				const GatherType &right) {
+			return left + right;
+		}
+	};
 
-
-
-
-  /** Update the vertex state given the gather results. */
-	  struct apply {
+	/** Update the vertex state given the gather results. */
+	struct apply {
 		__device__
 		/**
 		 * 
 		 */
-		  void operator()(VertexType& vertex_list, const int iteration, const int v) {
+		void operator()(const int vertex_id, const int iteration,
+				VertexType& vertex_list) {
 
-			  const int oldvalue = vertex_list.d_dists[v];
-			  const int gathervalue = vertex_list.d_min_dists[v];
-			  const int newvalue = min(oldvalue, gathervalue);
+			const int oldvalue = vertex_list.d_dists[vertex_id];
+			const int gathervalue = vertex_list.d_min_dists[vertex_id];
+			const int newvalue = min(oldvalue, gathervalue);
 
-			  if (oldvalue == newvalue)
-				  vertex_list.d_changed[v] = 0;
-			  else
-				  vertex_list.d_changed[v] = 1;
+			if (oldvalue == newvalue)
+				vertex_list.d_changed[vertex_id] = 0;
+			else
+				vertex_list.d_changed[vertex_id] = 1;
 
-			  vertex_list.d_dists_out[v] = newvalue;
-		  }
-	  };
+			vertex_list.d_dists_out[vertex_id] = newvalue;
+		}
+	};
 
-  /** post-apply function (invoked after threads in apply() synchronize at a memory barrier). */
-	  struct post_apply {
+	/** post-apply function (invoked after threads in apply() synchronize at a memory barrier). */
+	struct post_apply {
 		__device__
-		  void operator()(VertexType& vertex_list, const int v) {
-			vertex_list.d_dists[v] = vertex_list.d_dists_out[v];
-			vertex_list.d_min_dists[v] = 100000000;
-		  }
-	  };
+		void operator()(const int vertex_id, VertexType& vertex_list) {
+			vertex_list.d_dists[vertex_id] = vertex_list.d_dists_out[vertex_id];
+			vertex_list.d_min_dists[vertex_id] = INIT_VALUE;
+		}
+	};
 
-  /** The return value of this device function will be passed into the
-      expand_edge device function as [bool:change]. For example, this
-      can check the state of the vertex to decide whether it has been
-      updated and only expand its neighbors if it has be updated. */
-	  struct expand_vertex {
-	         __device__
-		 /**
-		   * @param row_id The vertex identifier of the source
-		   * vertex.
-		   *
-		   * @param vertex_list The vertices in the graph.
-		  */
-	          bool operator()(int &row_id, VertexType &vertex_list)
-	  	  {
-	  			  return vertex_list.d_changed[row_id];
-	  	  }
-	  };
+	/** The return value of this device function will be passed into the
+	 expand_edge device function as [bool:change]. For example, this
+	 can check the state of the vertex to decide whether it has been
+	 updated and only expand its neighbors if it has be updated. */
+	struct expand_vertex {
+		__device__
+		/**
+		 * @param vertex_id The vertex identifier of the source
+		 * vertex.
+		 *
+		 * @param vertex_list The vertices in the graph.
+		 */
+		bool operator()(const int vertex_id, VertexType &vertex_list) {
+			return vertex_list.d_changed[vertex_id];
+		}
+	};
 
-  /** Expand stage creates a new frontier. The frontier can have a lot
-      of duplicates.  The contract stage will eliminate (some of)
-      those duplicates.  There are two outputs for expand.  One is the
-      new frontier.  The other is a "predecessor" array.  These arrays
-      have a 1:1 correspondence.  The predecessor array is available
-      for user data, depending on the algorithm.  For example, for BFS
-      it is used to store the vertex_id of the vertex from which this
-      vertex was reached by a one step traversal along some edge.
+	/** Expand stage creates a new frontier. The frontier can have a lot
+	 of duplicates.  The contract stage will eliminate (some of)
+	 those duplicates.  There are two outputs for expand.  One is the
+	 new frontier.  The other is a "predecessor" array.  These arrays
+	 have a 1:1 correspondence.  The predecessor array is available
+	 for user data, depending on the algorithm.  For example, for BFS
+	 it is used to store the vertex_id of the vertex from which this
+	 vertex was reached by a one step traversal along some edge.
 
-      TODO: rename row_id as vertex_id
+	 TODO: add edge_list and edge_id
 
-      TODO: remove neighbor_id_out.
+	 TODO: Potentially make the predecessor[] into a used-defined
+	 type, but this will change the shared memory size calculations.
+	 */
+	struct expand_edge {
+		__device__
+		/**
+		 * @param changed true iff the device function
+		 * expand_vertex evaluated to true for this vertex.
+		 *
+		 * @param row_id The vertex identifier of the source
+		 * vertex.
+		 *
+		 * @param vertex_list The vertices in the graph.
+		 *
+		 * @param neighbor_id_in The vertex identifier of
+		 * the target vertex.
+		 *
+		 * @param neighbor_id_out DEPRECATED.
+		 *
+		 * @param frontier The vertex identifier to be added
+		 * into the new frontier. Set to neighbor_id_in if
+		 * you want to visit that vertex and set to -1 if
+		 * you do not want to visit that vertex along this
+		 * edge.
+		 *
+		 * @param precedessor_out The optional value to be
+		 * written into the predecessor array. This array
+		 * has a 1:1 correspondence with the frontier array.
+		 */
+		void operator()(const bool changed, const int iteration,
+				const int vertex_id, const int neighbor_id_in,
+				VertexType& vertex_list, int& frontier, int& misc_value) {
+			const int src_dist = vertex_list.d_dists[vertex_id];
+			const int dst_dist = vertex_list.d_dists[neighbor_id_in];
+			if ((changed || iteration == 0) && dst_dist > src_dist + 1)
+				frontier = neighbor_id_in;
+			else
+				frontier = -1;
+			misc_value = src_dist + 1; // source dist + edge weight
+		}
+	};
 
-      TODO: add edge_list and edge_id
+	/** The contract stage is used to reduce the duplicates in the
+	 frontier created by the Expand stage.
 
-      TODO: rename [predecessor_out] and [precedessor] as a user
-      defined temporary array that is 1:1 with the frontier. 
+	 TODO: Replace iteration with a struct for some engine state.
+	 Pass this into more methods.
+	 */
+	struct contract {
+		__device__
+		/**
+		 * @param row_id The vertex identifier of the source
+		 * vertex.
+		 *
+		 * @param vertex_list The vertices in the graph.
+		 *
+		 * @param iterator The iteration number.
+		 *
+		 * @param vertex_id If you do not want to visit this
+		 * vertex, then write a -1 on this parameter.
+		 *
+		 * @param predecessor The value from the
+		 * predecessor_out array in the expand_edge device
+		 * function.
+		 */
+		void operator()(const int iteration, int &vertex_id,
+				VertexType &vertex_list, int& misc_value) {
 
-      TODO: Potentially make the predecessor[] into a used-defined
-      type, but this will change the shared memory size calculations.
-  */
-	  struct expand_edge {
-		  __device__
-		  /**
-		   * @param changed true iff the device function
-		   * expand_vertex evaluated to true for this vertex.
-		   *
-		   * @param row_id The vertex identifier of the source
-		   * vertex.
-		   *
-		   * @param vertex_list The vertices in the graph.
-		   *
-		   * @param neighbor_id_in The vertex identifier of
-		   * the target vertex.
-		   * 
-		   * @param neighbor_id_out DEPRECATED.
-		   *
-		   * @param frontier The vertex identifier to be added
-		   * into the new frontier. Set to neighbor_id_in if
-		   * you want to visit that vertex and set to -1 if
-		   * you do not want to visit that vertex along this
-		   * edge.
-		   *
-		   * @param precedessor_out The optional value to be
-		   * written into the predecessor array. This array
-		   * has a 1:1 correspondence with the frontier array.
-		   */
-		  void operator()(const bool changed, const int &row_id, const VertexType& vertex_list, const int& neighbor_id_in, int&neighbor_id_out, int& frontier, int& predecessor_out)
-		  {
-			  const int src_dist = vertex_list.d_dists[row_id];
-                          const int dst_dist = vertex_list.d_dists[neighbor_id_in];
-                          if(changed && dst_dist > src_dist + 1) 
-                          	frontier = neighbor_id_in;
-                          else
-                                frontier = -1;
-			  predecessor_out = src_dist + 1; // source dist + edge weight
-		  }
-	  };
+			/**
+			 * Note: predecessor is source dist + edge weight
+			 * for SSSP.  This writes on d_min_dists[] to find
+			 * the minimum distinct for this vertex.
+			 */
 
-  /** The contract stage is used to reduce the duplicates in the
-      frontier created by the Expand stage.
+//			  printf("vertex_id=%d, misc_value=%d\n", vertex_id, misc_value);
+			atomicMin(&vertex_list.d_min_dists[vertex_id], misc_value);
 
-      TODO: Replace iteration with a struct for some engine state.
-      Pass this into more methods.
-   */
-	  struct contract {
-		  __device__
-		  /**
-		   * @param row_id The vertex identifier of the source
-		   * vertex.
-		   *
-		   * @param vertex_list The vertices in the graph.
-		   *
-		   * @param iterator The iteration number.
-		   *
-		   * @param vertex_id If you do not want to visit this
-		   * vertex, then write a -1 on this parameter. 
-		   *
-		   * @param predecessor The value from the
-		   * predecessor_out array in the expand_edge device
-		   * function.
-		   */
-		  void operator()(const int &row_id, const VertexType &vertex_list, const int& iteration, int &vertex_id, int& predecessor)
-		  {
-
-		    /**
-		     * Note: predecessor is source dist + edge weight
-		     * for SSSP.  This writes on d_min_dists[] to find
-		     * the minimum distinct for this vertex.
-		     */
-
-
-
-		  }
-	  };
+		}
+	};
 
 };
 
-#endif /* PR_H_ */
+#endif /* SSSP_H_ */
