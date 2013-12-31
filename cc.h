@@ -1,51 +1,72 @@
 /*
- * pagerank.h
+ * cc.h
  *
- *  Created on: Dec 9, 2013
+ *  Created on: Dec 24, 2013
  *      Author: zhisong
  */
 
-#ifndef PR_H_
-#define PR_H_
+#ifndef CC_H_
+#define CC_H_
 
 #include <b40c/graph/GASengine/csr_problem.cuh>
-#include <thrust/adjacent_difference.h>
-#include <thrust/device_vector.h>
-#include <thrust/execution_policy.h>
 
-struct pagerank
+/* Single Source Shortest Path.
+ */
+
+//TODO: edge data not currently represented
+struct cc
 {
 
-  typedef float DataType;
-  typedef int MiscType;
+  typedef int DataType;
+  typedef DataType MiscType;
   typedef DataType GatherType;
 
-  static const DataType INIT_VALUE = 0.0;
+  static const int INIT_VALUE = 100000000;
 
   struct VertexType
   {
     int nodes; // #of nodes.
     int edges; // #of edges.
-//    DataType* d_dists_out; // new value computed by apply.
+    DataType* d_dists_out; // new value computed by apply.
     int* d_changed; // 1 iff dists_out was changed in apply.
     DataType* d_dists; // the actual distance computed by post_apply
     DataType* d_min_dists; // intermediate value for global synchronization computed in contract. used by the next apply()
-    int* d_num_out_edge;
-    int* d_visited_flag;
 
     VertexType() :
-        d_dists(NULL),
-//        d_dists_out(NULL),
-        d_changed(NULL), d_min_dists(
+        d_dists(NULL), d_dists_out(NULL), d_changed(NULL), d_min_dists(
             NULL), nodes(0), edges(0)
     {
     }
   };
 
+  static SrcVertex srcVertex()
+  {
+    return ALL;
+  }
+
+  static GatherEdges gatherOverEdges()
+  {
+    return NO_GATHER_EDGES;
+  }
+
+  static ApplyVertices applyOverEdges()
+  {
+    return APPLY_FRONTIER;
+  }
+
+  static PostApplyVertices postApplyOverEdges()
+  {
+    return POST_APPLY_FRONTIER;
+  }
+
+  static ExpandEdges expandOverEdges()
+  {
+    return EXPAND_OUT_EDGES;
+  }
+
   static void Initialize(const int nodes, const int edges, int num_srcs,
       int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices,
-      VertexType &vertex_list,
-      int* d_frontier_keys[3],
+      VertexType &vertex_list, int* d_frontier_keys[3],
       MiscType* d_frontier_values[3])
   {
     vertex_list.nodes = nodes;
@@ -56,11 +77,11 @@ struct pagerank
             nodes * sizeof(DataType)),
         "cudaMalloc VertexType::d_dists failed", __FILE__, __LINE__);
 
-//    b40c::util::B40CPerror(
-//        cudaMalloc((void**) &vertex_list.d_dists_out,
-//            nodes * sizeof(DataType)),
-//        "cudaMalloc VertexType::d_dists_out failed", __FILE__,
-//        __LINE__);
+    b40c::util::B40CPerror(
+        cudaMalloc((void**) &vertex_list.d_dists_out,
+            nodes * sizeof(DataType)),
+        "cudaMalloc VertexType::d_dists_out failed", __FILE__,
+        __LINE__);
 
     b40c::util::B40CPerror(
         cudaMalloc((void**) &vertex_list.d_changed,
@@ -73,85 +94,50 @@ struct pagerank
         "cudaMalloc VertexType::d_min_dists failed", __FILE__,
         __LINE__);
 
-    b40c::util::B40CPerror(
-        cudaMalloc((void**) &vertex_list.d_visited_flag,
-            nodes * sizeof(int)),
-        "cudaMalloc VertexType::d_visited_flag failed", __FILE__, __LINE__);
-
     int memset_block_size = 256;
-    int memset_grid_size_max = 32 * 1024;   // 32K CTAs
+    int memset_grid_size_max = 32 * 1024;	// 32K CTAs
     int memset_grid_size;
 
     // Initialize d_dists elements to 100000000
     memset_grid_size = B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
 
-    b40c::util::MemsetKernel<DataType><<<memset_grid_size, memset_block_size, 0,
-        0>>>(vertex_list.d_dists, 0.15, nodes);
-
-//    // Initialize d_dists_out elements
-//    cudaMemcpy(vertex_list.d_dists_out,
-//        vertex_list.d_dists,
-//        nodes * sizeof(DataType),
-//        cudaMemcpyDeviceToDevice);
-
-    b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
-        0>>>(vertex_list.d_changed, 0, nodes);
-
-    b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
-        0>>>(vertex_list.d_visited_flag, 0, nodes);
-
-    b40c::util::MemsetKernel<DataType><<<memset_grid_size,
-        memset_block_size, 0, 0>>>(vertex_list.d_min_dists, 0.0,
+    b40c::util::SequenceKernel<DataType><<<memset_grid_size,
+        memset_block_size, 0, 0>>>(vertex_list.d_dists,
         nodes);
 
-    b40c::util::SequenceKernel<int><<<memset_grid_size,
-        memset_block_size, 0, 0>>>(d_frontier_keys[0],
+    // Initialize d_dists_out elements
+    cudaMemcpy(vertex_list.d_dists_out,
+        vertex_list.d_dists,
+        nodes * sizeof(DataType),
+        cudaMemcpyDeviceToDevice);
+
+    b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
+        0>>>(vertex_list.d_changed, 1, nodes);
+
+    b40c::util::MemsetKernel<DataType><<<memset_grid_size,
+        memset_block_size, 0, 0>>>(vertex_list.d_min_dists, INIT_VALUE,
         nodes);
 
     if (b40c::util::B40CPerror(
-        cudaMemcpy(d_frontier_keys[1], d_frontier_keys[0], nodes * sizeof(int),
+        cudaMemcpy(d_frontier_keys[0], vertex_list.d_dists, nodes * sizeof(int),
             cudaMemcpyDeviceToDevice),
         "CsrProblem cudaMemcpy d_frontier_keys failed", __FILE__,
         __LINE__))
       exit(0);
 
-    //compute d_num_out_edges
-    b40c::util::B40CPerror(
-        cudaMalloc((void**) &vertex_list.d_num_out_edge,
-            nodes * sizeof(int)),
-        "cudaMalloc d_num_out_edges failed", __FILE__, __LINE__);
+    if (b40c::util::B40CPerror(
+        cudaMemcpy(d_frontier_keys[1], vertex_list.d_dists, nodes * sizeof(int),
+            cudaMemcpyDeviceToDevice),
+        "CsrProblem cudaMemcpy d_frontier_keys failed", __FILE__,
+        __LINE__))
+      exit(0);
 
-    thrust::device_ptr<int> d_row_offsets_ptr(d_row_offsets);
-    thrust::device_ptr<int> d_num_out_edge_ptr(vertex_list.d_num_out_edge);
+    b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
+        0>>>(d_frontier_values[0], INIT_VALUE, nodes);
 
-    thrust::adjacent_difference(thrust::device, d_row_offsets_ptr, d_row_offsets_ptr + nodes + 1, d_num_out_edge_ptr);
-    vertex_list.d_num_out_edge++;
+    b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
+        0>>>(d_frontier_values[1], INIT_VALUE, nodes);
 
-  }
-
-  static SrcVertex srcVertex()
-  {
-    return ALL;
-  }
-
-  static GatherEdges gatherOverEdges()
-  {
-    return GATHER_IN_EDGES;
-  }
-
-  static ApplyVertices applyOverEdges()
-  {
-    return APPLY_FRONTIER;
-  }
-
-  static PostApplyVertices postApplyOverEdges()
-  {
-    return POST_APPLY_ALL;
-  }
-
-  static ExpandEdges expandOverEdges()
-  {
-    return EXPAND_OUT_EDGES;
   }
 
   /**
@@ -160,10 +146,10 @@ struct pagerank
   struct gather_vertex
   {
     __device__
-    void operator()(const int vertex_id, const GatherType final_value,
+    void operator()(const int row_id, const GatherType final_value,
         VertexType &vertex_list)
     {
-      vertex_list.d_min_dists[vertex_id] = final_value;
+
     }
   };
 
@@ -176,8 +162,7 @@ struct pagerank
     void operator()(const int row_id, const int neighbor_id_in,
         const VertexType &vertex_list, GatherType& new_value)
     {
-      DataType nb_dist = vertex_list.d_dists[neighbor_id_in];
-      new_value = nb_dist / (DataType) vertex_list.d_num_out_edge[neighbor_id_in];
+
     }
   };
 
@@ -204,16 +189,16 @@ struct pagerank
         VertexType& vertex_list)
     {
 
-      const DataType oldvalue = vertex_list.d_dists[vertex_id];
-      const DataType gathervalue = vertex_list.d_min_dists[vertex_id];
-      const DataType newvalue = 0.15f + (1.0f - 0.15f) * gathervalue;
+      const int oldvalue = vertex_list.d_dists[vertex_id];
+      const int gathervalue = vertex_list.d_min_dists[vertex_id];
+      const int newvalue = min(oldvalue, gathervalue);
 
-      if (fabs(oldvalue - newvalue) < 0.01f)
+      if (oldvalue == newvalue)
         vertex_list.d_changed[vertex_id] = 0;
       else
         vertex_list.d_changed[vertex_id] = 1;
 
-      vertex_list.d_dists[vertex_id] = newvalue;
+      vertex_list.d_dists_out[vertex_id] = newvalue;
     }
   };
 
@@ -223,7 +208,8 @@ struct pagerank
     __device__
     void operator()(const int vertex_id, VertexType& vertex_list)
     {
-      vertex_list.d_visited_flag[vertex_id] = 0;
+      vertex_list.d_dists[vertex_id] = vertex_list.d_dists_out[vertex_id];
+      vertex_list.d_min_dists[vertex_id] = INIT_VALUE;
     }
   };
 
@@ -291,13 +277,13 @@ struct pagerank
         const int vertex_id, const int neighbor_id_in,
         VertexType& vertex_list, int& frontier, int& misc_value)
     {
-//      const int src_dist = vertex_list.d_dists[vertex_id];
-//      const int dst_dist = vertex_list.d_dists[neighbor_id_in];
-      if ((changed && atomicCAS(&vertex_list.d_visited_flag[neighbor_id_in], 0, 1) == 0))
+      const int src_dist = vertex_list.d_dists[vertex_id];
+      const int dst_dist = vertex_list.d_dists[neighbor_id_in];
+      if ((changed || iteration == 0) && dst_dist > src_dist)
         frontier = neighbor_id_in;
       else
         frontier = -1;
-
+      misc_value = src_dist; // source dist + edge weight
     }
   };
 
@@ -336,7 +322,8 @@ struct pagerank
        */
 
 //			  printf("vertex_id=%d, misc_value=%d\n", vertex_id, misc_value);
-//      atomicMin(&vertex_list.d_min_dists[vertex_id], misc_value);
+      atomicMin(&vertex_list.d_min_dists[vertex_id], misc_value);
+
     }
   };
 
@@ -347,4 +334,4 @@ struct pagerank
 
 };
 
-#endif /* SSSP_H_ */
+#endif /* CC_H_ */

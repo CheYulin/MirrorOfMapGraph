@@ -16,7 +16,7 @@ SM_TARGETS = $(GEN_SM20) $(GEN_SM35)
 # Uncomment if you have	gcc 4.5	and would like to use its improved random number facility.
 #RAND_OPTS=--compiler-options "-std=c++0x"
 
-all: graphio.o config.o  CC simpleSSSP BFS#sampleBC simpleBFS simplePageRank   
+all: graphio.o config.o  CC simpleSSSP BFS PR #sampleBC simpleBFS simplePageRank 
 
 graphio.o: graphio.cpp graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) $(RAND_OPTS)
@@ -31,6 +31,9 @@ simplePageRank.o: simplePageRank.cu GASEngine.h pagerank.h graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) 
 
 CC.o: CC.cu GASEngine.h cc.h graphio.h Makefile b40c/graph/GASengine/enactor_vertex_centric.cuh
+	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) 
+	
+PR.o: pagerank.cu GASEngine.h cc.h graphio.h Makefile b40c/graph/GASengine/enactor_vertex_centric.cuh
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) 
 				
 sampleBC.o: sampleBC.cu sampleBC.h GASEngine.h graphio.h Makefile
@@ -52,6 +55,9 @@ simpleSSSP: simpleSSSP.o graphio.o config.o
 	nvcc -o $@ $^ $(LD_LIBS)
 
 CC: CC.o graphio.o config.o
+	nvcc -o $@ $^ $(LD_LIBS)
+	
+PR: PR.o graphio.o config.o
 	nvcc -o $@ $^ $(LD_LIBS)
 				
 sampleBC: sampleBC.o graphio.o

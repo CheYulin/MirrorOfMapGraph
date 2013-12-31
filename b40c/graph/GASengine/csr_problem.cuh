@@ -109,7 +109,7 @@ namespace b40c
         typedef typename ProblemType::SizeT SizeT;
         typedef typename ProblemType::VisitedMask VisitedMask;
         typedef typename ProblemType::ValidFlag ValidFlag;
-        typedef typename ProblemType::EValue EValue;
+        typedef typename ProblemType::Program::DataType EValue;
 
         //---------------------------------------------------------------------
         // Helper structures
@@ -296,7 +296,7 @@ namespace b40c
          * Extract into a single host vector the BFS results disseminated across
          * all GPUs
          */
-        cudaError_t ExtractResults(VertexId *h_dists, VertexId *h_labels, EValue *h_sigmas, EValue *h_deltas)
+        cudaError_t ExtractResults(EValue *h_dists, EValue *h_labels, EValue *h_sigmas, EValue *h_deltas)
         {
           cudaError_t retval = cudaSuccess;
 
@@ -1029,7 +1029,8 @@ namespace b40c
             //only 1 sourc is allowed now
             int srcs[1] = { src };
             _Program::Initialize(graph_slices[gpu]->nodes, graph_slices[gpu]->edges, 1,
-                srcs, graph_slices[gpu]->vertex_list,
+                srcs, graph_slices[gpu]->d_row_offsets, graph_slices[gpu]->d_column_indices, graph_slices[gpu]->d_column_offsets, graph_slices[gpu]->d_row_indices,
+                graph_slices[gpu]->vertex_list,
                 graph_slices[gpu]->frontier_queues.d_keys,
                 graph_slices[gpu]->frontier_queues.d_values);
 

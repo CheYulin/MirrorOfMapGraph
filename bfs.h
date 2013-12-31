@@ -33,7 +33,8 @@ struct bfs
   };
 
   static void Initialize(const int nodes, const int edges, int num_srcs,
-      int* srcs, VertexType &vertex_list, int* d_frontier_keys[3],
+      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices,
+      VertexType &vertex_list, int* d_frontier_keys[3],
       MiscType* d_frontier_values[3])
   {
     vertex_list.nodes = nodes;
@@ -91,6 +92,21 @@ struct bfs
   static GatherEdges gatherOverEdges()
   {
     return NO_GATHER_EDGES;
+  }
+
+  static ApplyVertices applyOverEdges()
+  {
+    return NO_APPLY_VERTICES;
+  }
+
+  static ExpandEdges expandOverEdges()
+  {
+    return EXPAND_OUT_EDGES;
+  }
+
+  static PostApplyVertices postApplyOverEdges()
+  {
+    return POST_APPLY_FRONTIER;
   }
 
   struct contract
@@ -208,16 +224,6 @@ struct bfs
     {
     }
   };
-
-  static ApplyVertices applyOverEdges()
-  {
-    return NO_APPLY_VERTICES;
-  }
-
-  static ExpandEdges expandOverEdges()
-  {
-    return EXPAND_OUT_EDGES;
-  }
 
   static void extractResult(VertexType& vertex_list, DataType* h_output)
   {

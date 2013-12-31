@@ -475,7 +475,7 @@ namespace b40c
 
             // Forward phase BC iterations
             while (done[0] < 0)
-            //                          for (int i = 0; i < 1; i++)
+//            for (int i = 0; i < 1; i++)
             {
               if (DEBUG)
                 printf("Iteration: %lld\n", (long long) iteration[0]);
@@ -486,7 +486,7 @@ namespace b40c
               //
               vertex_centric::contract_atomic::Kernel<ContractPolicy, Program><<<
                   contract_grid_size, ContractPolicy::THREADS>>>(
-                      graph_slice->srcs[iter],
+                  graph_slice->srcs[iter],
                   iteration[0],
                   graph_slice->init_num_elements,                  // initial num_elements, for BFS it is 1
                   queue_index,                  // queue counter index
@@ -531,15 +531,15 @@ namespace b40c
                 printf("queue_length after contraction: %lld\n",
                     (long long) queue_length);
 
-                VertexId* test_vid = new VertexId[graph_slice->nodes];
-                cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
-                printf("Frontier after contraction: ");
-                for (int i = 0; i < queue_length; ++i)
-                {
-                  printf("%d, ", test_vid[i]);
-                }
-                printf("\n");
-                delete[] test_vid;
+//                VertexId* test_vid = new VertexId[graph_slice->nodes];
+//                cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//                printf("Frontier after contraction: ");
+//                for (int i = 0; i < queue_length; ++i)
+//                {
+//                  printf("%d, ", test_vid[i]);
+//                }
+//                printf("\n");
+//                delete[] test_vid;
 
 //                EValue *test_vid2 = new EValue[graph_slice->nodes];
 //                cudaMemcpy(test_vid2, graph_slice->vertex_list.d_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
@@ -585,8 +585,7 @@ namespace b40c
               if (done[0] == 0)
                 break;
 
-              if (iteration[0] != 0
-                  && Program::gatherOverEdges() == GATHER_IN_EDGES)
+              if (Program::gatherOverEdges() == GATHER_IN_EDGES)
               {
 
 //                if (retval = util::B40CPerror(cudaMemcpy(graph_slice->d_gather_results, graph_slice->d_dists, graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToDevice),
@@ -634,21 +633,21 @@ namespace b40c
 //                  if (DEBUG) printf("queue_length after gather: %lld\n", (long long) queue_length);
 
 //                  EValue *test_vid2 = new EValue[graph_slice->nodes];
-//                  cudaMemcpy(test_vid2, graph_slice->d_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
+//                  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
 //                  printf("d_dists after gather: ");
 //                  for (int i = 0; i < graph_slice->nodes; ++i)
 //                  {
-//                    printf("%d, ", test_vid2[i]);
+//                    printf("%f, ", test_vid2[i]);
 //                  }
 //                  printf("\n");
 //                  delete[] test_vid2;
-
-//                  EValue* test_vid2 = new EValue[graph_slice->nodes];
-//                  cudaMemcpy(test_vid2, graph_slice->d_gather_results, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
+//
+//                  test_vid2 = new EValue[graph_slice->nodes];
+//                  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_min_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
 //                  printf("d_gather_results after gather: ");
 //                  for (int i = 0; i < graph_slice->nodes; ++i)
 //                  {
-//                    printf("%d, ", test_vid2[i]);
+//                    printf("%f, ", test_vid2[i]);
 //                  }
 //                  printf("\n");
 //                  delete[] test_vid2;
@@ -678,6 +677,10 @@ namespace b40c
                     iteration[0], queue_index, this->work_progress,
                     graph_slice->frontier_queues.d_keys[selector ^ 1],
                     graph_slice->vertex_list);
+              }
+
+              if (Program::postApplyOverEdges() == POST_APPLY_FRONTIER)
+              {
 
                 //
                 //                //reset dists and gather_results
@@ -696,18 +699,18 @@ namespace b40c
                         __FILE__, __LINE__)))
                   break;
 
-                if (INSTRUMENT && DEBUG)
+                if (DEBUG)
                 {
 //                  EValue *test_vid2 = new EValue[graph_slice->nodes];
 //                  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
 //                  printf("d_dists after apply: ");
 //                  for (int i = 0; i < graph_slice->nodes; ++i)
 //                  {
-//                    printf("%d, ", test_vid2[i]);
+//                    printf("%f, ", test_vid2[i]);
 //                  }
 //                  printf("\n");
 //                  delete[] test_vid2;
-
+//
 //                  VertexId *test_vid = new VertexId[graph_slice->nodes];
 //                  cudaMemcpy(test_vid, graph_slice->vertex_list.d_changed, graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
 //                  printf("changed after apply: ");
@@ -718,6 +721,38 @@ namespace b40c
 //                  printf("\n");
 //                  delete[] test_vid;
                 }
+              }
+              else if (Program::postApplyOverEdges() == POST_APPLY_ALL)
+              {
+                vertex_centric::gather::reset_gather_result<GatherPolicy,
+                    Program><<<gather_grid_size, GatherPolicy::THREADS>>>(
+                    iteration[0], graph_slice->nodes,
+                    graph_slice->vertex_list,
+                    graph_slice->d_visited_mask);
+
+                if (DEBUG)
+                {
+//                  EValue *test_vid2 = new EValue[graph_slice->nodes];
+//                  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
+//                  printf("d_dists after apply: ");
+//                  for (int i = 0; i < graph_slice->nodes; ++i)
+//                  {
+//                    printf("%f, ", test_vid2[i]);
+//                  }
+//                  printf("\n");
+//                  delete[] test_vid2;
+//
+//                  VertexId *test_vid = new VertexId[graph_slice->nodes];
+//                  cudaMemcpy(test_vid, graph_slice->vertex_list.d_changed, graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//                  printf("changed after apply: ");
+//                  for (int i = 0; i < graph_slice->nodes; ++i)
+//                  {
+//                    printf("%d, ", test_vid[i]);
+//                  }
+//                  printf("\n");
+//                  delete[] test_vid;
+                }
+
               }
 
               if (Program::expandOverEdges() == EXPAND_OUT_EDGES)
@@ -780,15 +815,15 @@ namespace b40c
                 printf("queue_length after expansion: %lld\n",
                     (long long) queue_length);
 
-                VertexId* test_vid = new VertexId[queue_length];
-                cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], queue_length * sizeof(VertexId), cudaMemcpyDeviceToHost);
-                printf("Frontier after expansion: ");
-                for (int i = 0; i < queue_length; ++i)
-                {
-                  printf("%d, ", test_vid[i]);
-                }
-                printf("\n");
-                delete[] test_vid;
+//                VertexId* test_vid = new VertexId[queue_length];
+//                cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], queue_length * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//                printf("Frontier after expansion: ");
+//                for (int i = 0; i < queue_length; ++i)
+//                {
+//                  printf("%d, ", test_vid[i]);
+//                }
+//                printf("\n");
+//                delete[] test_vid;
 
 //                test_vid = new VertexId[graph_slice->nodes];
 //                cudaMemcpy(test_vid, graph_slice->vertex_list.d_dists, graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
@@ -800,15 +835,15 @@ namespace b40c
 //                printf("\n");
 //                delete[] test_vid;
 
-                test_vid = new VertexId[queue_length];
-                cudaMemcpy(test_vid, graph_slice->frontier_queues.d_values[selector ^ 1], queue_length * sizeof(VertexId), cudaMemcpyDeviceToHost);
-                printf("d_predecesor after expansion: ");
-                for (int i = 0; i < queue_length; ++i)
-                {
-                  printf("%d, ", test_vid[i]);
-                }
-                printf("\n");
-                delete[] test_vid;
+//                test_vid = new VertexId[queue_length];
+//                cudaMemcpy(test_vid, graph_slice->frontier_queues.d_values[selector ^ 1], queue_length * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//                printf("d_predecesor after expansion: ");
+//                for (int i = 0; i < queue_length; ++i)
+//                {
+//                  printf("%d, ", test_vid[i]);
+//                }
+//                printf("\n");
+//                delete[] test_vid;
               }
 
               //              if (DEBUG) printf("\n%lld", (long long) iteration[0]);

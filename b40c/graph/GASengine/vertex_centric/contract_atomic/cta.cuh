@@ -73,8 +73,10 @@ struct Cta
 	typedef typename KernelPolicy::ValidFlag		ValidFlag;
 	typedef typename KernelPolicy::VisitedMask 		VisitedMask;
 	typedef typename KernelPolicy::SizeT 			SizeT;
-    typedef typename KernelPolicy::EValue           EValue;
+    typedef typename Program::DataType           EValue;
+    typedef typename Program::MiscType           MiscType;
     typedef typename KernelPolicy::VertexType       VertexType;
+
 
 	typedef typename KernelPolicy::RakingDetails 	RakingDetails;
 	typedef typename KernelPolicy::SmemStorage		SmemStorage;
@@ -86,11 +88,11 @@ struct Cta
 	// Input and output device pointers
 	VertexId 				*d_in;						// Incoming edge frontier
 	VertexId 				*d_out;						// Outgoing vertex frontier
-	VertexId 				*d_predecessor_in;			// Incoming predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
+	MiscType 				*d_predecessor_in;			// Incoming predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
 	VertexId				*d_labels;					// BFS labels to set
 	VertexType              &vertex_list;
 //	VertexType              &gather_list;
-	VertexId                *d_preds;                   // BC predecessor
+	MiscType                *d_preds;                   // BC predecessor
     EValue                  *d_sigmas;                  // BFS sigmas to set
 	VisitedMask 			*d_visited_mask;			// Mask for detecting visited status
 
@@ -494,11 +496,11 @@ struct Cta
 		SmemStorage 			&smem_storage,
 		VertexId 				*d_in,
 		VertexId 				*d_out,
-		VertexId 				*d_predecessor_in,
+		MiscType 				*d_predecessor_in,
 		VertexType              &vertex_list,
 //		VertexType              &gather_list,
 		VertexId 				*d_labels,
-		VertexId                *d_preds,
+		MiscType                *d_preds,
         EValue                  *d_sigmas,
 		VisitedMask 			*d_visited_mask,
 		util::CtaWorkProgress	&work_progress,

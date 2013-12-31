@@ -50,7 +50,7 @@ namespace b40c
           {
             static __device__ __forceinline__ void Invoke(typename KernelPolicy::VertexId &iteration, typename KernelPolicy::VertexId &queue_index, typename KernelPolicy::VertexId &steal_index,
                 int &num_gpus, typename KernelPolicy::VertexId *&d_edge_frontier, typename KernelPolicy::VertexId *&d_vertex_frontier, typename KernelPolicy::VertexId *&d_predecessor,
-                typename KernelPolicy::VertexType &vertex_list, typename KernelPolicy::VertexId *&d_labels, typename KernelPolicy::VertexId *&d_preds, typename KernelPolicy::EValue *&d_sigmas, typename KernelPolicy::VisitedMask *&d_visited_mask,
+                typename KernelPolicy::VertexType &vertex_list, typename KernelPolicy::VertexId *&d_labels, typename Program::MiscType *&d_preds, typename KernelPolicy::EValue *&d_sigmas, typename KernelPolicy::VisitedMask *&d_visited_mask,
                 util::CtaWorkProgress &work_progress, util::CtaWorkDistribution<typename KernelPolicy::SizeT> &work_decomposition, typename KernelPolicy::SizeT &max_vertex_frontier,
                 typename KernelPolicy::SmemStorage &smem_storage)
             {
@@ -114,7 +114,7 @@ namespace b40c
           {
             static __device__ __forceinline__ void Invoke(typename KernelPolicy::VertexId &iteration, typename KernelPolicy::VertexId &queue_index, typename KernelPolicy::VertexId &steal_index,
                 int &num_gpus, typename KernelPolicy::VertexId *&d_edge_frontier, typename KernelPolicy::VertexId *&d_vertex_frontier, typename KernelPolicy::VertexId *&d_predecessor,
-                typename KernelPolicy::VertexId *&d_labels, typename KernelPolicy::VertexId *&d_preds, typename KernelPolicy::EValue *&d_sigmas, typename KernelPolicy::VisitedMask *&d_visited_mask,
+                typename KernelPolicy::VertexId *&d_labels, typename Program::MiscType *&d_preds, typename KernelPolicy::EValue *&d_sigmas, typename KernelPolicy::VisitedMask *&d_visited_mask,
                 util::CtaWorkProgress &work_progress, util::CtaWorkDistribution<typename KernelPolicy::SizeT> &work_decomposition, typename KernelPolicy::SizeT &max_vertex_frontier,
                 typename KernelPolicy::SmemStorage &smem_storage)
             {
@@ -178,9 +178,10 @@ namespace b40c
             typedef typename KernelPolicy::SizeT SizeT;
             typedef typename KernelPolicy::VisitedMask VisitedMask;
             typedef typename KernelPolicy::VertexType VertexType;
+            typedef typename Program::MiscType MiscType;
 
             static __device__ __forceinline__ void Kernel(VertexId &src, VertexId &iteration, SizeT &num_elements, VertexId &queue_index, VertexId &steal_index, int &num_gpus, volatile int *&d_done,
-                VertexId *&d_edge_frontier, VertexId *&d_vertex_frontier, VertexId *&d_predecessor, VertexType &vertex_list, VertexId *&d_labels, VertexId *&d_preds, EValue *&d_sigmas, int *&d_dists, int *&d_changed,
+                VertexId *&d_edge_frontier, VertexId *&d_vertex_frontier, MiscType *&d_predecessor, VertexType &vertex_list, VertexId *&d_labels, VertexId *&d_preds, EValue *&d_sigmas, int *&d_dists, int *&d_changed,
                 VisitedMask *&d_visited_mask, util::CtaWorkProgress &work_progress, SizeT &max_edge_frontier, SizeT &max_vertex_frontier, util::KernelRuntimeStats &kernel_stats)
             {
 
@@ -313,7 +314,7 @@ namespace b40c
               volatile int *d_done,					// Flag to set when we detect incoming edge frontier is empty
               typename KernelPolicy::VertexId *d_edge_frontier,			// Incoming edge frontier
               typename KernelPolicy::VertexId *d_vertex_frontier,			// Outgoing vertex frontier
-              typename KernelPolicy::VertexId *d_predecessor,				// Incoming predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
+              typename Program::MiscType *d_predecessor,				// Incoming predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
               typename KernelPolicy::VertexType vertex_list, //
 //              typename KernelPolicy::VertexType gather_list, //
               typename KernelPolicy::VertexId *d_labels,					// BFS labels to set
