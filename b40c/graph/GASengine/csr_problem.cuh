@@ -104,6 +104,7 @@ namespace b40c
         ProblemType;
 
         typedef typename ProblemType::Program::VertexType VertexType;
+        typedef typename ProblemType::Program::EdgeType EdgeType;
         typedef typename ProblemType::Program::MiscType MiscType;
         typedef typename ProblemType::VertexId VertexId;
         typedef typename ProblemType::SizeT SizeT;
@@ -146,6 +147,8 @@ namespace b40c
           int init_num_elements;
 
           VertexType vertex_list;
+          EdgeType edge_list;
+
           //          VertexType gather_list;
 //          VertexType gather_list_out;
 
@@ -420,6 +423,7 @@ namespace b40c
             EValue *h_node_values,
             int num_gpus)
         {
+          printf("source_file_name2=%s\n", source_file_name);
           int device = cfg.getParameter<int>("device");
           cudaError_t retval = cudaSuccess;
           this->nodes = nodes;
@@ -447,7 +451,7 @@ namespace b40c
               graph_slices[0]->edges = edges;
 
               graph_slices[0]->num_src = 1;
-              printf("source_file_name=%s\n", source_file_name);
+
               if (_Program::srcVertex() == SINGLE)
               {
                 graph_slices[0]->init_num_elements = 1;
@@ -455,12 +459,14 @@ namespace b40c
                 int origin = cfg.getParameter<int>("origin");
                 printf("origin: %d\n", origin);
                 const int max_src_num = 100;
+                printf("Using single starting vertex!\n");
 
                 if (strcmp(source_file_name, ""))
                 {
                   //TODO random sources
                   if (strcmp(source_file_name, "RANDOM") == 0)
                   {
+                    printf("Using random starting vertices!\n");
                     graph_slices[0]->num_src = cfg.getParameter<int>("num_src");
                     graph_slices[0]->srcs = new int[graph_slices[0]->num_src];
                     printf("Using %d random starting vertices!\n", graph_slices[0]->num_src);
@@ -478,7 +484,7 @@ namespace b40c
                   }
                   else
                   {
-                    printf("Using source file!\n");
+                    printf("Using source file: %s!\n", source_file_name);
                     FILE* src_file;
                     if ((src_file = fopen(source_file_name, "r")) == NULL)
                     {
@@ -590,7 +596,7 @@ namespace b40c
                 if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[0]->d_edge_values, graph_slices[0]->edges * sizeof(VertexId)), "CsrProblem cudaMalloc d_edge_values failed", __FILE__,
                     __LINE__)) break;
 
-                if (WITH_VALUE)
+//                if (WITH_VALUE)
                 {
                   if (retval = util::B40CPerror(cudaMemcpy(graph_slices[0]->d_edge_values, h_edge_values, graph_slices[0]->edges * sizeof(VertexId), cudaMemcpyHostToDevice),
                       "CsrProblem cudaMemcpy d_edge_values failed", __FILE__, __LINE__)) break;
@@ -1030,7 +1036,8 @@ namespace b40c
             int srcs[1] = { src };
             _Program::Initialize(graph_slices[gpu]->nodes, graph_slices[gpu]->edges, 1,
                 srcs, graph_slices[gpu]->d_row_offsets, graph_slices[gpu]->d_column_indices, graph_slices[gpu]->d_column_offsets, graph_slices[gpu]->d_row_indices,
-                graph_slices[gpu]->vertex_list,
+                graph_slices[gpu]->d_edge_values,
+                graph_slices[gpu]->vertex_list, graph_slices[gpu]->edge_list,
                 graph_slices[gpu]->frontier_queues.d_keys,
                 graph_slices[gpu]->frontier_queues.d_values);
 

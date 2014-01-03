@@ -113,8 +113,8 @@ int ReadMarketStream(
 			}
 
 			long long ll_row, ll_col;
-			Value edge_value;
-			if (sscanf(line, "%lld %lld %d", &ll_row, &ll_col, &edge_value) != 3) {
+			double edge_value;
+			if (sscanf(line, "%lld %lld %lf", &ll_row, &ll_col, &edge_value) != 3) {
 				fprintf(stderr, "Error parsing MARKET graph: badly formed edge\n", edges);
 				if (coo) free(coo);
 				return -1;
@@ -122,6 +122,7 @@ int ReadMarketStream(
 
 			coo[edges_read].row = ll_row - 1;	// zero-based array
 			coo[edges_read].col = ll_col - 1;	// zero-based array
+			coo[edges_read].val = (Value)edge_value;
 //            fprintf(outputgraphfile, "%lld %lld 1\n", ll_row+1, ll_col+1);
 
 			edges_read++;
@@ -130,6 +131,7 @@ int ReadMarketStream(
 				// Go ahead and insert reverse edge
 				coo[edges_read].row = ll_col - 1;	// zero-based array
 				coo[edges_read].col = ll_row - 1;	// zero-based array
+				coo[edges_read].val = (Value)edge_value;
 
 				ordered_rows = false;
 				edges_read++;

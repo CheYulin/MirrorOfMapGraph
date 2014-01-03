@@ -32,9 +32,20 @@ struct bfs
     }
   };
 
+  struct EdgeType
+  {
+    int nodes; // #of nodes.
+    int edges; // #of edges.
+
+    EdgeType() :
+        nodes(0), edges(0)
+    {
+    }
+  };
+
   static void Initialize(const int nodes, const int edges, int num_srcs,
-      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices,
-      VertexType &vertex_list, int* d_frontier_keys[3],
+      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, int* d_edge_values,
+      VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
       MiscType* d_frontier_values[3])
   {
     vertex_list.nodes = nodes;
@@ -109,11 +120,85 @@ struct bfs
     return POST_APPLY_FRONTIER;
   }
 
+  /**
+   * the binary operator
+   */
+  struct gather_sum
+  {
+    __device__
+    GatherType operator()(GatherType left, GatherType right)
+    {
+      return left + right;
+    }
+  };
+
+  /**
+   * For each vertex in the frontier,
+   */
+  struct gather_vertex
+  {
+    __device__
+    void operator()(const int vertex_id, const GatherType final_value,
+        VertexType &vertex_list, EdgeType &edge_list)
+    {
+
+    }
+  };
+
+  struct gather_edge
+  {
+    __device__
+    void operator()(const int vertex_id, const int neighbor_id_in,
+        VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
+    {
+
+    }
+  };
+
+  struct apply
+  {
+    __device__
+    void operator()(const int vertex_id, const int iteration,
+        VertexType& vertex_list, EdgeType& edge_list)
+    {
+    }
+  };
+
+  /** post-apply function (invoked after threads in apply() synchronize at a memory barrier). */
+  struct post_apply
+  {
+    __device__
+    void operator()(const int vertex_id, VertexType& vertex_list, EdgeType& edge_list)
+    {
+    }
+  };
+
+  struct expand_vertex
+  {
+    __device__
+    bool operator()(const int vertex_id, VertexType &vertex_list, EdgeType& edge_list)
+    {
+      return true;
+    }
+  };
+
+  struct expand_edge
+  {
+    __device__
+    void operator()(const bool changed, const int iteration,
+        const int vertex_id, const int neighbor_id_in, const int edge_id,
+        VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
+    {
+      misc_value = vertex_id;
+      frontier = neighbor_id_in;
+    }
+  };
+
   struct contract
   {
     __device__
     void operator()(const int iteration, int &vertex_id,
-        VertexType &vertex_list, int& misc_value)
+        VertexType &vertex_list, EdgeType &edge_list, int& misc_value)
     {
       // Load label of node
       int row_id = vertex_id;
@@ -133,95 +218,6 @@ struct bfs
         // Update label with current iteration
         vertex_list.d_labels[row_id] = iteration;
       }
-    }
-  };
-
-  /**
-   * the binary operator
-   */
-  struct gather_sum
-  {
-    __device__
-    GatherType operator()(GatherType left, GatherType right)
-    {
-      return left + right;
-    }
-  };
-
-  /**
-   * For each vertex in the frontier,
-   */
-  struct gather_vertex
-  {
-    __device__
-    void operator()(int row_id, GatherType final_value, VertexType &vertex_list)
-    {
-
-    }
-  };
-
-  /** post-apply function (invoked after threads in apply() synchronize at a memory barrier). */
-  struct post_apply
-  {
-    __device__
-    void operator()(const int vertex_id, VertexType& vertex_list)
-    {
-    }
-  };
-
-  struct expand_vertex
-  {
-    __device__
-    bool operator()(int &row_id, VertexType &vertex_list)
-    {
-      return true;
-    }
-  };
-
-  struct expand_edge
-  {
-    __device__
-    void operator()(const bool changed, const int iteration,
-        const int vertex_id, const int neighbor_id_in,
-        VertexType& vertex_list, int& frontier, int& misc_value)
-    {
-      misc_value = vertex_id;
-      frontier = neighbor_id_in;
-    }
-  };
-
-  struct gather_edge
-  {
-    __device__
-    void operator()(int row_id, int neighbor_id_in, VertexType &vertex_list, int& new_value)
-    {
-
-    }
-  };
-
-  struct sum
-  {
-    __device__
-    int operator()(int left, int right)
-    {
-      return min(left, right);
-    }
-  };
-
-  struct reset
-  {
-    __device__
-    void operator()(VertexType& vertex_list, int v)
-    {
-    }
-  };
-
-  struct apply
-  {
-    __device__
-    void operator()(const int vertex_id, const int iteration,
-        VertexType& vertex_list)
-    {
     }
   };
 

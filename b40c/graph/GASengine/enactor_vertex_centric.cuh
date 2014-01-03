@@ -497,6 +497,7 @@ namespace b40c
                   graph_slice->frontier_queues.d_keys[selector],                  // vertex frontier out
                   graph_slice->frontier_queues.d_values[selector ^ 1],                  // predecessor in
                   graph_slice->vertex_list,
+                  graph_slice->edge_list,
                   graph_slice->d_labels,                  // source distance out
                   graph_slice->d_preds,                  // prtedecessor out
                   graph_slice->d_sigmas, graph_slice->d_dists,
@@ -605,7 +606,8 @@ namespace b40c
 //                  graph_slice->frontier_queues.d_values[selector],// predecessor out
                     graph_slice->d_row_indices,                    //pass in the CSC graph to gather for destination vertices
                     graph_slice->d_column_offsets,                    //pass in the CSC graph to gather for destination vertices
-                    graph_slice->vertex_list,
+                    graph_slice->vertex_list, //
+                    graph_slice->edge_list,//
                     //                  graph_slice->d_visit_flags,
                     this->work_progress,
                     graph_slice->frontier_elements[selector ^ 1],                    // max vertex frontier vertices
@@ -676,7 +678,7 @@ namespace b40c
                     gather_grid_size, GatherPolicy::THREADS>>>(
                     iteration[0], queue_index, this->work_progress,
                     graph_slice->frontier_queues.d_keys[selector ^ 1],
-                    graph_slice->vertex_list);
+                    graph_slice->vertex_list, graph_slice->edge_list);
               }
 
               if (Program::postApplyOverEdges() == POST_APPLY_FRONTIER)
@@ -690,6 +692,7 @@ namespace b40c
                     iteration[0], queue_index, this->work_progress,
                     graph_slice->frontier_queues.d_keys[selector ^ 1],
                     graph_slice->vertex_list,
+                    graph_slice->edge_list,
                     graph_slice->d_visited_mask);
 
                 if (DEBUG
@@ -727,7 +730,7 @@ namespace b40c
                 vertex_centric::gather::reset_gather_result<GatherPolicy,
                     Program><<<gather_grid_size, GatherPolicy::THREADS>>>(
                     iteration[0], graph_slice->nodes,
-                    graph_slice->vertex_list,
+                    graph_slice->vertex_list, graph_slice->edge_list,
                     graph_slice->d_visited_mask);
 
                 if (DEBUG)
@@ -770,7 +773,8 @@ namespace b40c
                     graph_slice->frontier_queues.d_keys[selector ^ 1],                    // vertex frontier in
                     graph_slice->frontier_queues.d_keys[selector],                    // edge frontier out
                     graph_slice->frontier_queues.d_values[selector],                    // predecessor out
-                    graph_slice->vertex_list,
+                    graph_slice->vertex_list,//
+                    graph_slice->edge_list,
                     graph_slice->d_column_indices,
                     graph_slice->d_row_offsets, this->work_progress,
                     graph_slice->frontier_elements[selector ^ 1],                    // max vertex frontier vertices

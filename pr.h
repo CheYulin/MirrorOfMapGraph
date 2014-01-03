@@ -42,11 +42,21 @@ struct pagerank
     }
   };
 
+  struct EdgeType
+   {
+     int nodes; // #of nodes.
+     int edges; // #of edges.
+
+     EdgeType() :
+          nodes(0), edges(0)
+     {
+     }
+   };
+
   static void Initialize(const int nodes, const int edges, int num_srcs,
-      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices,
-      VertexType &vertex_list,
-      int* d_frontier_keys[3],
-      MiscType* d_frontier_values[3])
+        int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, DataType* d_edge_values,
+        VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
+        MiscType* d_frontier_values[3])
   {
     vertex_list.nodes = nodes;
     vertex_list.edges = edges;
@@ -161,7 +171,7 @@ struct pagerank
   {
     __device__
     void operator()(const int vertex_id, const GatherType final_value,
-        VertexType &vertex_list)
+            VertexType &vertex_list, EdgeType &edge_list)
     {
       vertex_list.d_min_dists[vertex_id] = final_value;
     }
@@ -173,8 +183,8 @@ struct pagerank
   struct gather_edge
   {
     __device__
-    void operator()(const int row_id, const int neighbor_id_in,
-        const VertexType &vertex_list, GatherType& new_value)
+    void operator()(const int vertex_id, const int neighbor_id_in,
+            VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
     {
       DataType nb_dist = vertex_list.d_dists[neighbor_id_in];
       new_value = nb_dist / (DataType) vertex_list.d_num_out_edge[neighbor_id_in];
@@ -201,7 +211,7 @@ struct pagerank
      *
      */
     void operator()(const int vertex_id, const int iteration,
-        VertexType& vertex_list)
+            VertexType& vertex_list, EdgeType& edge_list)
     {
 
       const DataType oldvalue = vertex_list.d_dists[vertex_id];
@@ -221,7 +231,7 @@ struct pagerank
   struct post_apply
   {
     __device__
-    void operator()(const int vertex_id, VertexType& vertex_list)
+    void operator()(const int vertex_id, VertexType& vertex_list, EdgeType& edge_list)
     {
       vertex_list.d_visited_flag[vertex_id] = 0;
     }
@@ -240,7 +250,7 @@ struct pagerank
      *
      * @param vertex_list The vertices in the graph.
      */
-    bool operator()(const int vertex_id, VertexType &vertex_list)
+    bool operator()(const int vertex_id, VertexType &vertex_list, EdgeType& edge_list)
     {
       return vertex_list.d_changed[vertex_id];
     }
@@ -288,8 +298,8 @@ struct pagerank
      * has a 1:1 correspondence with the frontier array.
      */
     void operator()(const bool changed, const int iteration,
-        const int vertex_id, const int neighbor_id_in,
-        VertexType& vertex_list, int& frontier, int& misc_value)
+            const int vertex_id, const int neighbor_id_in, const int edge_id,
+            VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
     {
 //      const int src_dist = vertex_list.d_dists[vertex_id];
 //      const int dst_dist = vertex_list.d_dists[neighbor_id_in];
@@ -326,7 +336,7 @@ struct pagerank
      * function.
      */
     void operator()(const int iteration, int &vertex_id,
-        VertexType &vertex_list, int& misc_value)
+            VertexType &vertex_list, EdgeType &edge_list, int& misc_value)
     {
 
       /**

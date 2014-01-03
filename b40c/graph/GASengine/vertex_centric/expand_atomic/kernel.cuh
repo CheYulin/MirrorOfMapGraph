@@ -53,7 +53,8 @@ struct SweepPass
 		typename KernelPolicy::VertexId 		*&d_vertex_frontier,
 		typename KernelPolicy::VertexId 		*&d_edge_frontier,
 		typename KernelPolicy::VertexId 		*&d_predecessor,
-		typename KernelPolicy::VertexType       &vertex_list,
+		typename Program::VertexType            &vertex_list,
+		typename Program::EdgeType              &edge_list,
 		typename KernelPolicy::VertexId			*&d_column_indices,
 		typename KernelPolicy::SizeT			*&d_row_offsets,
 		util::CtaWorkProgress 					&work_progress,
@@ -84,6 +85,7 @@ struct SweepPass
 			d_edge_frontier,
 			d_predecessor,
 			vertex_list,
+			edge_list,
 			d_column_indices,
 			d_row_offsets,
 			work_progress,
@@ -235,7 +237,8 @@ struct Dispatch<KernelPolicy, Program, true>
 	typedef typename KernelPolicy::SizeT SizeT;
     typedef typename KernelPolicy::EValue EValue;
 	typedef typename KernelPolicy::VisitedMask VisitedMask;
-	typedef typename KernelPolicy::VertexType VertexType;
+	typedef typename Program::VertexType VertexType;
+	typedef typename Program::EdgeType EdgeType;
 
 	static __device__ __forceinline__ void Kernel(
 			int &iteration,
@@ -247,6 +250,7 @@ struct Dispatch<KernelPolicy, Program, true>
 		VertexId 					*&d_edge_frontier,
 		VertexId 					*&d_predecessor,
 		VertexType                  &vertex_list,
+		EdgeType                    &edge_list,
 		VertexId					*&d_column_indices,
 		SizeT						*&d_row_offsets,
 		util::CtaWorkProgress 		&work_progress,
@@ -304,6 +308,7 @@ struct Dispatch<KernelPolicy, Program, true>
 			d_edge_frontier,
 			d_predecessor,
 			vertex_list,
+			edge_list,
 			d_column_indices,
 			d_row_offsets,
 			work_progress,
@@ -338,7 +343,8 @@ void Kernel(
 	typename KernelPolicy::VertexId 		*d_vertex_frontier,			// Incoming vertex frontier
 	typename KernelPolicy::VertexId 		*d_edge_frontier,			// Outgoing edge frontier
 	typename KernelPolicy::VertexId 		*d_predecessor,				// Outgoing predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
-	typename KernelPolicy::VertexType        vertex_list, //
+	typename Program::VertexType        vertex_list, //
+	typename Program::EdgeType edge_list, //
 	typename KernelPolicy::VertexId			*d_column_indices,			// CSR column-indices array
 	typename KernelPolicy::SizeT			*d_row_offsets,				// CSR row-offsets array
 	util::CtaWorkProgress 					work_progress,				// Atomic workstealing and queueing counters
@@ -358,6 +364,7 @@ void Kernel(
 		d_edge_frontier,
 		d_predecessor,
 		vertex_list,
+		edge_list,
 		d_column_indices,
 		d_row_offsets,
 		work_progress,

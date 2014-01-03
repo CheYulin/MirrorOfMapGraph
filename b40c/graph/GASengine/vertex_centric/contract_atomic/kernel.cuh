@@ -48,9 +48,19 @@ namespace b40c
           template<typename KernelPolicy, typename Program, bool WORK_STEALING>
           struct SweepPass
           {
-            static __device__ __forceinline__ void Invoke(typename KernelPolicy::VertexId &iteration, typename KernelPolicy::VertexId &queue_index, typename KernelPolicy::VertexId &steal_index,
-                int &num_gpus, typename KernelPolicy::VertexId *&d_edge_frontier, typename KernelPolicy::VertexId *&d_vertex_frontier, typename KernelPolicy::VertexId *&d_predecessor,
-                typename KernelPolicy::VertexType &vertex_list, typename KernelPolicy::VertexId *&d_labels, typename Program::MiscType *&d_preds, typename KernelPolicy::EValue *&d_sigmas, typename KernelPolicy::VisitedMask *&d_visited_mask,
+            static __device__ __forceinline__ void Invoke(typename KernelPolicy::VertexId &iteration,
+                typename KernelPolicy::VertexId &queue_index,
+                typename KernelPolicy::VertexId &steal_index,
+                int &num_gpus,
+                typename KernelPolicy::VertexId *&d_edge_frontier,
+                typename KernelPolicy::VertexId *&d_vertex_frontier,
+                typename KernelPolicy::VertexId *&d_predecessor,
+                typename Program::VertexType &vertex_list,
+                typename Program::EdgeType &edge_list,
+                typename KernelPolicy::VertexId *&d_labels,
+                typename Program::MiscType *&d_preds,
+                typename KernelPolicy::EValue *&d_sigmas,
+                typename KernelPolicy::VisitedMask *&d_visited_mask,
                 util::CtaWorkProgress &work_progress, util::CtaWorkDistribution<typename KernelPolicy::SizeT> &work_decomposition, typename KernelPolicy::SizeT &max_vertex_frontier,
                 typename KernelPolicy::SmemStorage &smem_storage)
             {
@@ -68,7 +78,7 @@ namespace b40c
               }
 
               // CTA processing abstraction
-              Cta cta(iteration, queue_index, num_gpus, smem_storage, d_edge_frontier, d_vertex_frontier, d_predecessor, vertex_list, d_labels, d_preds, d_sigmas, d_visited_mask, work_progress,
+              Cta cta(iteration, queue_index, num_gpus, smem_storage, d_edge_frontier, d_vertex_frontier, d_predecessor, vertex_list, edge_list, d_labels, d_preds, d_sigmas, d_visited_mask, work_progress,
                   max_vertex_frontier);
 
               // Process full tiles
@@ -112,10 +122,15 @@ namespace b40c
           template<typename KernelPolicy, typename Program>
           struct SweepPass<KernelPolicy, Program, true>
           {
-            static __device__ __forceinline__ void Invoke(typename KernelPolicy::VertexId &iteration, typename KernelPolicy::VertexId &queue_index, typename KernelPolicy::VertexId &steal_index,
-                int &num_gpus, typename KernelPolicy::VertexId *&d_edge_frontier, typename KernelPolicy::VertexId *&d_vertex_frontier, typename KernelPolicy::VertexId *&d_predecessor,
-                typename KernelPolicy::VertexId *&d_labels, typename Program::MiscType *&d_preds, typename KernelPolicy::EValue *&d_sigmas, typename KernelPolicy::VisitedMask *&d_visited_mask,
-                util::CtaWorkProgress &work_progress, util::CtaWorkDistribution<typename KernelPolicy::SizeT> &work_decomposition, typename KernelPolicy::SizeT &max_vertex_frontier,
+            static __device__ __forceinline__ void Invoke(typename KernelPolicy::VertexId &iteration, typename KernelPolicy::VertexId &queue_index,
+                typename KernelPolicy::VertexId &steal_index,
+                int &num_gpus, typename KernelPolicy::VertexId *&d_edge_frontier, typename KernelPolicy::VertexId *&d_vertex_frontier,
+                typename KernelPolicy::VertexId *&d_predecessor,
+                typename KernelPolicy::VertexId *&d_labels, typename Program::MiscType *&d_preds, typename KernelPolicy::EValue *&d_sigmas,
+                typename KernelPolicy::VisitedMask *&d_visited_mask,
+                util::CtaWorkProgress &work_progress,
+                util::CtaWorkDistribution<typename KernelPolicy::SizeT> &work_decomposition,
+                typename KernelPolicy::SizeT &max_vertex_frontier,
                 typename KernelPolicy::SmemStorage &smem_storage)
             {
               typedef Cta<KernelPolicy, Program> Cta;
@@ -177,11 +192,12 @@ namespace b40c
             typedef typename KernelPolicy::EValue EValue;
             typedef typename KernelPolicy::SizeT SizeT;
             typedef typename KernelPolicy::VisitedMask VisitedMask;
-            typedef typename KernelPolicy::VertexType VertexType;
+            typedef typename Program::VertexType VertexType;
+            typedef typename Program::EdgeType EdgeType;
             typedef typename Program::MiscType MiscType;
 
             static __device__ __forceinline__ void Kernel(VertexId &src, VertexId &iteration, SizeT &num_elements, VertexId &queue_index, VertexId &steal_index, int &num_gpus, volatile int *&d_done,
-                VertexId *&d_edge_frontier, VertexId *&d_vertex_frontier, MiscType *&d_predecessor, VertexType &vertex_list, VertexId *&d_labels, VertexId *&d_preds, EValue *&d_sigmas, int *&d_dists, int *&d_changed,
+                VertexId *&d_edge_frontier, VertexId *&d_vertex_frontier, MiscType *&d_predecessor, VertexType &vertex_list, EdgeType &edge_list, VertexId *&d_labels, VertexId *&d_preds, EValue *&d_sigmas, int *&d_dists, int *&d_changed,
                 VisitedMask *&d_visited_mask, util::CtaWorkProgress &work_progress, SizeT &max_edge_frontier, SizeT &max_vertex_frontier, util::KernelRuntimeStats &kernel_stats)
             {
 
@@ -239,7 +255,9 @@ namespace b40c
                 // Don't do workstealing this iteration because without a
                 // global barrier after queue-reset, the queue may be inconsistent
                 // across CTAs
-                SweepPass<KernelPolicy, Program, false>::Invoke(iteration, queue_index, steal_index, num_gpus, d_edge_frontier, d_vertex_frontier, d_predecessor, vertex_list, d_labels, d_preds, d_sigmas, d_visited_mask,
+                SweepPass<KernelPolicy, Program, false>::Invoke(iteration, queue_index, steal_index, num_gpus, d_edge_frontier, d_vertex_frontier, d_predecessor,
+                    vertex_list, edge_list,
+                    d_labels, d_preds, d_sigmas, d_visited_mask,
                     work_progress, smem_storage.state.work_decomposition, max_vertex_frontier, smem_storage);
 
               }
@@ -282,7 +300,8 @@ namespace b40c
                 // Barrier to protect work decomposition
                 __syncthreads();
 
-                SweepPass<KernelPolicy, Program, KernelPolicy::WORK_STEALING>::Invoke(iteration, queue_index, steal_index, num_gpus, d_edge_frontier, d_vertex_frontier, d_predecessor, vertex_list, d_labels, d_preds,
+                SweepPass<KernelPolicy, Program, KernelPolicy::WORK_STEALING>::Invoke(iteration, queue_index, steal_index, num_gpus, d_edge_frontier, d_vertex_frontier,
+                    d_predecessor, vertex_list, edge_list, d_labels, d_preds,
                     d_sigmas, d_visited_mask, work_progress, smem_storage.state.work_decomposition, max_vertex_frontier, smem_storage);
               }
 
@@ -315,7 +334,8 @@ namespace b40c
               typename KernelPolicy::VertexId *d_edge_frontier,			// Incoming edge frontier
               typename KernelPolicy::VertexId *d_vertex_frontier,			// Outgoing vertex frontier
               typename Program::MiscType *d_predecessor,				// Incoming predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
-              typename KernelPolicy::VertexType vertex_list, //
+              typename Program::VertexType vertex_list, //
+              typename Program::EdgeType edge_list, //
 //              typename KernelPolicy::VertexType gather_list, //
               typename KernelPolicy::VertexId *d_labels,					// BFS labels to set
               typename KernelPolicy::VertexId *d_preds,                   // Predecessor output
@@ -329,7 +349,7 @@ namespace b40c
               util::KernelRuntimeStats kernel_stats)				// Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
           {
             Dispatch<KernelPolicy, Program>::Kernel(src, iteration, num_elements, queue_index, steal_index, num_gpus, d_done, d_edge_frontier, d_vertex_frontier,
-                                           d_predecessor, vertex_list,
+                                           d_predecessor, vertex_list, edge_list,
 //                                           gather_list,
                                            d_labels, d_preds, d_sigmas, d_dists, d_changed,
                                            d_visited_mask, work_progress, max_edge_frontier, max_vertex_frontier, kernel_stats);

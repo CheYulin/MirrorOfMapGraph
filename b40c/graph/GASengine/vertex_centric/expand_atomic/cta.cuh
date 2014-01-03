@@ -101,7 +101,8 @@ namespace b40c
 
             typedef typename KernelPolicy::VertexId VertexId;
             typedef typename KernelPolicy::SizeT SizeT;
-            typedef typename KernelPolicy::VertexType       VertexType;
+            typedef typename Program::VertexType       VertexType;
+            typedef typename Program::EdgeType       EdgeType;
 
             typedef typename KernelPolicy::SmemStorage SmemStorage;
 
@@ -125,6 +126,7 @@ namespace b40c
             VertexId *d_column_indices;			// CSR column-indices array
             SizeT *d_row_offsets;				// CSR row-offsets array
             VertexType              vertex_list;
+            EdgeType                edge_list;
 
             // Work progress
             VertexId queue_index;				// Current frontier queue counter index
@@ -289,17 +291,18 @@ namespace b40c
 //                    VertexId frontier, misc_value;
 
                     typename Program::expand_vertex expand_vertex_functor;
-                    bool changed = expand_vertex_functor(row_id, cta->vertex_list);
+                    bool changed = expand_vertex_functor(row_id, cta->vertex_list, cta->edge_list);
 
 //                    while (coop_offset + KernelPolicy::THREADS < coop_oob)
                     while (coop_offset + threadIdx.x < coop_oob)
                     {
+                      SizeT col_idx = coop_offset + threadIdx.x;
                       // Gather
 //                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + threadIdx.x);
-                    	neighbor_id_tmp = cta->d_column_indices[coop_offset + threadIdx.x];
+                    	neighbor_id_tmp = cta->d_column_indices[col_idx];
 
                     	typename Program::expand_edge expand_edge_functor;
-                    	expand_edge_functor(changed, cta->iteration, row_id, neighbor_id_tmp, cta->vertex_list,
+                    	expand_edge_functor(changed, cta->iteration, row_id, neighbor_id_tmp, col_idx, cta->vertex_list, cta->edge_list,
                     			cta->d_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank],
                     			cta->d_predecessor_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank]);
 
@@ -388,19 +391,20 @@ namespace b40c
                       VertexId neighbor_id_tmp;
 
                       typename Program::expand_vertex expand_vertex_functor;
-					  bool changed = expand_vertex_functor(row_id, cta->vertex_list);
+					  bool changed = expand_vertex_functor(row_id, cta->vertex_list, cta->edge_list);
 //                      while (coop_offset + B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) < coop_oob)
                       while (coop_offset + lane_id < coop_oob)
                       {
 
                         // Gather
 //                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + lane_id);
-                    	  neighbor_id_tmp = cta->d_column_indices[coop_offset + lane_id];
+                        SizeT col_idx =  coop_offset + lane_id;
+                    	  neighbor_id_tmp = cta->d_column_indices[col_idx];
 //                    	  if(cta->smem_storage.state.warp_comm[warp_id][3] == 33 && neighbor_id < 1000)
 //                    	     printf("WARP: bidx=%d, tidx=%d, row_id = %d, neighbor_id = %d\n", blockIdx.x, threadIdx.x, cta->smem_storage.state.warp_comm[0][3], neighbor_id);
 
                     	  typename Program::expand_edge expand_edge_functor;
-                    	  expand_edge_functor(changed, cta->iteration, row_id, neighbor_id_tmp, cta->vertex_list,
+                    	  expand_edge_functor(changed, cta->iteration, row_id, neighbor_id_tmp, col_idx, cta->vertex_list, cta->edge_list,
 								  cta->d_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank],
 								  cta->d_predecessor_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank]);
 
@@ -636,7 +640,8 @@ namespace b40c
             /**
              * Constructor
              */
-            __device__ __forceinline__ Cta(int iteration, VertexId queue_index, int num_gpus, SmemStorage &smem_storage, VertexId *d_in, VertexId *d_out, VertexId *d_predecessor_out, VertexType &vertex_list, VertexId *d_column_indices,
+            __device__ __forceinline__ Cta(int iteration, VertexId queue_index, int num_gpus, SmemStorage &smem_storage,
+                VertexId *d_in, VertexId *d_out, VertexId *d_predecessor_out, VertexType &vertex_list, EdgeType &edge_list, VertexId *d_column_indices,
                 SizeT *d_row_offsets, util::CtaWorkProgress &work_progress, SizeT max_edge_frontier) :
 		        iteration(iteration),
                 queue_index(queue_index), num_gpus(num_gpus), smem_storage(smem_storage), raking_soa_details(
@@ -644,7 +649,7 @@ namespace b40c
                     typename RakingSoaDetails::WarpscanSoa(smem_storage.state.coarse_warpscan, smem_storage.state.fine_warpscan),
                     TileTuple(0, 0)),
                     d_in(d_in), d_out(d_out), d_predecessor_out(
-                    d_predecessor_out), vertex_list(vertex_list), d_column_indices(d_column_indices), d_row_offsets(d_row_offsets), work_progress(work_progress), max_edge_frontier(max_edge_frontier)
+                    d_predecessor_out), vertex_list(vertex_list), edge_list(edge_list), d_column_indices(d_column_indices), d_row_offsets(d_row_offsets), work_progress(work_progress), max_edge_frontier(max_edge_frontier)
             {
               if (threadIdx.x == 0)
               {
@@ -792,14 +797,17 @@ namespace b40c
                   VertexId neighbor_id_tmp;
                   VertexId row_id = smem_storage.gather_predecessors[scratch_offset];
                   typename Program::expand_vertex expand_vertex_functor;
-				  bool changed = expand_vertex_functor(row_id, vertex_list); //might use optimization for unique load for a vertex
+				  bool changed = expand_vertex_functor(row_id, vertex_list, edge_list); //might use optimization for unique load for a vertex
 
 //                  util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, d_column_indices + smem_storage.gather_offsets[scratch_offset]);
-                  neighbor_id_tmp = d_column_indices[smem_storage.gather_offsets[scratch_offset]];
+				  SizeT col_idx = smem_storage.gather_offsets[scratch_offset];
+                  neighbor_id_tmp = d_column_indices[col_idx];
 //                  printf("row_id=%d, changed=%d, neighbor_id_tmp=%d\n", row_id, changed, neighbor_id_tmp);
 
                   typename Program::expand_edge expand_edge_functor;
-                  expand_edge_functor(changed, iteration, row_id, neighbor_id_tmp, vertex_list, d_out[smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset], d_predecessor_out[smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset]);
+                  expand_edge_functor(changed, iteration, row_id, neighbor_id_tmp, col_idx, vertex_list, edge_list,
+                      d_out[smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset],
+                      d_predecessor_out[smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset]);
 
 
 //                  neighbor_id = neighbor_id_tmp;

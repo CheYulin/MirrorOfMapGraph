@@ -75,8 +75,8 @@ struct Cta
 	typedef typename KernelPolicy::SizeT 			SizeT;
     typedef typename Program::DataType           EValue;
     typedef typename Program::MiscType           MiscType;
-    typedef typename KernelPolicy::VertexType       VertexType;
-
+    typedef typename Program::VertexType       VertexType;
+    typedef typename Program::EdgeType       EdgeType;
 
 	typedef typename KernelPolicy::RakingDetails 	RakingDetails;
 	typedef typename KernelPolicy::SmemStorage		SmemStorage;
@@ -91,6 +91,7 @@ struct Cta
 	MiscType 				*d_predecessor_in;			// Incoming predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
 	VertexId				*d_labels;					// BFS labels to set
 	VertexType              &vertex_list;
+	EdgeType              &edge_list;
 //	VertexType              &gather_list;
 	MiscType                *d_preds;                   // BC predecessor
     EValue                  *d_sigmas;                  // BFS sigmas to set
@@ -248,7 +249,7 @@ struct Cta
 //					VertexId row_id = (tile->vertex_id[LOAD][VEC] & KernelPolicy::VERTEX_ID_MASK) / cta->num_gpus;
 
 					typename Program::contract contract_functor;
-					contract_functor(cta->iteration, tile->vertex_id[LOAD][VEC], cta->vertex_list, tile->predecessor_id[LOAD][VEC]);
+					contract_functor(cta->iteration, tile->vertex_id[LOAD][VEC], cta->vertex_list, cta->edge_list, tile->predecessor_id[LOAD][VEC]);
 
 //					// Load label of node
 //					VertexId label;
@@ -498,6 +499,7 @@ struct Cta
 		VertexId 				*d_out,
 		MiscType 				*d_predecessor_in,
 		VertexType              &vertex_list,
+		EdgeType                &edge_list,
 //		VertexType              &gather_list,
 		VertexId 				*d_labels,
 		MiscType                *d_preds,
@@ -518,7 +520,7 @@ struct Cta
 			d_out(d_out),
 			d_predecessor_in(d_predecessor_in),
 			vertex_list(vertex_list),
-//			gather_list(gather_list),
+			edge_list(edge_list),
 			d_labels(d_labels),
 			d_preds(d_preds),
             d_sigmas(d_sigmas),

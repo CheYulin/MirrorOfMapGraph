@@ -1,12 +1,12 @@
 /*
- * sssp.h
+ * GASengineAPI.h
  *
  *  Created on: Dec 9, 2013
  *      Author: zhisong
  */
 
-#ifndef SSSP_H_
-#define SSSP_H_
+#ifndef API_H_
+#define API_H_
 
 #include <b40c/graph/GASengine/csr_problem.cuh>
 
@@ -15,7 +15,7 @@
 
 //TODO: edge data not currently represented
 //TODO: initialize frontier
-struct sssp
+struct GASengineAPI
 {
 
   typedef int DataType;
@@ -40,58 +40,32 @@ struct sssp
     }
   };
 
-  struct EdgeType
-  {
-    int nodes; // #of nodes.
-    int edges; // #of edges.
-    DataType* d_weights;
-
-    EdgeType() :
-        d_weights(NULL), nodes(0), edges(0)
-    {
-    }
-  };
-
   static void Initialize(const int nodes, const int edges, int num_srcs,
-      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, int* d_edge_values,
-      VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
+      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices,
+      VertexType &vertex_list, int* d_frontier_keys[3],
       MiscType* d_frontier_values[3])
   {
     vertex_list.nodes = nodes;
     vertex_list.edges = edges;
 
-    if (vertex_list.d_dists == NULL)
-      b40c::util::B40CPerror(
-          cudaMalloc((void**) &vertex_list.d_dists,
-              nodes * sizeof(DataType)),
-          "cudaMalloc VertexType::d_dists failed", __FILE__, __LINE__);
-
-    if (vertex_list.d_dists_out == NULL)
-      b40c::util::B40CPerror(
-          cudaMalloc((void**) &vertex_list.d_dists_out,
-              nodes * sizeof(DataType)),
-          "cudaMalloc VertexType::d_dists_out failed", __FILE__,
-          __LINE__);
-
-    if (vertex_list.d_changed == NULL)
-      b40c::util::B40CPerror(
-          cudaMalloc((void**) &vertex_list.d_changed,
-              nodes * sizeof(int)),
-          "cudaMalloc VertexType::d_changed failed", __FILE__, __LINE__);
-
-    if (vertex_list.d_min_dists == NULL)
-      b40c::util::B40CPerror(
-          cudaMalloc((void**) &vertex_list.d_min_dists,
-              nodes * sizeof(DataType)),
-          "cudaMalloc VertexType::d_min_dists failed", __FILE__,
-          __LINE__);
-
-    if (edge_list.d_weights == NULL)
-      b40c::util::B40CPerror(
-          cudaMalloc((void**) &edge_list.d_weights,
-              edges * sizeof(DataType)),
-          "cudaMalloc edge_list.d_weights failed", __FILE__,
-          __LINE__);
+    b40c::util::B40CPerror(
+        cudaMalloc((void**) &vertex_list.d_dists,
+            nodes * sizeof(DataType)),
+        "cudaMalloc VertexType::d_dists failed", __FILE__, __LINE__);
+    b40c::util::B40CPerror(
+        cudaMalloc((void**) &vertex_list.d_dists_out,
+            nodes * sizeof(DataType)),
+        "cudaMalloc VertexType::d_dists_out failed", __FILE__,
+        __LINE__);
+    b40c::util::B40CPerror(
+        cudaMalloc((void**) &vertex_list.d_changed,
+            nodes * sizeof(int)),
+        "cudaMalloc VertexType::d_changed failed", __FILE__, __LINE__);
+    b40c::util::B40CPerror(
+        cudaMalloc((void**) &vertex_list.d_min_dists,
+            nodes * sizeof(DataType)),
+        "cudaMalloc VertexType::d_min_dists failed", __FILE__,
+        __LINE__);
 
     int memset_block_size = 256;
     int memset_grid_size_max = 32 * 1024;	// 32K CTAs
@@ -123,13 +97,6 @@ struct sssp
     b40c::util::MemsetKernel<DataType><<<memset_grid_size,
         memset_block_size, 0, 0>>>(vertex_list.d_min_dists, INIT_VALUE,
         nodes);
-
-    //Initialize edge data
-    if (b40c::util::B40CPerror(
-        cudaMemcpy(edge_list.d_weights, d_edge_values,
-            edges * sizeof(DataType), cudaMemcpyDeviceToDevice),
-        "CsrProblem cudaMemcpy edge d_weights failed", __FILE__, __LINE__))
-      exit(0);
 
     int init_dists[1];
     init_dists[0] = 0;
@@ -214,8 +181,8 @@ struct sssp
   struct gather_vertex
   {
     __device__
-    void operator()(const int vertex_id, const GatherType final_value,
-        VertexType &vertex_list, EdgeType &edge_list)
+    void operator()(const int row_id, const GatherType final_value,
+        VertexType &vertex_list)
     {
 
     }
@@ -227,8 +194,8 @@ struct sssp
   struct gather_edge
   {
     __device__
-    void operator()(const int vertex_id, const int neighbor_id_in,
-        VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
+    void operator()(const int row_id, const int neighbor_id_in,
+        const VertexType &vertex_list, GatherType& new_value)
     {
 
     }
@@ -254,7 +221,7 @@ struct sssp
      *
      */
     void operator()(const int vertex_id, const int iteration,
-        VertexType& vertex_list, EdgeType& edge_list)
+        VertexType& vertex_list)
     {
 
       const int oldvalue = vertex_list.d_dists[vertex_id];
@@ -274,7 +241,7 @@ struct sssp
   struct post_apply
   {
     __device__
-    void operator()(const int vertex_id, VertexType& vertex_list, EdgeType& edge_list)
+    void operator()(const int vertex_id, VertexType& vertex_list)
     {
       vertex_list.d_dists[vertex_id] = vertex_list.d_dists_out[vertex_id];
       vertex_list.d_min_dists[vertex_id] = INIT_VALUE;
@@ -294,7 +261,7 @@ struct sssp
      *
      * @param vertex_list The vertices in the graph.
      */
-    bool operator()(const int vertex_id, VertexType &vertex_list, EdgeType& edge_list)
+    bool operator()(const int vertex_id, VertexType &vertex_list)
     {
       return vertex_list.d_changed[vertex_id];
     }
@@ -342,20 +309,16 @@ struct sssp
      * has a 1:1 correspondence with the frontier array.
      */
     void operator()(const bool changed, const int iteration,
-        const int vertex_id, const int neighbor_id_in, const int edge_id,
-        VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
+        const int vertex_id, const int neighbor_id_in,
+        VertexType& vertex_list, int& frontier, int& misc_value)
     {
       const int src_dist = vertex_list.d_dists[vertex_id];
       const int dst_dist = vertex_list.d_dists[neighbor_id_in];
-      DataType edge_value = edge_list.d_weights[edge_id];
-//      printf("vertex_id=%d, edge_id=%d, neighbor_id_in=%d, edge_value=%d\n", vertex_id, edge_id, neighbor_id_in, edge_value);
-      if ((changed || iteration == 0) && dst_dist > src_dist + edge_value)
-//      if ((changed || iteration == 0) && dst_dist > src_dist + 1)
+      if ((changed || iteration == 0) && dst_dist > src_dist + 1)
         frontier = neighbor_id_in;
       else
         frontier = -1;
-      misc_value = src_dist + edge_value; // source dist + edge weight
-//      misc_value = src_dist + 1;
+      misc_value = src_dist + 1; // source dist + edge weight
     }
   };
 
@@ -384,7 +347,7 @@ struct sssp
      * function.
      */
     void operator()(const int iteration, int &vertex_id,
-        VertexType &vertex_list, EdgeType &edge_list, int& misc_value)
+        VertexType &vertex_list, int& misc_value)
     {
 
       /**

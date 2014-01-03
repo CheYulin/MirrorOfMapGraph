@@ -106,12 +106,12 @@ void cudaInit(int device)
 void printUsageAndExit()
 {
   std::cout
-      << "Usage: ./simpleSSSP [-graph (-g) graph_file] [-sources src_file] [-SSSP \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
+      << "Usage: ./CC [-graph (-g) graph_file] [-sources src_file] [-CC \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
   std::cout << "     -graph specify the graph input file\n";
   std::cout << "     -c set the SSSP options from the configuration file\n";
   std::cout
-      << "     -SSSP set the options.  Options include the following:\n";
+      << "     -CC set the options.  Options include the following:\n";
   Config::printOptions();
 
   exit(0);

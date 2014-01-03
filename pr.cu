@@ -24,7 +24,7 @@ typedef unsigned int uint;
 #include <string>
 #include <deque>
 #include <vector>
-#include <pagerank.h>
+#include <pr.h>
 #include <iostream>
 #include <omp.h>
 

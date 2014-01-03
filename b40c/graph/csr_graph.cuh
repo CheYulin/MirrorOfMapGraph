@@ -90,9 +90,9 @@ namespace b40c
           if (b40c::util::B40CPerror(cudaHostAlloc((void **) &column_offsets, sizeof(SizeT) * (nodes + 1), flags), "CsrGraph cudaHostAlloc column_offsets failed", __FILE__, __LINE__)) exit(1);
           if (b40c::util::B40CPerror(cudaHostAlloc((void **) &row_indices, sizeof(VertexId) * edges, flags), "CsrGraph cudaHostAlloc row_indices failed", __FILE__, __LINE__)) exit(1);
 
-          if (b40c::util::B40CPerror(cudaHostAlloc((void **) &from_nodes, sizeof(VertexId) * edges, flags), "CsrGraph cudaHostAlloc from_nodes failed", __FILE__, __LINE__)) exit(1);
-          if (b40c::util::B40CPerror(cudaHostAlloc((void **) &to_nodes, sizeof(VertexId) * edges, flags), "CsrGraph cudaHostAlloc to_nodes failed", __FILE__, __LINE__)) exit(1);
-
+//          if (b40c::util::B40CPerror(cudaHostAlloc((void **) &from_nodes, sizeof(VertexId) * edges, flags), "CsrGraph cudaHostAlloc from_nodes failed", __FILE__, __LINE__)) exit(1);
+//          if (b40c::util::B40CPerror(cudaHostAlloc((void **) &to_nodes, sizeof(VertexId) * edges, flags), "CsrGraph cudaHostAlloc to_nodes failed", __FILE__, __LINE__)) exit(1);
+//
           if (LOAD_VALUES)
           {
             if (b40c::util::B40CPerror(cudaHostAlloc((void **) &edge_values, sizeof(Value) * edges, flags), "CsrGraph cudaHostAlloc values failed", __FILE__, __LINE__)) exit(1);
@@ -109,8 +109,8 @@ namespace b40c
           column_indices = (VertexId*) malloc(sizeof(VertexId) * edges);
           column_offsets = (SizeT*) malloc(sizeof(SizeT) * (nodes + 1));
           row_indices = (VertexId*) malloc(sizeof(VertexId) * edges);
-          from_nodes = (VertexId*) malloc(sizeof(VertexId) * edges);
-          to_nodes = (VertexId*) malloc(sizeof(VertexId) * edges);
+//          from_nodes = (VertexId*) malloc(sizeof(VertexId) * edges);
+//          to_nodes = (VertexId*) malloc(sizeof(VertexId) * edges);
           edge_values = (LOAD_VALUES) ? (Value*) malloc(sizeof(Value) * edges) : NULL;
           node_values = (LOAD_VALUES) ? (Value*) malloc(sizeof(Value) * nodes) : NULL;
         }
@@ -128,12 +128,12 @@ namespace b40c
 
         FromScratch<LOAD_VALUES>(coo_nodes, coo_edges);
 
-        for (SizeT edge = 0; edge < edges; edge++)
-        {
-          from_nodes[edge] = coo[edge].row;
-          to_nodes[edge] = coo[edge].col;
-          //printf("from_nodes[%d]=%d, to_nodes[%d]=%d\n", edge, from_nodes[edge], edge, to_nodes[edge]);
-        }
+//        for (SizeT edge = 0; edge < edges; edge++)
+//        {
+//          from_nodes[edge] = coo[edge].row;
+//          to_nodes[edge] = coo[edge].col;
+//          //printf("from_nodes[%d]=%d, to_nodes[%d]=%d\n", edge, from_nodes[edge], edge, to_nodes[edge]);
+//        }
 
         // Sort COO by row
 //        if (!ordered_rows)
@@ -162,8 +162,11 @@ namespace b40c
           column_indices[edge] = coo[edge].col;
           if (LOAD_VALUES)
           {
-            coo[edge].Val(edge_values[edge]);
+            edge_values[edge] = coo[edge].val;
+//            coo[edge].Val(edge_values[edge]);
           }
+          else
+            edge_values[edge] = 1;
         }
 
         // Fill out any trailing edgeless nodes (and the end-of-list element)
@@ -191,8 +194,11 @@ namespace b40c
           row_indices[edge] = coo[edge].row;
           if (LOAD_VALUES)
           {
-            coo[edge].Val(edge_values[edge]);
+            edge_values[edge] = coo[edge].val;
+//            coo[edge].Val(edge_values[edge]);
           }
+          else
+            edge_values[edge] = 1;
         }
 
         // Fill out any trailing edgeless nodes (and the end-of-list element)
