@@ -24,6 +24,7 @@ typedef unsigned int uint;
 #include <string>
 #include <deque>
 #include <vector>
+#include <bfs.h>
 #include <sssp.h>
 #include <iostream>
 #include <omp.h>
@@ -133,12 +134,12 @@ int main(int argc, char **argv) {
 
 			graph_file = argv[i];
 
-		} else if (strncmp(argv[i], "-output", 100) == 0 || strncmp(argv[i], "-o", 100) == 0) { //output file name
+		} else if (strncmp(argv[i], "-output", 100) == 0) { //output file name
 			i++;
 			outFileName = argv[i];
 		}
 
-		else if (strncmp(argv[i], "-sources", 100) == 0 || strncmp(argv[i], "-s", 100) == 0) { //the file containing starting vertices
+		else if (strncmp(argv[i], "-sources", 100) == 0) { //the file containing starting vertices
 			i++;
 			strcpy(source_file_name, argv[i]);
 		}
@@ -190,7 +191,7 @@ int main(int argc, char **argv) {
 	typedef GASengine::CsrProblem<sssp, VertexId, SizeT, Value,
 			g_mark_predecessor, g_with_value> CsrProblem;
 	CsrProblem csr_problem(cfg);
-	if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
+	if (csr_problem.FromHostProblem(g_stream_from_host, csr_graph.nodes,
 			csr_graph.edges, csr_graph.column_indices,
 			csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
 			csr_graph.column_offsets, csr_graph.node_values, num_gpus))

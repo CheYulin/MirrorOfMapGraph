@@ -96,7 +96,8 @@ void printUsageAndExit() {
 	std::cout
 			<< "Usage: ./BFS [-graph (-g) graph_file] [-sources src_file] [-BFS \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
 	std::cout << "     -help display the command options\n";
-	std::cout << "     -graph specify the graph input file\n";
+	std::cout << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
+	std::cout << "     -sources or -s set starting vertices file\n";
 	std::cout << "     -c set the BFS options from the configuration file\n";
 	std::cout
 			<< "     -BFS set the options.  Options include the following:\n";

@@ -128,7 +128,7 @@ struct pagerank
     //compute d_num_out_edges
     b40c::util::B40CPerror(
         cudaMalloc((void**) &vertex_list.d_num_out_edge,
-            nodes * sizeof(int)),
+            (nodes+1) * sizeof(int)),
         "cudaMalloc d_num_out_edges failed", __FILE__, __LINE__);
 
     thrust::device_ptr<int> d_row_offsets_ptr(d_row_offsets);

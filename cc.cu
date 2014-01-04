@@ -108,7 +108,7 @@ void printUsageAndExit()
   std::cout
       << "Usage: ./CC [-graph (-g) graph_file] [-sources src_file] [-CC \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
-  std::cout << "     -graph specify the graph input file\n";
+  std::cout << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
   std::cout << "     -c set the SSSP options from the configuration file\n";
   std::cout
       << "     -CC set the options.  Options include the following:\n";

@@ -104,7 +104,8 @@ void printUsageAndExit()
   std::cout
       << "Usage: ./simpleSSSP [-graph (-g) graph_file] [-sources src_file] [-SSSP \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
-  std::cout << "     -graph specify the graph input file\n";
+  std::cout << "     -graph or -g specify a sparse matrix in Matrix Market (.mtx) format\n";
+  std::cout << "     -sources or -s set the starting vertices file\n";
   std::cout << "     -c set the SSSP options from the configuration file\n";
   std::cout
       << "     -SSSP set the options.  Options include the following:\n";
@@ -148,25 +149,29 @@ int main(int argc, char **argv)
 
     }
 
-		else if (strncmp(argv[i], "-output", 100) == 0 || strncmp(argv[i], "-o", 100) == 0) { //output file name
-			i++;
-			outFileName = argv[i];
-		}
+    else if (strncmp(argv[i], "-output", 100) == 0 || strncmp(argv[i], "-o", 100) == 0)
+    { //output file name
+      i++;
+      outFileName = argv[i];
+    }
 
-		else if (strncmp(argv[i], "-sources", 100) == 0 || strncmp(argv[i], "-s", 100) == 0) { //the file containing starting vertices
-			i++;
-			strcpy(source_file_name, argv[i]);
+    else if (strncmp(argv[i], "-sources", 100) == 0 || strncmp(argv[i], "-s", 100) == 0)
+    { //the file containing starting vertices
+      i++;
+      strcpy(source_file_name, argv[i]);
 //			printf("source_file_name=%s\n", source_file_name);
-		}
+    }
 
-		else if (strncmp(argv[i], "-SSSP", 100) == 0) { //The SSSP specific options
-			i++;
-			cfg.parseParameterString(argv[i]);
-		}
-		else if (strncmp(argv[i], "-c", 100) == 0) { //use a configuration file to specify the SSSP options instead of command line
-			i++;
-			cfg.parseFile(argv[i]);
-		}
+    else if (strncmp(argv[i], "-SSSP", 100) == 0)
+    { //The SSSP specific options
+      i++;
+      cfg.parseParameterString(argv[i]);
+    }
+    else if (strncmp(argv[i], "-c", 100) == 0)
+    { //use a configuration file to specify the SSSP options instead of command line
+      i++;
+      cfg.parseFile(argv[i]);
+    }
     else
     {
       printf("Wrong command!\n");
@@ -180,68 +185,71 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-	char hostname[1024];
-	hostname[1023] = '\0';
-	gethostname(hostname, 1023);
+  char hostname[1024];
+  hostname[1023] = '\0';
+  gethostname(hostname, 1023);
 
-	printf("Running on host: %s\n", hostname);
+  printf("Running on host: %s\n", hostname);
 
-	cudaInit(cfg.getParameter<int>("device"));
-	int directed = cfg.getParameter<int>("directed");
+  cudaInit(cfg.getParameter<int>("device"));
+  int directed = cfg.getParameter<int>("directed");
 
-	if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
-			!directed) != 0)
-		return 1;
+  if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
+      !directed) != 0)
+    return 1;
 
-	VertexId* h_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
-	int* h_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
+  VertexId* h_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
+  int* h_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
 //    VertexId* reference_check = (g_quick) ? NULL : reference_labels;
 //
 //    //Allocate host-side node_value array (both ref and gpu-computed results)
 //    Value* ref_node_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
-	Value* h_node_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
+  Value* h_node_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
 //    Value* ref_node_value_check = (g_quick) ? NULL : ref_node_values;
 //
 //    //Allocate host-side sigma value array (both ref and gpu-computed results)
 //    Value* ref_sigmas = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
-	Value* h_sigmas = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
+  Value* h_sigmas = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
 //    Value* ref_sigmas_check = (g_quick) ? NULL : ref_sigmas;
-	Value* h_deltas = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
+  Value* h_deltas = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
 
 // Allocate problem on GPU
-	int num_gpus = 1;
-	typedef GASengine::CsrProblem<sssp, VertexId, SizeT, Value,
-			g_mark_predecessor, g_with_value> CsrProblem;
-	CsrProblem csr_problem(cfg);
-	if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
-			csr_graph.edges, csr_graph.column_indices,
-			csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
-			csr_graph.column_offsets, csr_graph.node_values, num_gpus))
-		exit(1);
+  int num_gpus = 1;
+  typedef GASengine::CsrProblem<sssp, VertexId, SizeT, Value,
+      g_mark_predecessor, g_with_value> CsrProblem;
+  CsrProblem csr_problem(cfg);
+  if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
+      csr_graph.edges, csr_graph.column_indices,
+      csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
+      csr_graph.column_offsets, csr_graph.node_values, num_gpus))
+    exit(1);
 
-	const bool INSTRUMENT = true;
+  const bool INSTRUMENT = true;
 
-	GASengine::EnactorVertexCentric<INSTRUMENT> vertex_centric(cfg, g_verbose);
+  GASengine::EnactorVertexCentric<INSTRUMENT> vertex_centric(cfg, g_verbose);
 
-	cudaError_t retval = cudaSuccess;
+  cudaError_t retval = cudaSuccess;
 
-	retval = vertex_centric.EnactIterativeSearch<CsrProblem, sssp>(csr_problem, source_file_name,
-			csr_graph.row_offsets);
+  retval = vertex_centric.EnactIterativeSearch<CsrProblem, sssp>(csr_problem, source_file_name,
+      csr_graph.row_offsets);
 
-	if (retval && (retval != cudaErrorInvalidDeviceFunction)) {
-		exit(1);
-	}
+  if (retval && (retval != cudaErrorInvalidDeviceFunction))
+  {
+    exit(1);
+  }
 
-	csr_problem.ExtractResults(h_dists, h_labels, h_sigmas, h_deltas);
+  csr_problem.ExtractResults(h_dists, h_labels, h_sigmas, h_deltas);
 
-	if (outFileName) {
-		FILE* f = fopen(outFileName, "w");
-		for (int i = 0; i < csr_graph.nodes; ++i) {
-			fprintf(f, "%d\n", h_dists[i]);
-		}
+  if (outFileName)
+  {
+    FILE* f = fopen(outFileName, "w");
+    for (int i = 0; i < csr_graph.nodes; ++i)
+    {
+      fprintf(f, "%d\n", h_dists[i]);
+    }
 
-		fclose(f);
-	}
+    fclose(f);
+  }
 
   return 0;
 }

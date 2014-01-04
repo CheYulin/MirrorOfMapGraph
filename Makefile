@@ -16,7 +16,7 @@ SM_TARGETS = $(GEN_SM20) $(GEN_SM35)
 # Uncomment if you have	gcc 4.5	and would like to use its improved random number facility.
 #RAND_OPTS=--compiler-options "-std=c++0x"
 
-all: graphio.o config.o SSSP CC BFS PR
+all: graphio.o config.o  PR SSSP CC BFS
 
 graphio.o: graphio.cpp graphio.h Makefile
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) $(RAND_OPTS)

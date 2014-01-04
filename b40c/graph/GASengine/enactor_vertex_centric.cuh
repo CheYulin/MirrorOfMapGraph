@@ -50,6 +50,9 @@
 #include <b40c/graph/GASengine/vertex_centric/backward_sum_atomic/kernel.cuh>
 #include <b40c/graph/GASengine/vertex_centric/backward_sum_atomic/kernel_policy.cuh>
 
+#include <thrust/device_vector.h>
+#include <thrust/device_ptr.h>
+
 using namespace std;
 
 namespace b40c
@@ -475,7 +478,7 @@ namespace b40c
 
             // Forward phase BC iterations
             while (done[0] < 0)
-//            for (int i = 0; i < 1; i++)
+            //            for (int i = 0; i < 1; i++)
             {
               if (DEBUG)
                 printf("Iteration: %lld\n", (long long) iteration[0]);
@@ -607,7 +610,7 @@ namespace b40c
                     graph_slice->d_row_indices,                    //pass in the CSC graph to gather for destination vertices
                     graph_slice->d_column_offsets,                    //pass in the CSC graph to gather for destination vertices
                     graph_slice->vertex_list, //
-                    graph_slice->edge_list,//
+                    graph_slice->edge_list, //
                     //                  graph_slice->d_visit_flags,
                     this->work_progress,
                     graph_slice->frontier_elements[selector ^ 1],                    // max vertex frontier vertices
@@ -679,6 +682,14 @@ namespace b40c
                     iteration[0], queue_index, this->work_progress,
                     graph_slice->frontier_queues.d_keys[selector ^ 1],
                     graph_slice->vertex_list, graph_slice->edge_list);
+
+//                if (DEBUG)
+//                {
+//                  int num_changed;
+//                  thrust::device_ptr<int> changed_ptr = thrust::device_pointer_cast(graph_slice->vertex_list.d_changed);
+//                  num_changed = thrust::reduce(changed_ptr, changed_ptr + graph_slice->nodes);
+//                  printf("num_changed=%d\n", num_changed);
+//                }
               }
 
               if (Program::postApplyOverEdges() == POST_APPLY_FRONTIER)
@@ -773,7 +784,7 @@ namespace b40c
                     graph_slice->frontier_queues.d_keys[selector ^ 1],                    // vertex frontier in
                     graph_slice->frontier_queues.d_keys[selector],                    // edge frontier out
                     graph_slice->frontier_queues.d_values[selector],                    // predecessor out
-                    graph_slice->vertex_list,//
+                    graph_slice->vertex_list,                    //
                     graph_slice->edge_list,
                     graph_slice->d_column_indices,
                     graph_slice->d_row_offsets, this->work_progress,
