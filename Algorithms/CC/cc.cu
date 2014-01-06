@@ -15,8 +15,7 @@
  */
 
 typedef unsigned int uint;
-#include "graphio.h"
-#include <stdio.h> 
+#include <stdio.h>
 #include <cstdlib>
 #include <algorithm>
 #include <iostream>
@@ -24,11 +23,12 @@ typedef unsigned int uint;
 #include <string>
 #include <deque>
 #include <vector>
-#include <sssp.h>
+#include <cc.h>
 #include <iostream>
 #include <omp.h>
 
 #include <config.h>
+
 
 // Utilities and correctness-checking
 //#include <test/b40c_test_util.h>
@@ -40,6 +40,9 @@ typedef unsigned int uint;
 
 #include <b40c/graph/GASengine/csr_problem.cuh>
 #include <b40c/graph/GASengine/enactor_vertex_centric.cuh>
+#include <thrust/device_ptr.h>
+#include <thrust/sort.h>
+#include <thrust/unique.h>
 
 using namespace b40c;
 using namespace graph;
@@ -102,13 +105,12 @@ void cudaInit(int device)
 void printUsageAndExit()
 {
   std::cout
-      << "Usage: ./simpleSSSP [-graph (-g) graph_file] [-sources src_file] [-SSSP \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
+      << "Usage: ./CC [-graph (-g) graph_file] [-sources src_file] [-CC \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
-  std::cout << "     -graph or -g specify a sparse matrix in Matrix Market (.mtx) format\n";
-  std::cout << "     -sources or -s set the starting vertices file\n";
+  std::cout << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
   std::cout << "     -c set the SSSP options from the configuration file\n";
   std::cout
-      << "     -SSSP set the options.  Options include the following:\n";
+      << "     -CC set the options.  Options include the following:\n";
   Config::printOptions();
 
   exit(0);
@@ -129,17 +131,15 @@ int main(int argc, char **argv)
   typedef int SizeT; // Use as the graph size type
   char* graph_file = NULL;
   CsrGraph<VertexId, Value, SizeT> csr_graph(g_stream_from_host);
-  char source_file_name[1000] = "";
+  char source_file_name[100] = "";
 //  int device = 0;
 //  double max_queue_sizing = 1.3;
   Config cfg;
 
   for (int i = 1; i < argc; i++)
   {
-
     if (strncmp(argv[i], "-help", 100) == 0) // print the usage information
       printUsageAndExit();
-
     else if (strncmp(argv[i], "-graph", 100) == 0
         || strncmp(argv[i], "-g", 100) == 0)
     { //input graph
@@ -148,21 +148,20 @@ int main(int argc, char **argv)
       graph_file = argv[i];
 
     }
-
-    else if (strncmp(argv[i], "-output", 100) == 0 || strncmp(argv[i], "-o", 100) == 0)
+    else if (strncmp(argv[i], "-output", 100) == 0
+        || strncmp(argv[i], "-o", 100) == 0)
     { //output file name
       i++;
       outFileName = argv[i];
     }
 
-    else if (strncmp(argv[i], "-sources", 100) == 0 || strncmp(argv[i], "-s", 100) == 0)
+    else if (strncmp(argv[i], "-sources", 100) == 0)
     { //the file containing starting vertices
       i++;
       strcpy(source_file_name, argv[i]);
-//			printf("source_file_name=%s\n", source_file_name);
     }
 
-    else if (strncmp(argv[i], "-SSSP", 100) == 0)
+    else if (strncmp(argv[i], "-CC", 100) == 0)
     { //The SSSP specific options
       i++;
       cfg.parseParameterString(argv[i]);
@@ -172,17 +171,12 @@ int main(int argc, char **argv)
       i++;
       cfg.parseFile(argv[i]);
     }
-    else
-    {
-      printf("Wrong command!\n");
-      exit(1);
-    }
   }
 
   if (graph_file == NULL)
   {
-    printUsageAndExit();
-    exit(1);
+    printf("Must specify the graph!\n");
+    exit(0);
   }
 
   char hostname[1024];
@@ -192,7 +186,7 @@ int main(int argc, char **argv)
   printf("Running on host: %s\n", hostname);
 
   cudaInit(cfg.getParameter<int>("device"));
-  int directed = cfg.getParameter<int>("directed");
+  int directed = 0;
 
   if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
       !directed) != 0)
@@ -215,7 +209,7 @@ int main(int argc, char **argv)
 
 // Allocate problem on GPU
   int num_gpus = 1;
-  typedef GASengine::CsrProblem<sssp, VertexId, SizeT, Value,
+  typedef GASengine::CsrProblem<cc, VertexId, SizeT, Value,
       g_mark_predecessor, g_with_value> CsrProblem;
   CsrProblem csr_problem(cfg);
   if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
@@ -230,7 +224,7 @@ int main(int argc, char **argv)
 
   cudaError_t retval = cudaSuccess;
 
-  retval = vertex_centric.EnactIterativeSearch<CsrProblem, sssp>(csr_problem, source_file_name,
+  retval = vertex_centric.EnactIterativeSearch<CsrProblem, cc>(csr_problem, source_file_name,
       csr_graph.row_offsets);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
@@ -250,6 +244,12 @@ int main(int argc, char **argv)
 
     fclose(f);
   }
+
+  thrust::device_ptr<int> dist_ptr = thrust::device_pointer_cast(csr_problem.graph_slices[0]->vertex_list.d_dists);
+  thrust::sort(dist_ptr, dist_ptr + csr_graph.nodes);
+  thrust::device_ptr<int> new_end = thrust::unique(dist_ptr, dist_ptr + csr_graph.nodes);
+  int num_comp = (int) (new_end - dist_ptr);
+  printf("Number of components is: %d\n", num_comp);
 
   return 0;
 }

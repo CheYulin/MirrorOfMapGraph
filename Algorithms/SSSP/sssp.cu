@@ -15,7 +15,6 @@
  */
 
 typedef unsigned int uint;
-#include "graphio.h"
 #include <stdio.h> 
 #include <cstdlib>
 #include <algorithm>
@@ -24,7 +23,7 @@ typedef unsigned int uint;
 #include <string>
 #include <deque>
 #include <vector>
-#include <pr.h>
+#include <sssp.h>
 #include <iostream>
 #include <omp.h>
 
@@ -102,12 +101,13 @@ void cudaInit(int device)
 void printUsageAndExit()
 {
   std::cout
-      << "Usage: ./PR [-graph (-g) graph_file] [-sources src_file] [-PR \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
+      << "Usage: ./simpleSSSP [-graph (-g) graph_file] [-sources src_file] [-SSSP \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
-  std::cout << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
-  std::cout << "     -c set the PR options from the configuration file\n";
+  std::cout << "     -graph or -g specify a sparse matrix in Matrix Market (.mtx) format\n";
+  std::cout << "     -sources or -s set the starting vertices file\n";
+  std::cout << "     -c set the SSSP options from the configuration file\n";
   std::cout
-      << "     -PR set the options.  Options include the following:\n";
+      << "     -SSSP set the options.  Options include the following:\n";
   Config::printOptions();
 
   exit(0);
@@ -124,19 +124,21 @@ int main(int argc, char **argv)
   const bool g_mark_predecessor = false;
   bool g_verbose = false;
   typedef int VertexId; // Use as the node identifier type
-  typedef float Value; // Use as the value type
+  typedef int Value; // Use as the value type
   typedef int SizeT; // Use as the graph size type
   char* graph_file = NULL;
   CsrGraph<VertexId, Value, SizeT> csr_graph(g_stream_from_host);
-  char source_file_name[100] = "";
+  char source_file_name[1000] = "";
 //  int device = 0;
 //  double max_queue_sizing = 1.3;
   Config cfg;
 
   for (int i = 1; i < argc; i++)
   {
+
     if (strncmp(argv[i], "-help", 100) == 0) // print the usage information
       printUsageAndExit();
+
     else if (strncmp(argv[i], "-graph", 100) == 0
         || strncmp(argv[i], "-g", 100) == 0)
     { //input graph
@@ -145,21 +147,34 @@ int main(int argc, char **argv)
       graph_file = argv[i];
 
     }
+
     else if (strncmp(argv[i], "-output", 100) == 0 || strncmp(argv[i], "-o", 100) == 0)
     { //output file name
       i++;
       outFileName = argv[i];
     }
 
-    else if (strncmp(argv[i], "-PR", 100) == 0)
-    { //The PR specific options
+    else if (strncmp(argv[i], "-sources", 100) == 0 || strncmp(argv[i], "-s", 100) == 0)
+    { //the file containing starting vertices
+      i++;
+      strcpy(source_file_name, argv[i]);
+//			printf("source_file_name=%s\n", source_file_name);
+    }
+
+    else if (strncmp(argv[i], "-SSSP", 100) == 0)
+    { //The SSSP specific options
       i++;
       cfg.parseParameterString(argv[i]);
     }
     else if (strncmp(argv[i], "-c", 100) == 0)
-    { //use a configuration file to specify the PR options instead of command line
+    { //use a configuration file to specify the SSSP options instead of command line
       i++;
       cfg.parseFile(argv[i]);
+    }
+    else
+    {
+      printf("Wrong command!\n");
+      exit(1);
     }
   }
 
@@ -182,8 +197,8 @@ int main(int argc, char **argv)
       !directed) != 0)
     return 1;
 
-  Value* h_labels = (Value*) malloc(sizeof(VertexId) * csr_graph.nodes);
-  Value* h_dists = (Value*) malloc(sizeof(VertexId) * csr_graph.nodes);
+  VertexId* h_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
+  int* h_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
 //    VertexId* reference_check = (g_quick) ? NULL : reference_labels;
 //
 //    //Allocate host-side node_value array (both ref and gpu-computed results)
@@ -199,7 +214,7 @@ int main(int argc, char **argv)
 
 // Allocate problem on GPU
   int num_gpus = 1;
-  typedef GASengine::CsrProblem<pagerank, VertexId, SizeT, Value,
+  typedef GASengine::CsrProblem<sssp, VertexId, SizeT, Value,
       g_mark_predecessor, g_with_value> CsrProblem;
   CsrProblem csr_problem(cfg);
   if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
@@ -214,7 +229,7 @@ int main(int argc, char **argv)
 
   cudaError_t retval = cudaSuccess;
 
-  retval = vertex_centric.EnactIterativeSearch<CsrProblem, pagerank>(csr_problem, source_file_name,
+  retval = vertex_centric.EnactIterativeSearch<CsrProblem, sssp>(csr_problem, source_file_name,
       csr_graph.row_offsets);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
@@ -229,7 +244,7 @@ int main(int argc, char **argv)
     FILE* f = fopen(outFileName, "w");
     for (int i = 0; i < csr_graph.nodes; ++i)
     {
-      fprintf(f, "%f\n", h_dists[i]);
+      fprintf(f, "%d\n", h_dists[i]);
     }
 
     fclose(f);
