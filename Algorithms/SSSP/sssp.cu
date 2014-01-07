@@ -98,6 +98,75 @@ void cudaInit(int device)
   }
 }
 
+void correctTest(int nodes, int* reference_dists, int* h_dists)
+{
+  bool pass = true;
+  printf("Correctness testing ...");
+  for (int i = 0; i < nodes; i++)
+  {
+    if (reference_dists[i] != h_dists[i])
+    {
+      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n", i, reference_dists[i], h_dists[i]);
+      pass = false;
+    }
+  }
+  if (pass)
+    printf("passed\n");
+}
+
+template<typename VertexId, typename Value, typename SizeT>
+void CPUSSSP(CsrGraph<VertexId, Value, SizeT> const &graph, VertexId* dist, VertexId src)
+{
+
+// initialize dist[] and pred[] arrays. Start with vertex s by setting
+// dist[] to 0.
+
+  const int n = graph.nodes;
+  for (int i = 0; i < n; i++)
+    dist[i] = 100000000;
+  vector<bool> visited(n);
+  dist[src] = 0;
+
+// find vertex in ever-shrinking set, V-S, whose dist value is smallest
+// Recompute potential new paths to update all shortest paths
+
+  while (true)
+  {
+// find shortest distance so far in unvisited vertices
+    int u = -1;
+    int sd = 100000000; // assume not reachable
+
+    for (int i = 0; i < n; i++)
+    {
+      if (!visited[i] && dist[i] < sd)
+      {
+        sd = dist[i];
+        u = i;
+      }
+    }
+    if (u == -1)
+    {
+      break; // no more progress to be made
+    }
+
+// For neighbors of u, see if length of best path from s->u + weight
+// of edge u->v is better than best path from s->v.
+    visited[u] = true;
+
+    for (int j = graph.row_offsets[u]; j < graph.row_offsets[u + 1]; ++j)
+    {
+      int v = graph.column_indices[j]; // the neighbor v
+      long newLen = dist[u]; // compute as long
+      newLen += graph.edge_values[j]; // sum with (u,v) weight
+
+      if (newLen < dist[v])
+      {
+        dist[v] = newLen;
+      }
+    }
+  }
+}
+
 void printUsageAndExit()
 {
   std::cout
@@ -197,6 +266,27 @@ int main(int argc, char **argv)
       !directed) != 0)
     return 1;
 
+  VertexId* reference_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
+  if (strcmp(source_file_name, "") == 0) //Do correctness test only with single starting vertex
+  {
+    int src = cfg.getParameter<int>("src");
+    int origin = cfg.getParameter<int>("origin");
+
+    if (origin == 1)
+      src--;
+
+    CPUSSSP(
+        csr_graph,
+        reference_dists,
+        src);
+
+//    for (int i = 0; i < csr_graph.nodes; i++)
+//    {
+//      printf("%d\n", reference_dists[i]);
+//    }
+    //    return 0;
+  }
+
   VertexId* h_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
   int* h_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
 //    VertexId* reference_check = (g_quick) ? NULL : reference_labels;
@@ -238,6 +328,9 @@ int main(int argc, char **argv)
   }
 
   csr_problem.ExtractResults(h_dists, h_labels, h_sigmas, h_deltas);
+
+  if (strcmp(source_file_name, "") == 0)
+    correctTest(csr_graph.nodes, reference_dists, h_dists);
 
   if (outFileName)
   {
