@@ -16,7 +16,7 @@ SM_TARGETS = $(GEN_SM20) $(GEN_SM35)
 # Uncomment if you have	gcc 4.5	and would like to use its improved random number facility.
 #RAND_OPTS=--compiler-options "-std=c++0x"
 
-all: config.o PR
+all: config.o PageRank
 	
 config.o: config.cpp ../../getvalue.h config.h Makefile register.h
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) $(RAND_OPTS)
@@ -24,9 +24,9 @@ config.o: config.cpp ../../getvalue.h config.h Makefile register.h
 PR.o: pr.cu ../../GASEngine.h pr.h Makefile ../../b40c/graph/GASengine/enactor_vertex_centric.cuh
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) 
 	
-PR: PR.o config.o
+PageRank: PR.o config.o
 	nvcc -o $@ $^ $(LD_LIBS)
 	
 clean:
-	rm -f PR *.o
+	rm -f PageRank *.o
 
