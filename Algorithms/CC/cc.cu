@@ -29,7 +29,6 @@ typedef unsigned int uint;
 
 #include <config.h>
 
-
 // Utilities and correctness-checking
 //#include <test/b40c_test_util.h>
 
@@ -100,6 +99,64 @@ void cudaInit(int device)
           (unsigned long long) deviceProp.totalGlobalMem);
     }
   }
+}
+
+void correctTest(int nodes, int* reference_dists, int* h_dists)
+{
+  bool pass = true;
+  printf("Correctness testing ...");
+  for (int i = 0; i < nodes; i++)
+  {
+    if (reference_dists[i] != h_dists[i])
+    {
+      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n", i, reference_dists[i], h_dists[i]);
+      pass = false;
+    }
+  }
+  if (pass)
+    printf("passed\n");
+}
+
+template<typename VertexId, typename Value, typename SizeT>
+void CPUCC(CsrGraph<VertexId, Value, SizeT> const &graph, Value* dist)
+{
+
+// initialize dist[] and pred[] arrays. Start with vertex s by setting
+// dist[] to 0.
+
+  const SizeT n = graph.nodes;
+  for (int i = 0; i < n; i++)
+    dist[i] = i;
+
+  bool changed = true;
+
+// find vertex in ever-shrinking set, V-S, whose dist value is smallest
+// Recompute potential new paths to update all shortest paths
+
+  double startTime = omp_get_wtime();
+  while (changed)
+  {
+    changed = false;
+    for (int v = 0; v < n; v++)
+    {
+      Value minnb = 100000000;
+      for (int j = graph.row_offsets[v]; j < graph.row_offsets[v + 1]; ++j)
+      {
+        VertexId nb = graph.column_indices[j]; // the neighbor v
+        minnb = min(minnb, dist[nb]);
+      }
+      if (minnb < dist[v])
+      {
+        dist[v] = minnb;
+        changed = true;
+      }
+    }
+  }
+
+  double EndTime = omp_get_wtime();
+
+  std::cout << "CPU time took: " << (EndTime - startTime) * 1000 << " ms"
+      << std::endl;
 }
 
 void printUsageAndExit()
@@ -192,6 +249,15 @@ int main(int argc, char **argv)
       !directed) != 0)
     return 1;
 
+  VertexId* reference_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
+
+  CPUCC(csr_graph, reference_dists);
+
+//  for(int i=0; i<csr_graph.nodes; i++)
+//  {
+//    printf("%d\n", reference_dists[i]);
+//  }
+
   VertexId* h_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
   int* h_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
 //    VertexId* reference_check = (g_quick) ? NULL : reference_labels;
@@ -233,6 +299,8 @@ int main(int argc, char **argv)
   }
 
   csr_problem.ExtractResults(h_dists, h_labels, h_sigmas, h_deltas);
+
+  correctTest(csr_graph.nodes, reference_dists, h_dists);
 
   if (outFileName)
   {

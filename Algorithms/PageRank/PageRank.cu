@@ -23,9 +23,10 @@ typedef unsigned int uint;
 #include <string>
 #include <deque>
 #include <vector>
-#include <pr.h>
+#include <PageRank.h>
 #include <iostream>
 #include <omp.h>
+#include <numeric>
 
 #include <config.h>
 
@@ -96,6 +97,58 @@ void cudaInit(int device)
           (unsigned long long) deviceProp.totalGlobalMem);
     }
   }
+}
+
+template<typename VertexId, typename Value, typename SizeT>
+void CPUPR(CsrGraph<VertexId, Value, SizeT> const &graph, Value* dist)
+{
+
+// initialize dist[] and pred[] arrays. Start with vertex s by setting
+// dist[] to 0.
+
+  const int n = graph.nodes;
+  for (int i = 0; i < n; i++)
+    dist[i] = 0.15;
+
+  //compute d_num_out_edges
+  VertexId* num_out_edge = (VertexId*) malloc((n + 1) * sizeof(VertexId));
+
+  adjacent_difference(graph.row_offsets, graph.row_offsets + n + 1, num_out_edge);
+  num_out_edge++;
+//  for(int i=0; i<n; i++)
+//    printf("%d %d\n", graph.row_offsets[i+1], num_out_edge[i]);
+
+  bool changed = true;
+
+// find vertex in ever-shrinking set, V-S, whose dist value is smallest
+// Recompute potential new paths to update all shortest paths
+
+  double startTime = omp_get_wtime();
+  while (changed)
+  {
+    changed = false;
+    for (int v = 0; v < n; v++)
+    {
+      Value sumnb = 0.0;
+      for (int j = graph.column_offsets[v]; j < graph.column_offsets[v + 1]; ++j)
+      {
+        int nb = graph.row_indices[j]; // the neighbor v
+        sumnb += dist[nb] / (Value) num_out_edge[nb];
+      }
+      sumnb = 0.15 + 0.85 * sumnb;
+      if (fabs(sumnb - dist[v]) >= 0.01)
+      {
+        changed = true;
+      }
+
+      dist[v] = sumnb;
+    }
+  }
+
+  double EndTime = omp_get_wtime();
+
+  std::cout << "CPU time took: " << (EndTime - startTime) * 1000 << " ms"
+      << std::endl;
 }
 
 void printUsageAndExit()
@@ -180,6 +233,15 @@ int main(int argc, char **argv)
   if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
       !directed) != 0)
     return 1;
+
+  Value* reference_dists = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
+
+  CPUPR(csr_graph, reference_dists);
+
+//  for (int i = 0; i < csr_graph.nodes; i++)
+//  {
+//    printf("%f\n", reference_dists[i]);
+//  }
 
   Value* h_labels = (Value*) malloc(sizeof(VertexId) * csr_graph.nodes);
   Value* h_dists = (Value*) malloc(sizeof(VertexId) * csr_graph.nodes);

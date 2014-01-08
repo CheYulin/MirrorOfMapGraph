@@ -21,10 +21,10 @@ all: config.o PageRank
 config.o: config.cpp ../../getvalue.h config.h Makefile register.h
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) $(RAND_OPTS)
 	
-PR.o: pr.cu ../../GASEngine.h pr.h Makefile ../../b40c/graph/GASengine/enactor_vertex_centric.cuh
+PageRank.o: PageRank.cu ../../GASEngine.h PageRank.h Makefile ../../b40c/graph/GASengine/enactor_vertex_centric.cuh
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) 
 	
-PageRank: PR.o config.o
+PageRank: PageRank.o config.o
 	nvcc -o $@ $^ $(LD_LIBS)
 	
 clean:

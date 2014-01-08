@@ -130,6 +130,7 @@ void CPUSSSP(CsrGraph<VertexId, Value, SizeT> const &graph, VertexId* dist, Vert
 // find vertex in ever-shrinking set, V-S, whose dist value is smallest
 // Recompute potential new paths to update all shortest paths
 
+  double startTime = omp_get_wtime();
   while (true)
   {
 // find shortest distance so far in unvisited vertices
@@ -165,6 +166,11 @@ void CPUSSSP(CsrGraph<VertexId, Value, SizeT> const &graph, VertexId* dist, Vert
       }
     }
   }
+
+  double EndTime = omp_get_wtime();
+
+  std::cout << "CPU time took: " << (EndTime - startTime) * 1000 << " ms"
+      << std::endl;
 }
 
 void printUsageAndExit()

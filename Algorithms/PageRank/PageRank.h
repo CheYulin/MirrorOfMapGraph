@@ -188,6 +188,7 @@ struct pagerank
     {
       DataType nb_dist = vertex_list.d_dists[neighbor_id_in];
       new_value = nb_dist / (DataType) vertex_list.d_num_out_edge[neighbor_id_in];
+//      printf("d_num_out_edge[%d]=%d\n", neighbor_id_in, vertex_list.d_num_out_edge[neighbor_id_in]);
     }
   };
 
