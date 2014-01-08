@@ -145,6 +145,7 @@ namespace b40c
           int num_src;
           int *srcs;
           int init_num_elements;
+          int outer_iter_num;
 
           VertexType vertex_list;
           EdgeType edge_list;
@@ -451,6 +452,7 @@ namespace b40c
               graph_slices[0]->edges = edges;
 
               graph_slices[0]->num_src = 1;
+              graph_slices[0]->outer_iter_num = cfg.getParameter<int>("iter_num");
 
               if (_Program::srcVertex() == SINGLE)
               {

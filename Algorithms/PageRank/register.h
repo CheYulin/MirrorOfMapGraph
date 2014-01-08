@@ -1,4 +1,5 @@
 #include <config.h>
+#include <limits>
 
 //register the parameters from command line or configuration file
 inline void registerParameters() {
@@ -8,6 +9,8 @@ inline void registerParameters() {
 //  Config::registerParameter<int>("origin","The origin (0 or 1) for the starting vertices (default 1)", 1); //vertex indices origin
   Config::registerParameter<int>("directed","The graph is directed (default 1)", 1); //whether the graph is directed or not
   Config::registerParameter<int>("device","The device to use (default 0)", 0); // the device number
+  Config::registerParameter<int>("iter_num","The number of iterations to perform", 1); // the device number
+  Config::registerParameter<double>("tol","The tolerance for correctness check", 0.1);
 //  Config::registerParameter<int>("num_src","The number of starting vertices when random sources is specified (default 1)", 1); // the device number
 //  Config::registerParameter<int>("with_value","Whether to load edge values from market file (default 0)", 0); // the device number
   Config::registerParameter<double>("max_queue_sizing","The frontier queue size is this value times the number of vertices in the graph (default 3.0)", 3.0); //frontier queue size

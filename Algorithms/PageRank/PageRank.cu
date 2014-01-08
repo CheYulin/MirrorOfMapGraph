@@ -165,6 +165,26 @@ void printUsageAndExit()
   exit(0);
 }
 
+template<typename Value, typename SizeT>
+Value l2norm(Value* v1, Value* v2, SizeT n)
+{
+    Value result = 0.0;
+    for(unsigned int i = 0; i < n; ++i)
+        result += (v1[i]-v2[i]) * (v1[i]-v2[i]);
+
+    return sqrt(result);
+}
+
+template<typename Value, typename SizeT>
+Value l2norm(Value* v, SizeT n)
+{
+    Value result = 0.0;
+    for(unsigned int i = 0; i < n; ++i)
+        result += v[i] * v[i];
+
+    return sqrt(result);
+}
+
 int main(int argc, char **argv)
 {
 
@@ -284,6 +304,14 @@ int main(int argc, char **argv)
   }
 
   csr_problem.ExtractResults(h_dists, h_labels, h_sigmas, h_deltas);
+
+  double tol = cfg.getParameter<double>("tol");
+  printf("Correctness testing ... ");
+  Value l2error = l2norm(reference_dists, h_dists, csr_graph.nodes) / l2norm(reference_dists, csr_graph.nodes);// / sqrt((Value)csr_graph.nodes);
+  if( l2error < tol)
+    printf("passed! l2 error = %f\n", l2error);
+  else
+    printf("failed! l2 error = %f\n", l2error);
 
   if (outFileName)
   {
