@@ -480,7 +480,7 @@ namespace b40c
 
               // Forward phase BC iterations
               while (done[0] < 0)
-              //            for (int i = 0; i < 1; i++)
+//                          for (int i = 0; i < 100; i++)
               {
                 if (DEBUG)
                   printf("Iteration: %lld\n", (long long) iteration[0]);
@@ -640,11 +640,11 @@ namespace b40c
 //                  if (DEBUG) printf("queue_length after gather: %lld\n", (long long) queue_length);
 
 //                  EValue *test_vid2 = new EValue[graph_slice->nodes];
-//                  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
+//                  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_min_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
 //                  printf("d_dists after gather: ");
-//                  for (int i = 0; i < graph_slice->nodes; ++i)
+//                  for (int i = 100; i < 200; ++i)
 //                  {
-//                    printf("%f, ", test_vid2[i]);
+//                    printf("%.3f, ", test_vid2[i]);
 //                  }
 //                  printf("\n");
 //                  delete[] test_vid2;
@@ -685,13 +685,13 @@ namespace b40c
                       graph_slice->frontier_queues.d_keys[selector ^ 1],
                       graph_slice->vertex_list, graph_slice->edge_list);
 
-//                if (DEBUG)
-//                {
-//                  int num_changed;
-//                  thrust::device_ptr<int> changed_ptr = thrust::device_pointer_cast(graph_slice->vertex_list.d_changed);
-//                  num_changed = thrust::reduce(changed_ptr, changed_ptr + graph_slice->nodes);
-//                  printf("num_changed=%d\n", num_changed);
-//                }
+//                  if (DEBUG)
+//                  {
+//                    int num_changed;
+//                    thrust::device_ptr<int> changed_ptr = thrust::device_pointer_cast(graph_slice->vertex_list.d_changed);
+//                    num_changed = thrust::reduce(changed_ptr, changed_ptr + graph_slice->nodes);
+//                    printf("num_changed=%d\n", num_changed);
+//                  }
                 }
 
                 if (Program::postApplyOverEdges() == POST_APPLY_FRONTIER)

@@ -18,7 +18,7 @@ struct pagerank
 
   typedef float DataType;
   typedef int MiscType;
-  typedef DataType GatherType;
+  typedef float GatherType;
 
   static const DataType INIT_VALUE = 0.0;
 
@@ -29,6 +29,7 @@ struct pagerank
 //    DataType* d_dists_out; // new value computed by apply.
     int* d_changed; // 1 iff dists_out was changed in apply.
     DataType* d_dists; // the actual distance computed by post_apply
+//    DataType* d_dists_out;
     DataType* d_min_dists; // intermediate value for global synchronization computed in contract. used by the next apply()
     int* d_num_out_edge;
     int* d_visited_flag;
@@ -36,8 +37,8 @@ struct pagerank
     VertexType() :
         d_dists(NULL),
 //        d_dists_out(NULL),
-        d_changed(NULL), d_min_dists(
-            NULL), nodes(0), edges(0)
+        d_changed(NULL), d_num_out_edge(NULL), d_visited_flag(NULL), d_min_dists(NULL),
+        nodes(0), edges(0)
     {
     }
   };
@@ -222,7 +223,10 @@ struct pagerank
       if (fabs(oldvalue - newvalue) < 0.01f)
         vertex_list.d_changed[vertex_id] = 0;
       else
+      {
+//        if(vertex_id < 200) printf("(%d %.3f) ", vertex_id, newvalue);
         vertex_list.d_changed[vertex_id] = 1;
+      }
 
       vertex_list.d_dists[vertex_id] = newvalue;
     }
@@ -235,6 +239,7 @@ struct pagerank
     void operator()(const int vertex_id, VertexType& vertex_list, EdgeType& edge_list)
     {
       vertex_list.d_visited_flag[vertex_id] = 0;
+//      vertex_list.d_dists[vertex_id] = vertex_list.d_dists_out[vertex_id];
     }
   };
 

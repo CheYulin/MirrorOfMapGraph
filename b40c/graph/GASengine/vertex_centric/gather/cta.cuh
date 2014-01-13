@@ -73,11 +73,11 @@ namespace b40c
 
             //CTA reduction
             template<typename T>
-            static __device__                                                        __forceinline__ T CTAReduce(T* partial)
+            static __device__                                                                 __forceinline__ T CTAReduce(T* partial)
             {
               for (size_t s = KernelPolicy::THREADS / 2; s > 0; s >>= 1)
               {
-            	typename Program::gather_sum gather_sum_functor;
+                typename Program::gather_sum gather_sum_functor;
                 if (threadIdx.x < s) partial[threadIdx.x] = gather_sum_functor(partial[threadIdx.x], partial[threadIdx.x + s]);
                 __syncthreads();
               }
@@ -85,7 +85,7 @@ namespace b40c
             }
 
             template<typename T>
-            static __device__                                                        __forceinline__ T CTAReduceMIN(T* partial)
+            static __device__                                                                 __forceinline__ T CTAReduceMIN(T* partial)
             {
               for (size_t s = KernelPolicy::THREADS / 2; s > 0; s >>= 1)
               {
@@ -97,13 +97,13 @@ namespace b40c
 
             //Warp reduction
             template<typename T>
-            static __device__                                                        __forceinline__ T WarpReduce(T* partial, size_t warp_id)
+            static __device__                                                                 __forceinline__ T WarpReduce(T* partial, size_t warp_id)
             {
               for (size_t s = B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) / 2; s > 0; s >>= 1)
               {
-            	typename Program::gather_sum gather_sum_functor;
+                typename Program::gather_sum gather_sum_functor;
                 if (threadIdx.x < warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + s) partial[threadIdx.x] = gather_sum_functor(partial[threadIdx.x], partial[threadIdx.x + s]);
-                __syncthreads();
+//                __syncthreads();
               }
               return partial[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH)];
             }
@@ -121,7 +121,7 @@ namespace b40c
 //            }
             //Warp reduction
             template<typename T>
-            static __device__                                                          __forceinline__ T WarpReduceMIN(T* partial, size_t warp_id)
+            static __device__                                                                   __forceinline__ T WarpReduceMIN(T* partial, size_t warp_id)
             {
               for (size_t s = B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) / 2; s > 0; s >>= 1)
               {
@@ -257,7 +257,7 @@ namespace b40c
                     // Load neighbor row range from d_row_offsets
                     Vec2SizeT row_range;
                     row_range.x = cta->d_row_offsets[row_id];
-                    row_range.y = cta->d_row_offsets[row_id+1];
+                    row_range.y = cta->d_row_offsets[row_id + 1];
 //                    row_range.x = tex1Dfetch(RowOffsetTex<SizeT>::ref, row_id);
 //                    row_range.y = tex1Dfetch(RowOffsetTex<SizeT>::ref, row_id + 1);
 
@@ -287,9 +287,10 @@ namespace b40c
                 {
                   // CTA-based expansion/loading
                   while (true)
+                  //                  for(int k=0; k<1; k++)
                   {
-//                    int changed;
-//                    util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(changed, cta->d_changed + tile->vertex_id[LOAD][VEC]);
+                    //                    int changed;
+                    //                    util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(changed, cta->d_changed + tile->vertex_id[LOAD][VEC]);
                     cta->smem_storage.state.cta_comm = KernelPolicy::THREADS;
                     __syncthreads();
 
@@ -301,9 +302,6 @@ namespace b40c
 
                     __syncthreads();
 
-//                    printf("Gather_CTA280: bidx=%d, tidx=%d, tile->row_length[LOAD][VEC]=%d, cta->smem_storage.state.cta_comm=%d, CTA_GATHER_THRESHOLD=%d\n", blockIdx.x, threadIdx.x,
-//                        tile->row_length[LOAD][VEC], cta->smem_storage.state.cta_comm, KernelPolicy::CTA_GATHER_THRESHOLD);
-
                     // Check
                     int owner = cta->smem_storage.state.cta_comm;
                     if (owner == KernelPolicy::THREADS)
@@ -312,27 +310,28 @@ namespace b40c
                       break;
                     }
 
-                    for (int i = threadIdx.x; i < KernelPolicy::SmemStorage::GATHER_ELEMENTS; i += blockDim.x * gridDim.x)
+                    for (int i = threadIdx.x; i < KernelPolicy::SmemStorage::GATHER_ELEMENTS; i += blockDim.x)
                     {
                       cta->smem_storage.gather_delta_values[i] = Program::INIT_VALUE;
                     }
 
-//                    __syncthreads();
+                    //                    __syncthreads();
 
                     if (owner == threadIdx.x)
                     {
 
                       // Got control of the CTA: command it
-                      cta->smem_storage.state.warp_comm[0][0] = tile->row_offset[LOAD][VEC];			// start
-                      cta->smem_storage.state.warp_comm[0][1] = tile->coarse_row_rank[LOAD][VEC];	// queue rank
-                      cta->smem_storage.state.warp_comm[0][2] = tile->row_offset[LOAD][VEC] + tile->row_length[LOAD][VEC];	// oob
-                      cta->smem_storage.state.warp_comm[0][3] = tile->vertex_id[LOAD][VEC];	// predecessor
+                      cta->smem_storage.state.warp_comm[0][0] = tile->row_offset[LOAD][VEC];            // start
+                      cta->smem_storage.state.warp_comm[0][1] = tile->coarse_row_rank[LOAD][VEC];   // queue rank
+                      cta->smem_storage.state.warp_comm[0][2] = tile->row_offset[LOAD][VEC] + tile->row_length[LOAD][VEC];  // oob
+                      cta->smem_storage.state.warp_comm[0][3] = tile->vertex_id[LOAD][VEC]; // predecessor
 
                       // Unset row length
                       tile->row_length[LOAD][VEC] = 0;
+                      //                      printf("gather:cta:%d won\n", cta->smem_storage.state.warp_comm[0][3]);
 
                       // Unset my command
-                      cta->smem_storage.state.cta_comm = KernelPolicy::THREADS;	// invalid
+                      cta->smem_storage.state.cta_comm = KernelPolicy::THREADS; // invalid
                     }
 
                     __syncthreads();
@@ -342,85 +341,32 @@ namespace b40c
                     SizeT coop_rank = cta->smem_storage.state.warp_comm[0][1] + threadIdx.x;
                     SizeT coop_oob = cta->smem_storage.state.warp_comm[0][2];
 
-//                    printf("Gather_CTA310: vid=%d, coop_offset=%d, coop_rank=%d, coop_oob=%d\n", tile->vertex_id[LOAD][VEC], coop_offset, coop_rank, coop_oob);
-
-//                    VertexId predecessor_id = cta->smem_storage.state.warp_comm[0][3];
                     VertexId row_id = cta->smem_storage.state.warp_comm[0][3];
 
                     VertexId neighbor_id;
-//                    EValue nb_dist;
-                    EValue new_dist;
-//                    SizeT num_out_edge;
-                    int iter_count = 0;
+                    typename Program::GatherType new_dist;
 
                     while (coop_offset + threadIdx.x < coop_oob)
                     {
-
                       // Gather
                       util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + threadIdx.x);
-
                       typename Program::gather_edge gather_edge_functor;
-				      gather_edge_functor(row_id, neighbor_id, cta->vertex_list, cta->edge_list, new_dist);
-
-					  typename Program::gather_sum gather_sum_functor;
-					  cta->smem_storage.gather_delta_values[threadIdx.x] = gather_sum_functor(cta->smem_storage.gather_delta_values[threadIdx.x], new_dist);
-//
-//                      // Scatter neighbor
-////                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-//
-//                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(nb_dist, cta->d_dists + neighbor_id);
-////                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
-//                      new_dist = nb_dist + 1;
-//
-////                      if (iter_count == 0)
-////                        cta->smem_storage.gather_delta_values[threadIdx.x] = new_dist;
-////                      else
-//                      cta->smem_storage.gather_delta_values[threadIdx.x] = min(new_dist, cta->smem_storage.gather_delta_values[threadIdx.x]);
-
-//                      printf("Gather_CTA323: bidx=%d, tidx=%d, vid=%d, neighbor_id=%d, gather_delta_values=%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], neighbor_id,
-//                          cta->smem_storage.gather_delta_values[threadIdx.x]);
-
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(new_dist, cta->d_dists + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-
+                      gather_edge_functor(row_id, neighbor_id, cta->vertex_list, cta->edge_list, new_dist);
+                      typename Program::gather_sum gather_sum_functor;
+                      cta->smem_storage.gather_delta_values[threadIdx.x] = gather_sum_functor(cta->smem_storage.gather_delta_values[threadIdx.x], new_dist);
                       coop_offset += KernelPolicy::THREADS;
                       coop_rank += KernelPolicy::THREADS;
-                      iter_count++;
                     }
 
-                    typename Program::GatherType final_delta_value = CTAReduce<EValue>(cta->smem_storage.gather_delta_values);
-                    // vie for write into delta_value
+                    __syncthreads();
+
+                    typename Program::GatherType final_delta_value = CTAReduce(cta->smem_storage.gather_delta_values);
+
                     if (threadIdx.x == 0)
                     {
-                    	typename Program::gather_vertex gather_vertex_functor;
-                    	gather_vertex_functor(row_id, final_delta_value, cta->vertex_list, cta->edge_list);
-//                    if (atomicCAS(cta->d_visit_flags + tile->vertex_id[LOAD][VEC], 0, 1) == 0)
-//                      if (atomicCAS(cta->d_visit_flags + row_id, 0, 1) == 0)
-//                      {
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(final_delta_value, cta->d_gather_results + row_id);
-
-//                        EValue current_dist, final_dist;
-//                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(current_dist, cta->d_dists + row_id);
-//                        final_dist = min(current_dist, final_delta_value);
-
-//                        if (current_dist != final_dist)
-//                        {
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(current_dist, cta->d_dists + tile->vertex_id[LOAD][VEC]);
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(1, cta->d_changed + tile->vertex_id[LOAD][VEC]);
-//                          util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(final_dist, cta->d_dists + row_id);
-//                          util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(3, cta->d_changed + row_id);
-//                          atomicExch(cta->d_changed + row_id, 3);
-//                        }
-//                        else
-//                        {
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(0, cta->d_changed + tile->vertex_id[LOAD][VEC]);
-//                          util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(2, cta->d_changed + row_id);
-//                          atomicExch(cta->d_changed + row_id, 2);
-//                        }
-//                    if(tile->vertex_id[LOAD][VEC] == 8191)
-//                        if (row_id == 1049) printf("Gather_CTA376: bidx=%d, tidx=%d, vid=%d, current_dist=%d, final_dist=%d\n", blockIdx.x, threadIdx.x, row_id, current_dist, final_dist);
-
-//                      }
+                      typename Program::gather_vertex gather_vertex_functor;
+                      gather_vertex_functor(row_id, final_delta_value, cta->vertex_list, cta->edge_list);
+//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(final_delta_value, cta->vertex_list.d_min_dists + row_id);
                     }
                   }
                   // Next vector element
@@ -484,11 +430,13 @@ namespace b40c
                       while (coop_offset + lane_id < coop_oob)
                       {
 
-                    	  typename Program::gather_edge gather_edge_functor;
-						  gather_edge_functor(row_id, neighbor_id, cta->vertex_list, cta->edge_list, new_dist);
+                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + lane_id);
 
-						  typename Program::gather_sum gather_sum_functor;
-						  cta->smem_storage.gather_delta_values[threadIdx.x] = gather_sum_functor(cta->smem_storage.gather_delta_values[threadIdx.x], new_dist);
+                        typename Program::gather_edge gather_edge_functor;
+                        gather_edge_functor(row_id, neighbor_id, cta->vertex_list, cta->edge_list, new_dist);
+
+                        typename Program::gather_sum gather_sum_functor;
+                        cta->smem_storage.gather_delta_values[threadIdx.x] = gather_sum_functor(cta->smem_storage.gather_delta_values[threadIdx.x], new_dist);
 //                        // Gather
 //                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + lane_id);
 //
@@ -520,8 +468,8 @@ namespace b40c
 //                        if (threadIdx.x == 0) //correct? lane_id == 0??
                       if (lane_id == 0)
                       {
-                    	  typename Program::gather_vertex gather_vertex_functor;
-					      gather_vertex_functor(row_id, final_dist, cta->vertex_list, cta->edge_list);
+                        typename Program::gather_vertex gather_vertex_functor;
+                        gather_vertex_functor(row_id, final_dist, cta->vertex_list, cta->edge_list);
 //                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(final_dist, cta->d_gather_results + row_id);
 //                        EValue current_dist, dist;
 //                        //try to set the d_visit_flag in global memory
@@ -592,10 +540,10 @@ namespace b40c
                       util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + tile->row_offset[LOAD][VEC] + tile->row_progress[LOAD][VEC]);
 
                       typename Program::gather_edge gather_edge_functor;
-					  gather_edge_functor(tile->vertex_id[LOAD][VEC], neighbor_id, cta->vertex_list, cta->edge_list, new_dist);
+                      gather_edge_functor(tile->vertex_id[LOAD][VEC], neighbor_id, cta->vertex_list, cta->edge_list, new_dist);
 
-					  typename Program::gather_sum gather_sum_functor;
-					  dist = gather_sum_functor(dist, new_dist);
+                      typename Program::gather_sum gather_sum_functor;
+                      dist = gather_sum_functor(dist, new_dist);
 
                       ////                      int num_out_edge;
 ////                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
@@ -611,7 +559,7 @@ namespace b40c
 //                      scratch_offset++;
                     }
                     typename Program::gather_vertex gather_vertex_functor;
-				    gather_vertex_functor(tile->vertex_id[LOAD][VEC], dist, cta->vertex_list, cta->edge_list);
+                    gather_vertex_functor(tile->vertex_id[LOAD][VEC], dist, cta->vertex_list, cta->edge_list);
 
 //                    util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(dist, cta->d_gather_results + tile->vertex_id[LOAD][VEC]);
 
@@ -772,12 +720,12 @@ namespace b40c
              */
             __device__ __forceinline__
             Cta(VertexId queue_index, int num_gpus, SmemStorage &smem_storage, VertexId *d_in, VertexId *d_out, VertexId *d_column_indices, SizeT *d_row_offsets,
-            		VertexType vertex_list, EdgeType edge_list, util::CtaWorkProgress &work_progress, SizeT max_edge_frontier) :
+                VertexType vertex_list, EdgeType edge_list, util::CtaWorkProgress &work_progress, SizeT max_edge_frontier) :
 
                 queue_index(queue_index), num_gpus(num_gpus), smem_storage(smem_storage), raking_soa_details(
                     typename RakingSoaDetails::GridStorageSoa(smem_storage.coarse_raking_elements, smem_storage.fine_raking_elements),
                     typename RakingSoaDetails::WarpscanSoa(smem_storage.state.coarse_warpscan, smem_storage.state.fine_warpscan), TileTuple(0, 0)), d_in(d_in), d_out(d_out), d_column_indices(
-                    d_column_indices), d_row_offsets(d_row_offsets),  vertex_list(vertex_list), edge_list(edge_list), work_progress(
+                    d_column_indices), d_row_offsets(d_row_offsets), vertex_list(vertex_list), edge_list(edge_list), work_progress(
                     work_progress), max_edge_frontier(max_edge_frontier)
             {
               if (threadIdx.x == 0)
@@ -812,9 +760,9 @@ namespace b40c
 //              if (threadIdx.x == 0)printf("Gather_processtile884: bidx=%d, tidx=%d, coarse_count=%d, fine_count=%d\n", blockIdx.x, threadIdx.x, coarse_count, tile.fine_count);
 
               // Use a single atomic add to reserve room in the queue
-              if (threadIdx.x == 0)
-              {
-
+//              if (threadIdx.x == 0)
+//              {
+//
 //                SizeT enqueue_amt = coarse_count + tile.fine_count;
 ////                SizeT enqueue_offset = work_progress.Enqueue(enqueue_amt, queue_index + 1);
 //                SizeT enqueue_offset = work_progress.Enqueue(enqueue_amt, 0);
@@ -828,24 +776,26 @@ namespace b40c
 //                  smem_storage.state.overflowed = true;
 //                  work_progress.SetOverflow<SizeT>();
 //                }
-              }
+//              }
 
-              // Protect overflowed flag
-              __syncthreads();
-
-              // Quit if overflow
-              if (smem_storage.state.overflowed)
-              {
-                util::ThreadExit();
-              }
+//              // Protect overflowed flag
+//              __syncthreads();
+//
+//              // Quit if overflow
+//              if (smem_storage.state.overflowed)
+//              {
+//                util::ThreadExit();
+//              }
 
               if (coarse_count > 0)
               {
                 // Enqueue valid edge lists into outgoing queue
                 tile.ExpandByCta(this);
+                __syncthreads();
 
                 // Enqueue valid edge lists into outgoing queue
                 tile.ExpandByWarp(this);
+                __syncthreads();
               }
 
               //
