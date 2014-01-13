@@ -1,0 +1,107 @@
+Quick Start Guide
+-----------------
+
+The executables are built in the following directories:
+- make_cuda_dev0: Build for GPU device 0 using CUDA
+- make_cuda_dev1: Build for GPU device 1 using CUDA.
+- make_omp: Build using the OpenMP thrust backed for multicore
+- make_tbb: Buid using Intel Thread Building Blocks
+- make_mic: Buid for Intel Xeon Phi native mode
+
+The CUDA Makefile assumes that CUDA (version >= 5.0) has been installed and
+is in the PATH. 
+
+Note: The CUDA Makefile builds the executable for a specified CUDA device
+number. This is a total hack put in place to allow you to compile and run
+on a machine with more than one GPU by specifying the target GPU using
+environment variables. This should go away once we develop a real build
+system (either cmake or GNU autoconf is put in place.)
+
+Note: If you want to run with an older version of CUDA (e.g., 5.0), there
+are some thrust random number methods that are in an experimental namespace.
+Thus, you will have to add experimental:: to those methods. The compiler
+will tell you which they are. Alteratively, you can add the latest version
+of thrust to the compiler include paths. The latest version can be downloaded
+from http://thrust.github.io/.
+
+Note: TBB and Intel Xeon Phi users will need to download Thrust and add the
+include files to the compilation include paths. The latest version can 
+be downloaded from http://thrust.github.io/
+
+Note: OpenMP users will need the omp library
+ - http://gcc.gnu.org/projects/gomp/
+
+You also need to have zlib installed:
+ - zlib code: http://www.zlib.net/
+ - zlib license: http://www.zlib.net/zlib_license.html
+
+In the appropriate build directory, type 'make' to build the sample programs.
+These are all based on the GraphLab 2.1 Gather Apply Scatter (GAS) API:
+
+1) simpleBFS (Breadth-First Search)
+2) simplePageRank (Pagerank implementation with dynamic vertex activation)
+3) simpleSSSP (Single source shortest path)
+4) simpleCC (Connected Components)
+5) sampleBC (Approximate Exact Betweenness Centrality)
+
+you can run the programs against the small graphs in ../smallRegressionGraphs/ .
+
+For example:
+
+./simpleBFS ../smallRegressionGraphs/small.mtx
+
+If you wish to view the results of a run (which currently consists of all the
+vertices and their final values), then supply a second argument for the output
+file.
+
+./simpleBFS ../smallRegressionGraphs/small.mtx small.out
+
+The printed output should look something like:
+
+numActive: 3
+numActive: 3
+numActive: 0
+Took: 0.216544 ms
+Graph Diameter: 2
+M-Edges / sec: .050798
+
+Each iteration will print the number of active vertices on that iteration.
+
+The contents of small.out should be:
+
+0 0
+1 1
+2 1
+3 1
+4 2
+5 2
+6 2
+
+The first column is the vertex id and the second column is that value of that
+vertex, in this case its depth in the BFS.
+
+----------------------------------
+There are a variety of additional directories that will get cleaned up in
+a subsequent release.  Many of these are related to the b40c library.
+
+- b40c - the back40computing library. See http://code.google.com/p/back40computing
+- test - the back40computing library (microbenchmarks, etc.)
+- doc  - some doxygen files for b40c.
+
+The following directories support performance and correctness regression tests
+for mpgraph.  See regressions/README for this.  Correctness testing depends on
+powergraph (which can be very complex to install).
+
+- regressions - makefile and scripts for regression testing.
+- smallRegressionGraphs - a few very small sample data sets.
+- largePerformanceGraphs - includes makefiles to download various graphs of
+  interest.
+- PowerGraphReferenceImplementations - implementations of various algorithms
+  for the powergraph API that are also implemented by mpgraph.  This is to
+  support regression testing.
+- dataset - generators for some random data sets.
+
+
+----------------------------------
+This work was (partially) funded by the DARPA XDATA program under
+AFRL Contract #FA8750-13-C-0002.
