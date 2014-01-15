@@ -1,54 +1,78 @@
 Quick Start Guide
 -----------------
 
-The executables are built in the following directories:
-- make_cuda_dev0: Build for GPU device 0 using CUDA
-- make_cuda_dev1: Build for GPU device 1 using CUDA.
-- make_omp: Build using the OpenMP thrust backed for multicore
-- make_tbb: Buid using Intel Thread Building Blocks
-- make_mic: Buid for Intel Xeon Phi native mode
+MPGraph is Massively Parallel Graph processing on GPUs.
 
-The CUDA Makefile assumes that CUDA (version >= 5.0) has been installed and
-is in the PATH. 
+- The MPGraph API makes it easy to develop high performance graph
+  analytics on GPUs. The API is based on the Gather-Apply-Scatter
+  (GAS) model as used in GraphLab. To deliver high performance
+  computation and efficiently utilize the high memory bandwidth of
+  GPUs, MPGraph's CUDA kernels use multiple sophisticated strategies,
+  such as vertex-degree-dependent dynamic parallelism granularity and
+  frontier compaction.
 
-Note: The CUDA Makefile builds the executable for a specified CUDA device
-number. This is a total hack put in place to allow you to compile and run
-on a machine with more than one GPU by specifying the target GPU using
-environment variables. This should go away once we develop a real build
-system (either cmake or GNU autoconf is put in place.)
+- MPGraph is up to two order of magnitude faster than parallel CPU
+  implementations on up 24 CPU cores and has performance comparable to
+  a state-of-the-art manually optimized GPU implementation.
 
-Note: If you want to run with an older version of CUDA (e.g., 5.0), there
-are some thrust random number methods that are in an experimental namespace.
-Thus, you will have to add experimental:: to those methods. The compiler
-will tell you which they are. Alteratively, you can add the latest version
-of thrust to the compiler include paths. The latest version can be downloaded
-from http://thrust.github.io/.
+- New algorithms can be implemented in a few hours that fully exploit
+  the data-level parallelism of the GPU and offer throughput of up to
+  3 billion traversed edges per second on a single GPU.
 
-Note: TBB and Intel Xeon Phi users will need to download Thrust and add the
-include files to the compilation include paths. The latest version can 
-be downloaded from http://thrust.github.io/
+- Partitioned graphs and Multi-GPU support will be in a future
+  release.
 
-Note: OpenMP users will need the omp library
- - http://gcc.gnu.org/projects/gomp/
+
+Building and running MPGraph
+----------------------------
+
+"make" at the top-level will build all algorithms in the ./Algorithms
+directory.  Each algorithm accepts some common parameters for things
+like the name of the input matrix, the CUDA device on which to execute
+the algorithm, etc.  In addition, "-help" may be used to obtained
+detailed usage information for a specific algorithm.
+
+The CUDA Makefile assumes that CUDA (version >= 5.0) has been
+installed and is in the PATH.
 
 You also need to have zlib installed:
  - zlib code: http://www.zlib.net/
  - zlib license: http://www.zlib.net/zlib_license.html
 
-In the appropriate build directory, type 'make' to build the sample programs.
-These are all based on the GraphLab 2.1 Gather Apply Scatter (GAS) API:
+For example, you can run SSSP using:
 
-1) simpleBFS (Breadth-First Search)
-2) simplePageRank (Pagerank implementation with dynamic vertex activation)
-3) simpleSSSP (Single source shortest path)
-4) simpleCC (Connected Components)
-5) sampleBC (Approximate Exact Betweenness Centrality)
+./Algorithms/SSSP/SSSP -g smallRegressionGraphs/small.mtx
 
-you can run the programs against the small graphs in ../smallRegressionGraphs/ .
+The output should look something like this:
 
-For example:
-
-./simpleBFS ../smallRegressionGraphs/small.mtx
+Running on host: bigdata01.systap.com
+Detected 2 CUDA Capable device(s)
+Running on this device:
+Device 0: "Tesla K20c"
+  CUDA Driver Version / Runtime Version          6.0 / 5.5
+  CUDA Capability Major/Minor version number:    3.5
+  Total amount of global memory:                 4800 MBytes (5032706048 bytes)
+Reading from smallRegressionGraphs/chesapeake.mtx:
+  Parsing MARKET COO format  (39 nodes, 170 directed edges)... Done parsing (0s).
+  Converting 39 vertices, 170 directed edges (unordered tuples) to CSR format... Done converting (0s).
+CPU time took: 0.00100001 ms
+source_file_name2=
+origin: 1
+Using single starting vertex!
+Single source vertex!
+NOT streaming from host
+GPU 0 column_indices: 170 elements (2720 bytes)
+GPU 0 row_offsets: 40 elements (160 bytes)
+Starting vertex: 0
+Kernel time took: 1.1487 ms
+Wall time took: 1.159 ms
+Contract time took: 0 ms
+Expand time took: 0 ms
+visited edges: 170
+M-Edges / sec: 0.146678
+Total iteration: 2
+retval: 0
+Correctness testing ...passed
 
 If you wish to view the results of a run (which currently consists of all the
 vertices and their final values), then supply a second argument for the output
@@ -80,27 +104,136 @@ The contents of small.out should be:
 The first column is the vertex id and the second column is that value of that
 vertex, in this case its depth in the BFS.
 
+
+The MPGraph API
+---------------
+
+MPGraph is implemented as a set of templates following a design
+pattern that is similar to the Gather-Apply-Scatter (GAS) API. GAS is
+a vertex-centric API, similar to the API first popularized by Pregel.
+The GAS API breaks down operations into the following phases:
+
+- Gather  - reads data from the one-hop neighborhood of a vertex.
+- Apply   - updates the vertex state based on the gather result.
+- Scatter - pushes updates to the one-hop neighborhood of a vertex.
+
+The GAS API has been extended in order to: (a) maximize parallelism;
+(b) manage simultaneous discovery of duplicate vertices (this is not
+an issue in multi-core CPU code); (c) provide appropriate memory
+barriers (each kernel provides a memory barrier); (d) optimize memory
+layout; and (e) allow "push" style scatter operators are similar to
+"signal" with a message value to create a side-effect in GraphLab.
+
+MPGraph defines the following kernels and supports their invocation
+from templated CUDA programs.  Each kernel may have one or more device
+functions that it invokes.  User code (a) provides implementations of
+those device functions to customize the behavior of the algorithm; and
+(b) provides custom data structures for the vertices and links (see
+below).
+
+Gather Phase Kernels::
+
+- gather: The gather kernel reads data from the one-hop neighborhood
+  of each vertex in the frontier.
+
+Apply Phase Kernels::
+
+- apply: The apply kernel updates the state of each vertex in the
+  frontier given the results of the most recent gather or scatter
+  operation.
+
+- post-apply: The post-apply kernel runs after all threads in the
+  apply() function have had the opportunity to synchronize at a memory
+  barrier.
+
+Scatter Phase Kernels::
+
+- expand: The expand kernel creates the new frontier.
+
+- contract: The contract kernel eliminates duplicates in the frontier
+  (this is the problem of simultaneous discovery).
+
+
+MPGraph Data Structures
+-----------------------
+
+In order to write code to the MPGraph API, you need to be aware of the
+following data structures:
+
+- Frontier: The frontier is a dynamic queue containing those vertices
+  that are active in each iteration.  The frontier is managed by the
+  MPGraph kernels, but user data may be allocated and accessed that is
+  1:1 with the frontier.  For example, BFS uses a scratch array to
+  store the predecessor value.
+
+- Topology: The topology is built from the sparse matrix data file. It
+  is currently maintained in a CSR (Compressed Sparse Row) and/or CSC
+  (Compressed Sparse Column) data structures, depending on the access
+  patterns required by the Gather and/or Scatter phases.  Users do not
+  have direct access to these data structures and the implementations
+  are likely to evolve substantially, e.g., to support topology
+  compression and decomposition of large graphs and MPGraph algorithms
+  on GPU workstations and GPU clusters.
+
+- Vertex list: The vertex list is a structure of arrays pattern.  See
+  a VertexData structure in one of the existing algorithms for
+  examples.
+
+- Edge list: The edge list is a structure of arrays pattern. See an
+  EdgeData structure in one of the existing algorithms for examples.
+
+The user data (vertex list and edge list) are laid out in vertical
+stripes using a Structures of Arrays pattern for optimal memory access
+patterns on the GPU.  To add your own data, you add a field to the
+vertex data struct or the edge data struct. That field will be an
+array that is 1:1 with the vertex identifiers.  You will need to
+initialize your array.  MPGraph will provide you with access to your
+data from within the appropriate device functions.
+
+
+Writing your own MPGraph algorithm
 ----------------------------------
-There are a variety of additional directories that will get cleaned up in
-a subsequent release.  Many of these are related to the b40c library.
 
-- b40c - the back40computing library. See http://code.google.com/p/back40computing
-- test - the back40computing library (microbenchmarks, etc.)
-- doc  - some doxygen files for b40c.
+MPGraph is based on templates.  This means that there is no interface
+or super class from which you can derive your code.  Instead, you need
+to start with one of the existing implementations that uses the
+MPGraph template "pattern". You then need to review and modify the
+function that initializes the user data structures (the vertex list
+and the edge list) and the device functions that implement the user
+code for the Gather, Apply, and Scatter primitives.  You can also
+define functions that will extract the results from the GPU.
 
-The following directories support performance and correctness regression tests
-for mpgraph.  See regressions/README for this.  Correctness testing depends on
-powergraph (which can be very complex to install).
 
-- regressions - makefile and scripts for regression testing.
-- smallRegressionGraphs - a few very small sample data sets.
-- largePerformanceGraphs - includes makefiles to download various graphs of
+MPGraph Directory Structure
+---------------------------
+
+- ./Algorithms - This is the parent directory for the BFS, SSSP, CC,
+   PR and other graph analytics that are bundled with the MPGraph
+   distribution.
+
+- ./bc40 - This directory contains code from the back40computing
+   library. See http://code.google.com/p/back40computing.  This is not
+   a complete copy of that library.  Only those methods that are
+   relevant to graph processing have been included.  The original bc40
+   library provided a high performance implementation of BFS, but did
+   not support any other algorithms.  The bc40 kernels bundled by
+   MPGraph have been extensively adapted to support the MPGraph API.
+
+The following directories support performance and correctness
+regression tests for mpgraph.  See regressions/README for this.
+Correctness testing depends on powergraph (which can be very complex
+to install). We are still in the process of cleaning up and extending
+CI and performance regression testing.
+
+- ./CI
+- ./regressions - makefile and scripts for regression testing.
+- ./smallRegressionGraphs - a few very small sample data sets.
+- ./largePerformanceGraphs - includes makefiles to download various graphs of
   interest.
-- PowerGraphReferenceImplementations - implementations of various algorithms
-  for the powergraph API that are also implemented by mpgraph.  This is to
-  support regression testing.
+- ./PowerGraphReferenceImplementations - implementations of various
+  algorithms for the powergraph API that are also implemented by
+  mpgraph.  This is to support regression testing.
 - dataset - generators for some random data sets.
-
 
 ----------------------------------
 This work was (partially) funded by the DARPA XDATA program under
