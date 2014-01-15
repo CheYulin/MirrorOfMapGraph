@@ -233,7 +233,6 @@ CI and performance regression testing.
 - ./PowerGraphReferenceImplementations - implementations of various
   algorithms for the powergraph API that are also implemented by
   mpgraph.  This is to support regression testing.
-- dataset - generators for some random data sets.
 
 ----------------------------------
 This work was (partially) funded by the DARPA XDATA program under
