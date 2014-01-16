@@ -1,5 +1,7 @@
 # Generate documentation from the code.
-all:
+all: api
+
+api:
 	doxygen Doxyfile
 
 clean:

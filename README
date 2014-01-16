@@ -27,10 +27,11 @@ Building and running MPGraph
 ----------------------------
 
 "make" at the top-level will build all algorithms in the ./Algorithms
-directory.  Each algorithm accepts some common parameters for things
-like the name of the input matrix, the CUDA device on which to execute
-the algorithm, etc.  In addition, "-help" may be used to obtained
-detailed usage information for a specific algorithm.
+directory and the documentation.  Each algorithm accepts some common
+parameters for things like the name of the input matrix, the CUDA
+device on which to execute the algorithm, etc.  In addition, "-help"
+may be used to obtained detailed usage information for a specific
+algorithm.
 
 The CUDA Makefile assumes that CUDA (version >= 5.0) has been
 installed and is in the PATH.
@@ -105,111 +106,18 @@ The first column is the vertex id and the second column is that value of that
 vertex, in this case its depth in the BFS.
 
 
-The MPGraph API
----------------
-
-MPGraph is implemented as a set of templates following a design
-pattern that is similar to the Gather-Apply-Scatter (GAS) API. GAS is
-a vertex-centric API, similar to the API first popularized by Pregel.
-The GAS API breaks down operations into the following phases:
-
-- Gather  - reads data from the one-hop neighborhood of a vertex.
-- Apply   - updates the vertex state based on the gather result.
-- Scatter - pushes updates to the one-hop neighborhood of a vertex.
-
-The GAS API has been extended in order to: (a) maximize parallelism;
-(b) manage simultaneous discovery of duplicate vertices (this is not
-an issue in multi-core CPU code); (c) provide appropriate memory
-barriers (each kernel provides a memory barrier); (d) optimize memory
-layout; and (e) allow "push" style scatter operators are similar to
-"signal" with a message value to create a side-effect in GraphLab.
-
-MPGraph defines the following kernels and supports their invocation
-from templated CUDA programs.  Each kernel may have one or more device
-functions that it invokes.  User code (a) provides implementations of
-those device functions to customize the behavior of the algorithm; and
-(b) provides custom data structures for the vertices and links (see
-below).
-
-Gather Phase Kernels::
-
-- gather: The gather kernel reads data from the one-hop neighborhood
-  of each vertex in the frontier.
-
-Apply Phase Kernels::
-
-- apply: The apply kernel updates the state of each vertex in the
-  frontier given the results of the most recent gather or scatter
-  operation.
-
-- post-apply: The post-apply kernel runs after all threads in the
-  apply() function have had the opportunity to synchronize at a memory
-  barrier.
-
-Scatter Phase Kernels::
-
-- expand: The expand kernel creates the new frontier.
-
-- contract: The contract kernel eliminates duplicates in the frontier
-  (this is the problem of simultaneous discovery).
-
-
-MPGraph Data Structures
------------------------
-
-In order to write code to the MPGraph API, you need to be aware of the
-following data structures:
-
-- Frontier: The frontier is a dynamic queue containing those vertices
-  that are active in each iteration.  The frontier is managed by the
-  MPGraph kernels, but user data may be allocated and accessed that is
-  1:1 with the frontier.  For example, BFS uses a scratch array to
-  store the predecessor value.
-
-- Topology: The topology is built from the sparse matrix data file. It
-  is currently maintained in a CSR (Compressed Sparse Row) and/or CSC
-  (Compressed Sparse Column) data structures, depending on the access
-  patterns required by the Gather and/or Scatter phases.  Users do not
-  have direct access to these data structures and the implementations
-  are likely to evolve substantially, e.g., to support topology
-  compression and decomposition of large graphs and MPGraph algorithms
-  on GPU workstations and GPU clusters.
-
-- Vertex list: The vertex list is a structure of arrays pattern.  See
-  a VertexData structure in one of the existing algorithms for
-  examples.
-
-- Edge list: The edge list is a structure of arrays pattern. See an
-  EdgeData structure in one of the existing algorithms for examples.
-
-The user data (vertex list and edge list) are laid out in vertical
-stripes using a Structures of Arrays pattern for optimal memory access
-patterns on the GPU.  To add your own data, you add a field to the
-vertex data struct or the edge data struct. That field will be an
-array that is 1:1 with the vertex identifiers.  You will need to
-initialize your array.  MPGraph will provide you with access to your
-data from within the appropriate device functions.
-
-
-Writing your own MPGraph algorithm
-----------------------------------
-
-MPGraph is based on templates.  This means that there is no interface
-or super class from which you can derive your code.  Instead, you need
-to start with one of the existing implementations that uses the
-MPGraph template "pattern". You then need to review and modify the
-function that initializes the user data structures (the vertex list
-and the edge list) and the device functions that implement the user
-code for the Gather, Apply, and Scatter primitives.  You can also
-define functions that will extract the results from the GPU.
-
-
 MPGraph Directory Structure
 ---------------------------
 
 - ./Algorithms - This is the parent directory for the BFS, SSSP, CC,
    PR and other graph analytics that are bundled with the MPGraph
    distribution.
+
+- ./doc - The MPGraph documentation.  This includes detailed
+  information on the MPGraph API and how to write your own high
+  performance graph algorithms using MPGraph.  Use "make doc" at the
+  top-level directory to build the documentation. See
+  doc/api/index.html to get started.
 
 - ./bc40 - This directory contains code from the back40computing
    library. See http://code.google.com/p/back40computing.  This is not
