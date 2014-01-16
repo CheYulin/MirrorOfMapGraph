@@ -36,10 +36,6 @@ algorithm.
 The CUDA Makefile assumes that CUDA (version >= 5.0) has been
 installed and is in the PATH.
 
-You also need to have zlib installed:
- - zlib code: http://www.zlib.net/
- - zlib license: http://www.zlib.net/zlib_license.html
-
 For example, you can run SSSP using:
 
 ./Algorithms/SSSP/SSSP -g smallRegressionGraphs/small.mtx
