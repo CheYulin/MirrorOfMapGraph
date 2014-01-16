@@ -71,24 +71,15 @@ Total iteration: 2
 retval: 0
 Correctness testing ...passed
 
+
 If you wish to view the results of a run (which currently consists of all the
 vertices and their final values), then supply a second argument for the output
 file.
 
 ./Algorithms/SSSP/SSSP -g smallRegressionGraphs/small.mtx -o small.out
 
-The contents of small.out should be:
-
-0 0
-1 1
-2 1
-3 1
-4 2
-5 2
-6 2
-
-The first column is the vertex id and the second column is that value of that
-vertex, in this case its depth in the BFS.
+For SSSP, the output is a column whose value is the shortest path distance
+from the starting vertex.
 
 
 MPGraph Directory Structure
@@ -118,14 +109,17 @@ Correctness testing depends on powergraph (which can be very complex
 to install). We are still in the process of cleaning up and extending
 CI and performance regression testing.
 
-- ./CI
-- ./regressions - makefile and scripts for regression testing.
+- ./CI - directory for Continuous Integration testing.
+
+- ./regressions - makefile and scripts for regression testing (old).
+
 - ./smallRegressionGraphs - a few very small sample data sets.
-- ./largePerformanceGraphs - includes makefiles to download various graphs of
-  interest.
+
+- ./largePerformanceGraphs - includes makefiles to download some graphs.
+
 - ./PowerGraphReferenceImplementations - implementations of various
   algorithms for the powergraph API that are also implemented by
-  mpgraph.  This is to support regression testing.
+  MPGraph.  This is for performance comparison against PowerGraph.
 
 ----------------------------------
 This work was (partially) funded by the DARPA XDATA program under
