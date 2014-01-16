@@ -42,8 +42,6 @@
 using namespace b40c;
 using namespace graph;
 
-//namespace b40c {
-//namespace graph {
 namespace GASengine {
 namespace vertex_centric {
 namespace contract_atomic {
@@ -633,6 +631,4 @@ struct Cta
 } // namespace contract_atomic
 } // namespace vertex_centric
 } // namespace GASengine
-//} // namespace graph
-//} // namespace b40c
 

@@ -33,8 +33,7 @@
 
 using namespace b40c;
 using namespace graph;
-//namespace b40c {
-//namespace graph {
+
 namespace GASengine
 {
 
@@ -123,5 +122,3 @@ namespace GASengine
   };
 
 } // namespace GASengine
-//} // namespace graph
-//} // namespace b40c

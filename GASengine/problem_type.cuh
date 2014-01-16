@@ -31,48 +31,43 @@
 
 using namespace b40c;
 
-//namespace b40c {
-//namespace graph {
-namespace GASengine {
-
-
-/**
- * Type of BC problem
- */
-template <
-    typename    _Program,
-	typename 	_VertexId,						// Type of signed integer to use as vertex id (e.g., uint32)
-	typename 	_SizeT,							// Type of unsigned integer to use for array indexing (e.g., uint32)
-	typename	_EValue,						// Type of edge value (e.g., float)
-	typename 	_VisitedMask,					// Type of unsigned integer to use for visited mask (e.g., uint8)
-	typename 	_ValidFlag,						// Type of integer to use for contraction validity (e.g., uint8)
-	bool 		_MARK_PREDECESSORS,				// Whether to mark predecessor-vertices (vs. distance-from-source)
-	bool        _WITH_VALUE>                    // Whether with edge/node value computation within BFS
-struct ProblemType : partition::ProblemType<
-	_VertexId, 																	// KeyType
-	typename util::If<_MARK_PREDECESSORS, _VertexId, util::NullType>::Type,										// ValueType
-	_SizeT>																		// SizeT
+namespace GASengine
 {
-	typedef _Program                                                     Program;
-	typedef typename _Program::VertexType                                         VertexType;
-	typedef _VertexId														VertexId;
-	typedef _VisitedMask													VisitedMask;
-	typedef _ValidFlag														ValidFlag;
-	typedef _EValue															EValue;
-	typedef typename radix_sort::KeyTraits<VertexId>::ConvertedKeyType		UnsignedBits;		// Unsigned type corresponding to VertexId
 
-	static const bool MARK_PREDECESSORS		= _MARK_PREDECESSORS;
-	static const bool WITH_VALUE            = _WITH_VALUE;
-	static const _VertexId LOG_MAX_GPUS		= 2;										// The "problem type" currently only reserves space for 4 gpu identities in upper vertex identifier bits
-	static const _VertexId MAX_GPUS			= 1 << LOG_MAX_GPUS;
+  /**
+   * Type of BC problem
+   */
+  template<
+      typename _Program,
+      typename _VertexId,						// Type of signed integer to use as vertex id (e.g., uint32)
+      typename _SizeT,							// Type of unsigned integer to use for array indexing (e.g., uint32)
+      typename _EValue,						// Type of edge value (e.g., float)
+      typename _VisitedMask,					// Type of unsigned integer to use for visited mask (e.g., uint8)
+      typename _ValidFlag,						// Type of integer to use for contraction validity (e.g., uint8)
+      bool _MARK_PREDECESSORS,				// Whether to mark predecessor-vertices (vs. distance-from-source)
+      bool _WITH_VALUE>                    // Whether with edge/node value computation within BFS
+  struct ProblemType: partition::ProblemType<
+      _VertexId, 																	// KeyType
+      typename util::If<_MARK_PREDECESSORS, _VertexId, util::NullType>::Type,										// ValueType
+      _SizeT>																		// SizeT
+  {
+    typedef _Program Program;
+    typedef typename _Program::VertexType VertexType;
+    typedef _VertexId VertexId;
+    typedef _VisitedMask VisitedMask;
+    typedef _ValidFlag ValidFlag;
+    typedef _EValue EValue;
+    typedef typename radix_sort::KeyTraits<VertexId>::ConvertedKeyType UnsignedBits;		// Unsigned type corresponding to VertexId
 
-	static const _VertexId GPU_MASK_SHIFT	= (sizeof(_VertexId) * 8) - LOG_MAX_GPUS;
-	static const _VertexId GPU_MASK			= (MAX_GPUS - 1) << GPU_MASK_SHIFT;			// Bitmask for masking off the lower vertex id bits to reveal owner gpu id
-	static const _VertexId VERTEX_ID_MASK	= ~GPU_MASK;								// Bitmask for masking off the upper control bits in vertex identifiers
-};
+    static const bool MARK_PREDECESSORS = _MARK_PREDECESSORS;
+    static const bool WITH_VALUE = _WITH_VALUE;
+    static const _VertexId LOG_MAX_GPUS = 2;										// The "problem type" currently only reserves space for 4 gpu identities in upper vertex identifier bits
+    static const _VertexId MAX_GPUS = 1 << LOG_MAX_GPUS;
 
+    static const _VertexId GPU_MASK_SHIFT = (sizeof(_VertexId) * 8) - LOG_MAX_GPUS;
+    static const _VertexId GPU_MASK = (MAX_GPUS - 1) << GPU_MASK_SHIFT;			// Bitmask for masking off the lower vertex id bits to reveal owner gpu id
+    static const _VertexId VERTEX_ID_MASK = ~GPU_MASK;								// Bitmask for masking off the upper control bits in vertex identifiers
+  };
 
 } // namespace bc
-//} // namespace graph
-//} // namespace b40c
 

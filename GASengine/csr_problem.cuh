@@ -64,10 +64,6 @@ enum PostApplyVertices
   NO_POST_APPLY_VERTICES, POST_APPLY_ALL, POST_APPLY_FRONTIER
 };
 
-//namespace b40c
-//{
-//  namespace graph
-//  {
 namespace GASengine
 {
 
@@ -1021,5 +1017,4 @@ namespace GASengine
   };
 
 } // namespace GASengine
-//  } // namespace graph
-//} // namespace b40c
+
