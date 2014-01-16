@@ -314,7 +314,8 @@ namespace b40c
          * Obtain statistics about the last BFS search enacted
          */
         template<typename VertexId>
-        void GetStatistics(long long &total_queued, VertexId &search_depth,
+        void GetStatistics(long long &total_queued,
+            VertexId &search_depth,
             double &avg_duty)
         {
           cudaThreadSynchronize();
@@ -336,8 +337,8 @@ namespace b40c
          */
         template<typename ExpandPolicy, typename GatherPolicy,
             typename ContractPolicy, typename Program, typename CsrProblem>
-        cudaError_t EnactIterativeSearch(CsrProblem &csr_problem, char* source_file_name,
-            typename CsrProblem::SizeT* h_row_offsets)
+        cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
+            char* source_file_name, typename CsrProblem::SizeT* h_row_offsets, int directed)
         {
           typedef typename CsrProblem::SizeT SizeT;
           typedef typename CsrProblem::VertexId VertexId;
@@ -368,93 +369,15 @@ namespace b40c
           typename CsrProblem::GraphSlice *graph_slice =
               csr_problem.graph_slices[0];
 
-//          int num_src = 1;
-//          int* srcs;
           double max_queue_sizing = cfg.getParameter<double>("max_queue_sizing");
-//          int init_num_elements;
-//          if (Program::srcVertex() == SINGLE)
-//          {
-//            init_num_elements = 1;
-//            int src_node = cfg.getParameter<int>("src");
-//            int origin = cfg.getParameter<int>("origin");
-//            printf("origin: %d\n", origin);
-//            const int max_src_num = 100;
-//
-//            if (strcmp(source_file_name, ""))
-//            {
-//              //TODO random sources
-//              if (strcmp(source_file_name, "RANDOM"))
-//              {
-//                num_src = cfg.getParameter<int>("num_src");
-//                srcs = new int[num_src];
-//                printf("Using %d random starting vertices!\n", num_src);
-//                srand (time(NULL));
-//                int count = 0;
-//                while (count < num_src)
-//                {
-//                  int tmp_src = rand() % graph_slice->nodes;
-//                  if (graph_slice->row_offsets[tmp_src + 1] - graph_slice->row_offsets[tmp_src] > 0)
-//                  {
-//
-//                  }
-//                }
-//
-//              }
-//              else
-//              {
-//                printf("Using source file!\n");
-//                FILE* src_file;
-//                if ((src_file = fopen(source_file_name, "r")) == NULL)
-//                {
-//                  printf("Source file open error!\n");
-//                  exit(0);
-//                }
-//
-//                srcs = new int[max_src_num];
-//                for (num_src = 0; num_src < max_src_num; num_src++)
-//                {
-//                  if ((fscanf(src_file, "%d\n", &srcs[num_src]) != EOF))
-//                  {
-//                    if (origin == 1)
-//                      srcs[num_src]--; //0-based index
-//                  }
-//                  else
-//                    break;
-//                }
-//              }
-//
-//            }
-//            else
-//            {
-//              printf("Single source vertex!\n");
-//              num_src = 1;
-//              srcs = new int[1];
-//              srcs[0] = src_node;
-//              if (origin == 1)
-//                srcs[0]--;
-//            }
-//          }
-//
-//          else if (Program::srcVertex() == ALL)
-//          {
-//            srcs = new int[1]; //dummy not used
-//            srcs[0] = -1; // dummy not used
-//            num_src = 1;
-//            init_num_elements = graph_slice->nodes;
-//          }
-//          else
-//          {
-//            printf("Invalid src vertex!\n");
-//            exit(0);
-//          }
 
           for (int outer_iter = 0; outer_iter < graph_slice->outer_iter_num; outer_iter++)
           {
             for (int iter = 0; iter < graph_slice->num_src; ++iter)
             {
               // Reset data
-              if (retval = csr_problem.Reset(GetFrontierType(), max_queue_sizing,
-                  graph_slice->srcs[iter]))
+              if (retval = csr_problem.Reset(GetFrontierType(),
+                  max_queue_sizing, graph_slice->srcs[iter]))
                 break;
 
               if (retval = Setup(csr_problem, expand_grid_size,
@@ -480,7 +403,7 @@ namespace b40c
 
               // Forward phase BC iterations
               while (done[0] < 0)
-//                          for (int i = 0; i < 100; i++)
+              //                          for (int i = 0; i < 100; i++)
               {
                 if (DEBUG)
                   printf("Iteration: %lld\n", (long long) iteration[0]);
@@ -489,35 +412,35 @@ namespace b40c
                 //
                 // Contraction
                 //
-                vertex_centric::contract_atomic::Kernel<ContractPolicy, Program><<<
-                    contract_grid_size, ContractPolicy::THREADS>>>(
-                    graph_slice->srcs[iter],
+                vertex_centric::contract_atomic::Kernel<ContractPolicy,
+                    Program><<<contract_grid_size,
+                ContractPolicy::THREADS>>>(graph_slice->srcs[iter],
                     iteration[0],
-                    graph_slice->init_num_elements,                  // initial num_elements, for BFS it is 1
-                    queue_index,                  // queue counter index
-                    queue_index,                  // steal counter index
-                    1,                  // number of GPUs
+                    graph_slice->init_num_elements, // initial num_elements, for BFS it is 1
+                    queue_index,// queue counter index
+                    queue_index,// steal counter index
+                    1,// number of GPUs
                     d_done,
-                    graph_slice->frontier_queues.d_keys[selector ^ 1],                  // filtered edge frontier in
-                    graph_slice->frontier_queues.d_keys[selector],                  // vertex frontier out
-                    graph_slice->frontier_queues.d_values[selector ^ 1],                  // predecessor in
-                    graph_slice->vertex_list,
-                    graph_slice->edge_list,
-                    graph_slice->d_labels,                  // source distance out
-                    graph_slice->d_preds,                  // prtedecessor out
+                    graph_slice->frontier_queues.d_keys[selector ^ 1],// filtered edge frontier in
+                    graph_slice->frontier_queues.d_keys[selector],// vertex frontier out
+                    graph_slice->frontier_queues.d_values[selector ^ 1],// predecessor in
+                    graph_slice->vertex_list, graph_slice->edge_list,
+                    graph_slice->d_labels,// source distance out
+                    graph_slice->d_preds,// prtedecessor out
                     graph_slice->d_sigmas, graph_slice->d_dists,
                     graph_slice->d_changed, graph_slice->d_visited_mask,
                     this->work_progress,
-                    graph_slice->frontier_elements[selector ^ 1],                  // max filtered edge frontier vertices
-                    graph_slice->frontier_elements[selector],                  // max vertex frontier vertices
+                    graph_slice->frontier_elements[selector ^ 1],// max filtered edge frontier vertices
+                    graph_slice->frontier_elements[selector],// max vertex frontier vertices
                     this->contract_kernel_stats);
 
                 if (DEBUG
-                    && (retval = util::B40CPerror(cudaThreadSynchronize(),
+                    && (retval = util::B40CPerror(
+                        cudaThreadSynchronize(),
                         "contract_atomic::Kernel failed ", __FILE__,
                         __LINE__)))
                   break;
-                cudaEventQuery(throttle_event);                  // give host memory mapped visibility to GPU updates
+                cudaEventQuery(throttle_event); // give host memory mapped visibility to GPU updates
 
                 if (DEBUG)
                 {
@@ -572,7 +495,8 @@ namespace b40c
                 if (iteration[0] & 1)
                 {
                   if (retval =
-                      util::B40CPerror(cudaEventRecord(throttle_event),
+                      util::B40CPerror(
+                          cudaEventRecord(throttle_event),
                           "EnactorVertexCentric cudaEventRecord throttle_event failed",
                           __FILE__, __LINE__))
                     break;
@@ -591,84 +515,174 @@ namespace b40c
                 if (done[0] == 0)
                   break;
 
-                if (Program::gatherOverEdges() == GATHER_IN_EDGES)
+                //
+                //Gather stage
+                //
+
+                if (directed == 0)
                 {
-
-//                if (retval = util::B40CPerror(cudaMemcpy(graph_slice->d_gather_results, graph_slice->d_dists, graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToDevice),
-//                    "CsrProblem cudaMemcpy d_gather_results failed", __FILE__, __LINE__)) break;
-
-                  //
-                  //gather only: gather stage of the GASengine, does not modify frontier
-                  //
-                  vertex_centric::gather::Kernel<GatherPolicy, Program><<<
-                      gather_grid_size, GatherPolicy::THREADS>>>(
-                      queue_index,                    // queue counter index
-                      queue_index,                    // steal counter index
-                      1,                    // number of GPUs
+                  vertex_centric::gather::Kernel<GatherPolicy, Program><<<gather_grid_size, GatherPolicy::THREADS>>>(
+                      queue_index,              // queue counter index
+                      queue_index,// steal counter index
+                      1,// number of GPUs
                       d_done,
-                      graph_slice->frontier_queues.d_keys[selector ^ 1],                    // vertex frontier in
-                      graph_slice->frontier_queues.d_keys[selector],                    // edge frontier out
-//                  graph_slice->frontier_queues.d_values[selector],// predecessor out
-                      graph_slice->d_row_indices,                    //pass in the CSC graph to gather for destination vertices
-                      graph_slice->d_column_offsets,                    //pass in the CSC graph to gather for destination vertices
-                      graph_slice->vertex_list, //
-                      graph_slice->edge_list, //
-                      //                  graph_slice->d_visit_flags,
+                      graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
+                      graph_slice->frontier_queues.d_keys[selector],// edge frontier out
+                      graph_slice->d_column_indices,//pass in the CSC graph to gather for destination vertices
+                      graph_slice->d_row_offsets,//pass in the CSC graph to gather for destination vertices
+                      graph_slice->vertex_list,//
+                      graph_slice->edge_list,//
                       this->work_progress,
-                      graph_slice->frontier_elements[selector ^ 1],                    // max vertex frontier vertices
-                      graph_slice->frontier_elements[selector],                    // max edge frontier vertices
+                      graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
+                      graph_slice->frontier_elements[selector],// max edge frontier vertices
                       this->expand_kernel_stats);
-
-                  if (DEBUG
-                      && (retval = util::B40CPerror(
-                          cudaThreadSynchronize(),
-                          "gather::Kernel failed ", __FILE__,
-                          __LINE__)))
-                    break;
-                  cudaEventQuery(throttle_event);                    // give host memory mapped visibility to GPU updates
-
-                  //                queue_index++;
-                  //                selector ^= 1;
-
-                  if (DEBUG)
+                }
+                else
+                {
+                  if (Program::gatherOverEdges() == GATHER_IN_EDGES)
                   {
-                    if (work_progress.GetQueueLength(queue_index,
-                        queue_length))
-                      break;
-                    total_queued += queue_length;
 
-//                  if (DEBUG) printf("queue_length after gather: %lld\n", (long long) queue_length);
+                    vertex_centric::gather::Kernel<GatherPolicy, Program><<<gather_grid_size, GatherPolicy::THREADS>>>(
+                        queue_index,              // queue counter index
+                        queue_index,// steal counter index
+                        1,// number of GPUs
+                        d_done,
+                        graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
+                        graph_slice->frontier_queues.d_keys[selector],// edge frontier out
+                        graph_slice->d_row_indices,//pass in the CSC graph to gather for destination vertices
+                        graph_slice->d_column_offsets,//pass in the CSC graph to gather for destination vertices
+                        graph_slice->vertex_list,//
+                        graph_slice->edge_list,//
+                        this->work_progress,
+                        graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
+                        graph_slice->frontier_elements[selector],// max edge frontier vertices
+                        this->expand_kernel_stats);
 
-//                  EValue *test_vid2 = new EValue[graph_slice->nodes];
-//                  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_min_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
-//                  printf("d_dists after gather: ");
-//                  for (int i = 100; i < 200; ++i)
-//                  {
-//                    printf("%.3f, ", test_vid2[i]);
-//                  }
-//                  printf("\n");
-//                  delete[] test_vid2;
-//
-//                  test_vid2 = new EValue[graph_slice->nodes];
-//                  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_min_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
-//                  printf("d_gather_results after gather: ");
-//                  for (int i = 0; i < graph_slice->nodes; ++i)
-//                  {
-//                    printf("%f, ", test_vid2[i]);
-//                  }
-//                  printf("\n");
-//                  delete[] test_vid2;
-
-//                  VertexId* test_vid = new VertexId[graph_slice->nodes];
-//                  cudaMemcpy(test_vid, graph_slice->d_changed, graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
-//                  printf("changed after gather: ");
-//                  for (int i = 0; i < graph_slice->nodes; ++i)
-//                  {
-//                    printf("%d, ", test_vid[i]);
-//                  }
-//                  printf("\n");
-//                  delete[] test_vid;
                   }
+                  else if(Program::gatherOverEdges() == GATHER_OUT_EDGES)
+                  {
+                    vertex_centric::gather::Kernel<GatherPolicy, Program><<<gather_grid_size, GatherPolicy::THREADS>>>(
+                        queue_index,              // queue counter index
+                        queue_index,// steal counter index
+                        1,// number of GPUs
+                        d_done,
+                        graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
+                        graph_slice->frontier_queues.d_keys[selector],// edge frontier out
+                        graph_slice->d_column_indices,//pass in the CSC graph to gather for destination vertices
+                        graph_slice->d_row_offsets,//pass in the CSC graph to gather for destination vertices
+                        graph_slice->vertex_list,//
+                        graph_slice->edge_list,//
+                        this->work_progress,
+                        graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
+                        graph_slice->frontier_elements[selector],// max edge frontier vertices
+                        this->expand_kernel_stats);
+
+                  }
+                  else if(Program::gatherOverEdges() == GATHER_ALL_EDGES)
+                  {
+                    vertex_centric::gather::Kernel<GatherPolicy, Program><<<gather_grid_size, GatherPolicy::THREADS>>>(
+                        queue_index,              // queue counter index
+                        queue_index,// steal counter index
+                        1,// number of GPUs
+                        d_done,
+                        graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
+                        graph_slice->frontier_queues.d_keys[selector],// edge frontier out
+                        //                  graph_slice->frontier_queues.d_values[selector],// predecessor out
+                        graph_slice->d_row_indices,//pass in the CSC graph to gather for destination vertices
+                        graph_slice->d_column_offsets,//pass in the CSC graph to gather for destination vertices
+                        graph_slice->vertex_list,//
+                        graph_slice->edge_list,//
+                        this->work_progress,
+                        graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
+                        graph_slice->frontier_elements[selector],// max edge frontier vertices
+                        this->expand_kernel_stats);
+
+                    if (DEBUG
+                        && (retval = util::B40CPerror(
+                                cudaThreadSynchronize(),
+                                "gather1::Kernel failed ", __FILE__,
+                                __LINE__)))
+                    break;
+
+                    vertex_centric::gather::Kernel<GatherPolicy, Program><<<gather_grid_size, GatherPolicy::THREADS>>>(
+                        queue_index,// queue counter index
+                        queue_index,// steal counter index
+                        1,// number of GPUs
+                        d_done,
+                        graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
+                        graph_slice->frontier_queues.d_keys[selector],// edge frontier out
+                        graph_slice->d_column_indices,//pass in the CSC graph to gather for destination vertices
+                        graph_slice->d_row_offsets,//pass in the CSC graph to gather for destination vertices
+                        graph_slice->vertex_list,//
+                        graph_slice->edge_list,//
+                        this->work_progress,
+                        graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
+                        graph_slice->frontier_elements[selector],// max edge frontier vertices
+                        this->expand_kernel_stats);
+
+                    if (DEBUG
+                        && (retval = util::B40CPerror(
+                                cudaThreadSynchronize(),
+                                "gather2::Kernel failed ", __FILE__,
+                                __LINE__)))
+                    break;
+                  }
+                }
+//                else
+//                {
+//                  printf("Error: Invalid gather over edge type!\n");
+//                  exit(1);
+//                }
+//
+//                if (DEBUG
+//                    && (retval = util::B40CPerror(
+//                        cudaThreadSynchronize(),
+//                        "gather::Kernel failed ", __FILE__,
+//                        __LINE__)))
+//                  break;
+                cudaEventQuery(throttle_event);                      // give host memory mapped visibility to GPU updates
+
+                //                queue_index++;
+                //                selector ^= 1;
+
+                if (DEBUG)
+                {
+                  if (work_progress.GetQueueLength(queue_index,
+                      queue_length))
+                    break;
+                  total_queued += queue_length;
+
+                  //                  if (DEBUG) printf("queue_length after gather: %lld\n", (long long) queue_length);
+
+                  //                  EValue *test_vid2 = new EValue[graph_slice->nodes];
+                  //                  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_min_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
+                  //                  printf("d_dists after gather: ");
+                  //                  for (int i = 100; i < 200; ++i)
+                  //                  {
+                  //                    printf("%.3f, ", test_vid2[i]);
+                  //                  }
+                  //                  printf("\n");
+                  //                  delete[] test_vid2;
+                  //
+                  //                  test_vid2 = new EValue[graph_slice->nodes];
+                  //                  cudaMemcpy(test_vid2, graph_slice->vertex_list.d_min_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
+                  //                  printf("d_gather_results after gather: ");
+                  //                  for (int i = 0; i < graph_slice->nodes; ++i)
+                  //                  {
+                  //                    printf("%f, ", test_vid2[i]);
+                  //                  }
+                  //                  printf("\n");
+                  //                  delete[] test_vid2;
+
+                  //                  VertexId* test_vid = new VertexId[graph_slice->nodes];
+                  //                  cudaMemcpy(test_vid, graph_slice->d_changed, graph_slice->nodes * sizeof(VertexId), cudaMemcpyDeviceToHost);
+                  //                  printf("changed after gather: ");
+                  //                  for (int i = 0; i < graph_slice->nodes; ++i)
+                  //                  {
+                  //                    printf("%d, ", test_vid[i]);
+                  //                  }
+                  //                  printf("\n");
+                  //                  delete[] test_vid;
                 }
 
                 if (DEBUG)
@@ -680,10 +694,11 @@ namespace b40c
                   //apply stage
                   //
                   vertex_centric::gather::apply<GatherPolicy, Program><<<
-                      gather_grid_size, GatherPolicy::THREADS>>>(
+                  gather_grid_size, GatherPolicy::THREADS>>>(
                       iteration[0], queue_index, this->work_progress,
                       graph_slice->frontier_queues.d_keys[selector ^ 1],
-                      graph_slice->vertex_list, graph_slice->edge_list);
+                      graph_slice->vertex_list,
+                      graph_slice->edge_list);
 
 //                  if (DEBUG)
 //                  {
@@ -700,9 +715,10 @@ namespace b40c
                   //
                   //                //reset dists and gather_results
                   //                //
-                  vertex_centric::gather::reset_gather_result<GatherPolicy,
-                      Program><<<gather_grid_size, GatherPolicy::THREADS>>>(
-                      iteration[0], queue_index, this->work_progress,
+                  vertex_centric::gather::reset_gather_result<
+                      GatherPolicy, Program><<<gather_grid_size,
+                  GatherPolicy::THREADS>>>(iteration[0],
+                      queue_index, this->work_progress,
                       graph_slice->frontier_queues.d_keys[selector ^ 1],
                       graph_slice->vertex_list,
                       graph_slice->edge_list,
@@ -710,10 +726,10 @@ namespace b40c
 
                   if (DEBUG
                       && (retval = util::B40CPerror(
-                          cudaThreadSynchronize(),
-                          "gather::reset_changed Kernel failed ",
-                          __FILE__, __LINE__)))
-                    break;
+                              cudaThreadSynchronize(),
+                              "gather::reset_changed Kernel failed ",
+                              __FILE__, __LINE__)))
+                  break;
 
                   if (DEBUG)
                   {
@@ -740,10 +756,11 @@ namespace b40c
                 }
                 else if (Program::postApplyOverEdges() == POST_APPLY_ALL)
                 {
-                  vertex_centric::gather::reset_gather_result<GatherPolicy,
-                      Program><<<gather_grid_size, GatherPolicy::THREADS>>>(
-                      iteration[0], graph_slice->nodes,
-                      graph_slice->vertex_list, graph_slice->edge_list,
+                  vertex_centric::gather::reset_gather_result<
+                  GatherPolicy, Program><<<gather_grid_size,
+                  GatherPolicy::THREADS>>>(iteration[0],
+                      graph_slice->nodes, graph_slice->vertex_list,
+                      graph_slice->edge_list,
                       graph_slice->d_visited_mask);
 
                   if (DEBUG)
@@ -771,43 +788,149 @@ namespace b40c
 
                 }
 
-                if (Program::expandOverEdges() == EXPAND_OUT_EDGES)
+                //
+                // Expansion
+                //
+                if (directed == 0)
                 {
-                  //
-                  // Expansion
-                  //
-                  vertex_centric::expand_atomic::Kernel<ExpandPolicy, Program><<<
-                      expand_grid_size, ExpandPolicy::THREADS>>>(
+                  vertex_centric::expand_atomic::Kernel<ExpandPolicy, Program><<<expand_grid_size, ExpandPolicy::THREADS>>>(
                       iteration[0],
-                      queue_index,                    // queue counter index
-                      queue_index,                    // steal counter index
-                      1,                    // number of GPUs
+                      queue_index,              // queue counter index
+                      queue_index,// steal counter index
+                      1,// number of GPUs
                       d_done,
-                      graph_slice->frontier_queues.d_keys[selector ^ 1],                    // vertex frontier in
-                      graph_slice->frontier_queues.d_keys[selector],                    // edge frontier out
-                      graph_slice->frontier_queues.d_values[selector],                    // predecessor out
-                      graph_slice->vertex_list,                    //
+                      graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
+                      graph_slice->frontier_queues.d_keys[selector],// edge frontier out
+                      graph_slice->frontier_queues.d_values[selector],// predecessor out
+                      graph_slice->vertex_list,//
                       graph_slice->edge_list,
                       graph_slice->d_column_indices,
                       graph_slice->d_row_offsets, this->work_progress,
-                      graph_slice->frontier_elements[selector ^ 1],                    // max vertex frontier vertices
-                      graph_slice->frontier_elements[selector],                    // max edge frontier vertices
+                      graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
+                      graph_slice->frontier_elements[selector],// max edge frontier vertices
                       this->expand_kernel_stats);
 
-                  if (DEBUG
-                      && (retval = util::B40CPerror(
-                          cudaThreadSynchronize(),
-                          "expand_atomic::Kernel failed ", __FILE__,
-                          __LINE__)))
-                    break;
-                  cudaEventQuery(throttle_event);                    // give host memory mapped visibility to GPU updates
-
-                  if (DEBUG)
+                }
+                else
+                {
+                  if (Program::expandOverEdges() == EXPAND_OUT_EDGES)
                   {
-                    cudaDeviceSynchronize();
-                    endexpand = omp_get_wtime();
-                    elapsedexpand += endexpand - startexpand;
+
+                    vertex_centric::expand_atomic::Kernel<ExpandPolicy, Program><<<expand_grid_size, ExpandPolicy::THREADS>>>(
+                        iteration[0],
+                        queue_index,              // queue counter index
+                        queue_index,// steal counter index
+                        1,// number of GPUs
+                        d_done,
+                        graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
+                        graph_slice->frontier_queues.d_keys[selector],// edge frontier out
+                        graph_slice->frontier_queues.d_values[selector],// predecessor out
+                        graph_slice->vertex_list,//
+                        graph_slice->edge_list,
+                        graph_slice->d_column_indices,
+                        graph_slice->d_row_offsets, this->work_progress,
+                        graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
+                        graph_slice->frontier_elements[selector],// max edge frontier vertices
+                        this->expand_kernel_stats);
                   }
+                  else if(Program::expandOverEdges() == EXPAND_IN_EDGES)
+                  {
+                    vertex_centric::expand_atomic::Kernel<ExpandPolicy, Program><<<expand_grid_size, ExpandPolicy::THREADS>>>(
+                        iteration[0],
+                        queue_index,              // queue counter index
+                        queue_index,// steal counter index
+                        1,// number of GPUs
+                        d_done,
+                        graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
+                        graph_slice->frontier_queues.d_keys[selector],// edge frontier out
+                        graph_slice->frontier_queues.d_values[selector],// predecessor out
+                        graph_slice->vertex_list,//
+                        graph_slice->edge_list,
+                        graph_slice->d_row_indices,
+                        graph_slice->d_column_offsets,
+                        this->work_progress,
+                        graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
+                        graph_slice->frontier_elements[selector],// max edge frontier vertices
+                        this->expand_kernel_stats);
+                  }
+                  else if(Program::expandOverEdges() == EXPAND_ALL_EDGES)
+                  {
+                    int queue_length1 = 0, queue_length2 = 0;
+                    vertex_centric::expand_atomic::Kernel<ExpandPolicy, Program><<<expand_grid_size, ExpandPolicy::THREADS>>>(
+                        iteration[0],
+                        queue_index,              // queue counter index
+                        queue_index,// steal counter index
+                        1,// number of GPUs
+                        d_done,
+                        graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
+                        graph_slice->frontier_queues.d_keys[selector],// edge frontier out
+                        graph_slice->frontier_queues.d_values[selector],// predecessor out
+                        graph_slice->vertex_list,//
+                        graph_slice->edge_list,
+                        graph_slice->d_column_indices,
+                        graph_slice->d_row_offsets,
+                        this->work_progress,
+                        graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
+                        graph_slice->frontier_elements[selector],// max edge frontier vertices
+                        this->expand_kernel_stats);
+
+                    if (work_progress.GetQueueLength(queue_index+1, queue_length1))
+                    break;
+
+//                  printf("queue_length1 = %d\n", queue_length1);
+
+                    work_progress.SetQueueLength(queue_index+1, 0);
+
+                    vertex_centric::expand_atomic::Kernel<ExpandPolicy, Program><<<expand_grid_size, ExpandPolicy::THREADS>>>(
+                        iteration[0],
+                        queue_index,// queue counter index
+                        queue_index,// steal counter index
+                        1,// number of GPUs
+                        d_done,
+                        graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
+                        graph_slice->frontier_queues.d_keys[2],// edge frontier out
+                        graph_slice->frontier_queues.d_values[2],// predecessor out
+                        graph_slice->vertex_list,//
+                        graph_slice->edge_list,
+                        graph_slice->d_row_indices,
+                        graph_slice->d_column_offsets,
+                        this->work_progress,
+                        graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
+                        graph_slice->frontier_elements[selector],// max edge frontier vertices
+                        this->expand_kernel_stats);
+
+                    //combine two edge frontier out
+
+                    if (work_progress.GetQueueLength(queue_index+1, queue_length2))
+                    break;
+//                  printf("queue_length2 = %d\n", queue_length2);
+
+                    cudaMemcpy(graph_slice->frontier_queues.d_keys[selector] + queue_length1,
+                        graph_slice->frontier_queues.d_keys[2], queue_length2 * sizeof(VertexId),
+                        cudaMemcpyDeviceToDevice);
+
+                    cudaMemcpy(graph_slice->frontier_queues.d_values[selector] + queue_length1,
+                        graph_slice->frontier_queues.d_values[2], queue_length2 * sizeof(VertexId),
+                        cudaMemcpyDeviceToDevice);
+
+                    work_progress.SetQueueLength(queue_index+1, queue_length1 + queue_length2);
+
+                  }
+                }
+
+                if (DEBUG
+                    && (retval = util::B40CPerror(
+                        cudaThreadSynchronize(),
+                        "expand_atomic::Kernel failed ",
+                        __FILE__, __LINE__)))
+                  break;
+                cudaEventQuery(throttle_event);              // give host memory mapped visibility to GPU updates
+
+                if (DEBUG)
+                {
+                  cudaDeviceSynchronize();
+                  endexpand = omp_get_wtime();
+                  elapsedexpand += endexpand - startexpand;
                 }
 
                 queue_index++;
@@ -825,7 +948,8 @@ namespace b40c
                 if (INSTRUMENT && DEBUG)
                 //              if(1)
                 {
-                  if (work_progress.GetQueueLength(queue_index, queue_length))
+                  if (work_progress.GetQueueLength(queue_index,
+                      queue_length))
                     break;
 
                   total_queued += queue_length;
@@ -879,13 +1003,14 @@ namespace b40c
 
               float elapsed;
               cudaEventElapsedTime(&elapsed, start, stop);
-              std::cout << "Kernel time took: " << elapsed << " ms" << std::endl;
+              std::cout << "Kernel time took: " << elapsed << " ms"
+                  << std::endl;
               std::cout << "Wall time took: " << elapsed_wall << " ms"
                   << std::endl;
               std::cout << "Contract time took: " << elapsedcontract * 1000
                   << " ms" << std::endl;
-              std::cout << "Expand time took: " << elapsedexpand * 1000 << " ms"
-                  << std::endl;
+              std::cout << "Expand time took: " << elapsedexpand * 1000
+                  << " ms" << std::endl;
               // Compute nodes and edges visited
               SizeT edges_visited = 0;
               SizeT nodes_visited = 0;
@@ -898,7 +1023,8 @@ namespace b40c
                 if (h_dists[i] > -1)
                 {
                   nodes_visited++;
-                  edges_visited += h_row_offsets[i + 1] - h_row_offsets[i];
+                  edges_visited += h_row_offsets[i + 1]
+                      - h_row_offsets[i];
                 }
                 //              else
                 //                printf("h_dists[%d]=%d\n", i, h_dists[i]);
@@ -939,8 +1065,7 @@ namespace b40c
          */
         template<typename CsrProblem, typename Program>
         cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
-            char* source_file_name,
-            typename CsrProblem::SizeT* h_row_offsets)
+            char* source_file_name, typename CsrProblem::SizeT* h_row_offsets, int directed)
         {
           typedef typename CsrProblem::VertexId VertexId;
           typedef typename CsrProblem::SizeT SizeT;
@@ -1025,7 +1150,8 @@ namespace b40c
             ContractPolicy;
 
             return EnactIterativeSearch<ExpandPolicy, GatherPolicy,
-                ContractPolicy, Program>(csr_problem, source_file_name, h_row_offsets);
+                ContractPolicy, Program>(csr_problem, source_file_name,
+                h_row_offsets, directed);
           }
 
           printf("Not yet tuned for this architecture\n");

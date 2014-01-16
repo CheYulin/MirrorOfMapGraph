@@ -174,7 +174,7 @@ struct pagerank
     void operator()(const int vertex_id, const GatherType final_value,
             VertexType &vertex_list, EdgeType &edge_list)
     {
-      vertex_list.d_min_dists[vertex_id] = final_value;
+      vertex_list.d_min_dists[vertex_id] += final_value;
     }
   };
 
@@ -239,6 +239,7 @@ struct pagerank
     void operator()(const int vertex_id, VertexType& vertex_list, EdgeType& edge_list)
     {
       vertex_list.d_visited_flag[vertex_id] = 0;
+      vertex_list.d_min_dists[vertex_id] = 0.0;
 //      vertex_list.d_dists[vertex_id] = vertex_list.d_dists_out[vertex_id];
     }
   };

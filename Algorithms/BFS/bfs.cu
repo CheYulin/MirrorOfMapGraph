@@ -172,12 +172,14 @@ void correctTest(int nodes, int* reference_labels, int* h_labels)
   {
     if (reference_labels[i] != h_labels[i])
     {
-      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n", i, reference_labels[i], h_labels[i]);
+//      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n", i, reference_labels[i], h_labels[i]);
       pass = false;
     }
   }
   if (pass)
     printf("passed\n");
+  else
+    printf("failed\n");
 }
 
 void printUsageAndExit()
@@ -239,7 +241,7 @@ int main(int argc, char **argv)
       strcpy(source_file_name, argv[i]);
     }
 
-    else if (strncmp(argv[i], "-BFS", 100) == 0)
+    else if (strncmp(argv[i], "-parameters", 100) == 0 || strncmp(argv[i], "-p", 100) == 0)
     { //The BFS specific options
       i++;
       cfg.parseParameterString(argv[i]);
@@ -268,6 +270,8 @@ int main(int argc, char **argv)
   if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
       !directed) != 0)
     exit(1);
+
+//  csr_graph.DisplayGraph();
 
   bool cudaEnabled = cudaInit(cfg.getParameter<int>("device"));
   VertexId* reference_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
@@ -314,7 +318,7 @@ int main(int argc, char **argv)
   if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices,
       csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
-      csr_graph.column_offsets, csr_graph.node_values, num_gpus))
+      csr_graph.column_offsets, csr_graph.node_values, num_gpus, directed))
     exit(1);
 
   const bool INSTRUMENT = true;
@@ -324,7 +328,7 @@ int main(int argc, char **argv)
   cudaError_t retval = cudaSuccess;
 
   retval = vertex_centric.EnactIterativeSearch<CsrProblem, bfs>(csr_problem, source_file_name,
-      csr_graph.row_offsets);
+      csr_graph.row_offsets, directed);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
   {

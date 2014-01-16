@@ -55,8 +55,6 @@ namespace b40c
       VertexId *from_nodes;
       VertexId *to_nodes;
 
-      bool pinned;
-
       /**
        * Constructor
        */
@@ -70,81 +68,40 @@ namespace b40c
         row_indices = NULL;
         edge_values = NULL;
         node_values = NULL;
-        this->pinned = pinned;
       }
 
       template<bool LOAD_VALUES>
-      void FromScratch(SizeT nodes, SizeT edges)
+      void FromScratch(SizeT nodes, SizeT edges, int undirected)
       {
         this->nodes = nodes;
         this->edges = edges;
 
-        if (pinned)
+        // Put our graph in regular memory
+        row_offsets = (SizeT*) malloc(sizeof(SizeT) * (nodes + 1));
+        column_indices = (VertexId*) malloc(sizeof(VertexId) * edges);
+        if (!undirected)
         {
-
-          // Put our graph in pinned memory
-          int flags = cudaHostAllocMapped;
-          if (b40c::util::B40CPerror(cudaHostAlloc((void **) &row_offsets, sizeof(SizeT) * (nodes + 1), flags), "CsrGraph cudaHostAlloc row_offsets failed", __FILE__, __LINE__)) exit(1);
-          if (b40c::util::B40CPerror(cudaHostAlloc((void **) &column_indices, sizeof(VertexId) * edges, flags), "CsrGraph cudaHostAlloc column_indices failed", __FILE__, __LINE__)) exit(1);
-
-          if (b40c::util::B40CPerror(cudaHostAlloc((void **) &column_offsets, sizeof(SizeT) * (nodes + 1), flags), "CsrGraph cudaHostAlloc column_offsets failed", __FILE__, __LINE__)) exit(1);
-          if (b40c::util::B40CPerror(cudaHostAlloc((void **) &row_indices, sizeof(VertexId) * edges, flags), "CsrGraph cudaHostAlloc row_indices failed", __FILE__, __LINE__)) exit(1);
-
-//          if (b40c::util::B40CPerror(cudaHostAlloc((void **) &from_nodes, sizeof(VertexId) * edges, flags), "CsrGraph cudaHostAlloc from_nodes failed", __FILE__, __LINE__)) exit(1);
-//          if (b40c::util::B40CPerror(cudaHostAlloc((void **) &to_nodes, sizeof(VertexId) * edges, flags), "CsrGraph cudaHostAlloc to_nodes failed", __FILE__, __LINE__)) exit(1);
-//
-          if (LOAD_VALUES)
-          {
-            if (b40c::util::B40CPerror(cudaHostAlloc((void **) &edge_values, sizeof(Value) * edges, flags), "CsrGraph cudaHostAlloc values failed", __FILE__, __LINE__)) exit(1);
-            if (b40c::util::B40CPerror(cudaHostAlloc((void **) &node_values, sizeof(Value) * nodes, flags), "CsrGraph cudaHostAlloc values failed", __FILE__, __LINE__)) exit(1);
-
-          }
-
-        }
-        else
-        {
-
-          // Put our graph in regular memory
-          row_offsets = (SizeT*) malloc(sizeof(SizeT) * (nodes + 1));
-          column_indices = (VertexId*) malloc(sizeof(VertexId) * edges);
           column_offsets = (SizeT*) malloc(sizeof(SizeT) * (nodes + 1));
           row_indices = (VertexId*) malloc(sizeof(VertexId) * edges);
-//          from_nodes = (VertexId*) malloc(sizeof(VertexId) * edges);
-//          to_nodes = (VertexId*) malloc(sizeof(VertexId) * edges);
-          edge_values = (LOAD_VALUES) ? (Value*) malloc(sizeof(Value) * edges) : NULL;
-          node_values = (LOAD_VALUES) ? (Value*) malloc(sizeof(Value) * nodes) : NULL;
         }
+        edge_values = (LOAD_VALUES) ? (Value*) malloc(sizeof(Value) * edges) : NULL;
+        node_values = (LOAD_VALUES) ? (Value*) malloc(sizeof(Value) * nodes) : NULL;
+
       }
 
       /**
        * Build CSR graph from sorted COO graph
        */
       template<bool LOAD_VALUES, typename Tuple>
-      void FromCoo(Tuple *coo, SizeT coo_nodes, SizeT coo_edges, bool ordered_rows = false)
+      void FromCoo(Tuple *coo, SizeT coo_nodes, SizeT coo_edges, int undirected, bool ordered_rows = false)
       {
         printf("  Converting %d vertices, %d directed edges (%s tuples) to CSR format... ", coo_nodes, coo_edges, ordered_rows ? "ordered" : "unordered");
         time_t mark1 = time(NULL);
         fflush (stdout);
 
-        FromScratch<LOAD_VALUES>(coo_nodes, coo_edges);
+        FromScratch<LOAD_VALUES>(coo_nodes, coo_edges, undirected);
 
-//        for (SizeT edge = 0; edge < edges; edge++)
-//        {
-//          from_nodes[edge] = coo[edge].row;
-//          to_nodes[edge] = coo[edge].col;
-//          //printf("from_nodes[%d]=%d, to_nodes[%d]=%d\n", edge, from_nodes[edge], edge, to_nodes[edge]);
-//        }
-
-        // Sort COO by row
-//        if (!ordered_rows)
-        {
-          std::stable_sort(coo, coo + coo_edges, DimacsTupleCompare<Tuple>);
-        }
-
-//        for (SizeT edge = 0; edge < edges; edge++)
-//        {
-//          //printf("from_nodes[%d]=%d, to_nodes[%d]=%d\n", edge, from_nodes[edge], edge, to_nodes[edge]);
-//        }
+        std::stable_sort(coo, coo + coo_edges, DimacsTupleCompare<Tuple>);
 
         VertexId prev_row = -1;
         for (SizeT edge = 0; edge < edges; edge++)
@@ -175,36 +132,39 @@ namespace b40c
           row_offsets[row] = edges;
         }
 
-        // Sort COO by col
-        std::stable_sort(coo, coo + coo_edges, DimacsTupleCompare2<Tuple>);
-
-        VertexId prev_col = -1;
-        for (SizeT edge = 0; edge < edges; edge++)
+        if (!undirected)
         {
+          // Sort COO by col
+          std::stable_sort(coo, coo + coo_edges, DimacsTupleCompare2<Tuple>);
 
-          VertexId current_col = coo[edge].col;
-
-          // Fill in rows up to and including the current row
-          for (VertexId col = prev_col + 1; col <= current_col; col++)
+          VertexId prev_col = -1;
+          for (SizeT edge = 0; edge < edges; edge++)
           {
-            column_offsets[col] = edge;
-          }
-          prev_col = current_col;
 
-          row_indices[edge] = coo[edge].row;
-          if (LOAD_VALUES)
-          {
-            edge_values[edge] = coo[edge].val;
+            VertexId current_col = coo[edge].col;
+
+            // Fill in rows up to and including the current row
+            for (VertexId col = prev_col + 1; col <= current_col; col++)
+            {
+              column_offsets[col] = edge;
+            }
+            prev_col = current_col;
+
+            row_indices[edge] = coo[edge].row;
+            if (LOAD_VALUES)
+            {
+              edge_values[edge] = coo[edge].val;
 //            coo[edge].Val(edge_values[edge]);
+            }
+            else
+              edge_values[edge] = 1;
           }
-          else
-            edge_values[edge] = 1;
-        }
 
-        // Fill out any trailing edgeless nodes (and the end-of-list element)
-        for (VertexId col = prev_col + 1; col <= nodes; col++)
-        {
-          column_offsets[col] = edges;
+          // Fill out any trailing edgeless nodes (and the end-of-list element)
+          for (VertexId col = prev_col + 1; col <= nodes; col++)
+          {
+            column_offsets[col] = edges;
+          }
         }
 
         time_t mark2 = time(NULL);
@@ -298,102 +258,60 @@ namespace b40c
       {
         if (row_offsets)
         {
-          if (pinned)
-          {
-            b40c::util::B40CPerror(cudaFreeHost(row_offsets), "CsrGraph cudaFreeHost row_offsets failed", __FILE__, __LINE__);
-          }
-          else
-          {
-            free(row_offsets);
-          }
+          free(row_offsets);
           row_offsets = NULL;
         }
         if (column_indices)
         {
-          if (pinned)
-          {
-            b40c::util::B40CPerror(cudaFreeHost(column_indices), "CsrGraph cudaFreeHost column_indices failed", __FILE__, __LINE__);
-          }
-          else
-          {
-            free(column_indices);
-          }
+
+          free(column_indices);
+
           column_indices = NULL;
         }
 
         if (column_offsets)
         {
-          if (pinned)
-          {
-            b40c::util::B40CPerror(cudaFreeHost(column_offsets), "CsrGraph cudaFreeHost column_offsets failed", __FILE__, __LINE__);
-          }
-          else
-          {
-            free(column_offsets);
-          }
+
+          free(column_offsets);
+
           column_offsets = NULL;
         }
         if (row_indices)
         {
-          if (pinned)
-          {
-            b40c::util::B40CPerror(cudaFreeHost(row_indices), "CsrGraph cudaFreeHost row_indices failed", __FILE__, __LINE__);
-          }
-          else
-          {
-            free(row_indices);
-          }
+
+          free(row_indices);
+
           row_indices = NULL;
         }
 
         if (from_nodes)
         {
-          if (pinned)
-          {
-            b40c::util::B40CPerror(cudaFreeHost(from_nodes), "CsrGraph cudaFreeHost from_nodes failed", __FILE__, __LINE__);
-          }
-          else
-          {
-            free(from_nodes);
-          }
+
+          free(from_nodes);
+
           from_nodes = NULL;
         }
 
         if (to_nodes)
         {
-          if (pinned)
-          {
-            b40c::util::B40CPerror(cudaFreeHost(to_nodes), "CsrGraph cudaFreeHost to_nodes failed", __FILE__, __LINE__);
-          }
-          else
-          {
-            free(to_nodes);
-          }
+
+          free(to_nodes);
+
           to_nodes = NULL;
         }
 
         if (edge_values)
         {
-          if (pinned)
-          {
-            b40c::util::B40CPerror(cudaFreeHost(edge_values), "CsrGraph cudaFreeHost edge_values failed", __FILE__, __LINE__);
-          }
-          else
-          {
-            free(edge_values);
-          }
+
+          free(edge_values);
+
           edge_values = NULL;
         }
         if (node_values)
         {
-          if (pinned)
-          {
-            b40c::util::B40CPerror(cudaFreeHost(node_values), "CsrGraph cudaFreeHost node_values failed", __FILE__, __LINE__);
-          }
-          else
-          {
-            free(node_values);
-          }
+
+          free(node_values);
+
           node_values = NULL;
         }
 

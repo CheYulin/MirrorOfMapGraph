@@ -223,7 +223,7 @@ int main(int argc, char **argv)
       outFileName = argv[i];
     }
 
-    else if (strncmp(argv[i], "-PR", 100) == 0)
+    else if (strncmp(argv[i], "-parameters", 100) == 0 || strncmp(argv[i], "-p", 100) == 0)
     { //The PR specific options
       i++;
       cfg.parseParameterString(argv[i]);
@@ -286,7 +286,7 @@ int main(int argc, char **argv)
   if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices,
       csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
-      csr_graph.column_offsets, csr_graph.node_values, num_gpus))
+      csr_graph.column_offsets, csr_graph.node_values, num_gpus, directed))
     exit(1);
 
   const bool INSTRUMENT = true;
@@ -296,7 +296,7 @@ int main(int argc, char **argv)
   cudaError_t retval = cudaSuccess;
 
   retval = vertex_centric.EnactIterativeSearch<CsrProblem, pagerank>(csr_problem, source_file_name,
-      csr_graph.row_offsets);
+      csr_graph.row_offsets, directed);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
   {

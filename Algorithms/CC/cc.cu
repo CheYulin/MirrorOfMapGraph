@@ -109,12 +109,14 @@ void correctTest(int nodes, int* reference_dists, int* h_dists)
   {
     if (reference_dists[i] != h_dists[i])
     {
-      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n", i, reference_dists[i], h_dists[i]);
+//      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n", i, reference_dists[i], h_dists[i]);
       pass = false;
     }
   }
   if (pass)
     printf("passed\n");
+  else
+    printf("failed\n");
 }
 
 template<typename VertexId, typename Value, typename SizeT>
@@ -124,6 +126,7 @@ void CPUCC(CsrGraph<VertexId, Value, SizeT> const &graph, Value* dist)
 // initialize dist[] and pred[] arrays. Start with vertex s by setting
 // dist[] to 0.
 
+  printf("Running CPU CC ... ");
   const SizeT n = graph.nodes;
   for (int i = 0; i < n; i++)
     dist[i] = i;
@@ -153,6 +156,7 @@ void CPUCC(CsrGraph<VertexId, Value, SizeT> const &graph, Value* dist)
     }
   }
 
+  printf("done!\n");
   double EndTime = omp_get_wtime();
 
   std::cout << "CPU time took: " << (EndTime - startTime) * 1000 << " ms"
@@ -218,8 +222,8 @@ int main(int argc, char **argv)
       strcpy(source_file_name, argv[i]);
     }
 
-    else if (strncmp(argv[i], "-CC", 100) == 0)
-    { //The SSSP specific options
+    else if (strncmp(argv[i], "-parameters", 100) == 0 || strncmp(argv[i], "-p", 100) == 0)
+    {
       i++;
       cfg.parseParameterString(argv[i]);
     }
@@ -232,7 +236,7 @@ int main(int argc, char **argv)
 
   if (graph_file == NULL)
   {
-    printf("Must specify the graph!\n");
+    printUsageAndExit();
     exit(0);
   }
 
@@ -252,11 +256,6 @@ int main(int argc, char **argv)
   VertexId* reference_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
 
   CPUCC(csr_graph, reference_dists);
-
-//  for(int i=0; i<csr_graph.nodes; i++)
-//  {
-//    printf("%d\n", reference_dists[i]);
-//  }
 
   VertexId* h_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
   int* h_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
@@ -281,7 +280,7 @@ int main(int argc, char **argv)
   if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices,
       csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
-      csr_graph.column_offsets, csr_graph.node_values, num_gpus))
+      csr_graph.column_offsets, csr_graph.node_values, num_gpus, directed))
     exit(1);
 
   const bool INSTRUMENT = true;
@@ -291,7 +290,7 @@ int main(int argc, char **argv)
   cudaError_t retval = cudaSuccess;
 
   retval = vertex_centric.EnactIterativeSearch<CsrProblem, cc>(csr_problem, source_file_name,
-      csr_graph.row_offsets);
+      csr_graph.row_offsets, directed);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
   {
