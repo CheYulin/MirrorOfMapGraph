@@ -8,7 +8,7 @@
 #ifndef SSSP_H_
 #define SSSP_H_
 
-#include <b40c/graph/GASengine/csr_problem.cuh>
+#include <GASengine/csr_problem.cuh>
 
 /* Single Source Shortest Path.
  */

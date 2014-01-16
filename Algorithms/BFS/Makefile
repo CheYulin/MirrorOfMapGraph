@@ -21,7 +21,7 @@ all: config.o BFS
 config.o: config.cpp ../../getvalue.h config.h Makefile register.h
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) $(RAND_OPTS)
 
-BFS.o: bfs.cu ../../GASEngine.h bfs.h Makefile ../../b40c/graph/GASengine/enactor_vertex_centric.cuh
+BFS.o: bfs.cu ../../GASEngine.h bfs.h Makefile ../../GASengine/enactor_vertex_centric.cuh
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS)
 
 BFS: BFS.o config.o

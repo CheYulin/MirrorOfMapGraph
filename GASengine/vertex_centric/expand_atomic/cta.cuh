@@ -37,11 +37,13 @@
 
 #include <b40c/util/soa_tuple.cuh>
 #include <b40c/util/scan/soa/cooperative_soa_scan.cuh>
+using namespace b40c;
+using namespace graph;
 
-namespace b40c
-{
-  namespace graph
-  {
+//namespace b40c
+//{
+//  namespace graph
+//  {
     namespace GASengine
     {
       namespace vertex_centric
@@ -838,7 +840,7 @@ namespace b40c
 
         } // namespace expand_atomic
       } // namespace vertex_centric
-    } // namespace bc
-  } // namespace graph
-} // namespace b40c
+    } // namespace GASengine
+//  } // namespace graph
+//} // namespace b40c
 

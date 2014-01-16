@@ -20,7 +20,7 @@
  ******************************************************************************/
 
 /******************************************************************************
- * Kernel configuration policy for BC frontier backward sum kernels.
+ * Kernel configuration policy for BFS frontier expansion kernels.
  ******************************************************************************/
 
 #pragma once
@@ -35,11 +35,14 @@
 #include <b40c/util/io/modified_store.cuh>
 #include <b40c/util/operators.cuh>
 
-namespace b40c {
-namespace graph {
+using namespace b40c;
+using namespace graph;
+
+//namespace b40c {
+//namespace graph {
 namespace GASengine {
 namespace vertex_centric {
-namespace backward_sum_atomic {
+namespace gather {
 
 
 /**
@@ -55,6 +58,7 @@ namespace backward_sum_atomic {
  * types.
  */
 template <
+typename Program,
 	// ProblemType type parameters
 	typename _ProblemType,				// BFS problem type (e.g., b40c::graph::bfs::ProblemType)
 
@@ -234,7 +238,7 @@ struct KernelPolicy : _ProblemType
 												- sizeof(State)
 												- 128,											// Fudge-factor to guarantee occupancy
 
-			SCRATCH_ELEMENT_SIZE 			= sizeof(SizeT) + sizeof(EValue),			// Need both gather offset and predecessor
+			SCRATCH_ELEMENT_SIZE 			= sizeof(SizeT) + sizeof(typename Program::GatherType),			        // Need both gather offset and predecessor
 
 			GATHER_ELEMENTS					= MAX_SCRATCH_BYTES_PER_CTA / SCRATCH_ELEMENT_SIZE,
 			PARENT_ELEMENTS					= GATHER_ELEMENTS,
@@ -250,7 +254,8 @@ struct KernelPolicy : _ProblemType
 			// Scratch elements
 			struct {
 				SizeT 						gather_offsets[GATHER_ELEMENTS];
-                EValue                      gather_delta_values[GATHER_ELEMENTS];
+//				VertexId 					gather_predecessors[PARENT_ELEMENTS];
+				typename Program::GatherType                      gather_delta_values[GATHER_ELEMENTS];
 			};
 		};
 
@@ -266,9 +271,9 @@ struct KernelPolicy : _ProblemType
 };
 
 
-} // namespace backward_sum_atomic
+} // namespace expand_atomic
 } // namespace vertex_centric
-} // namespace bc
-} // namespace graph
-} // namespace b40c
+} // namespace GASengine
+//} // namespace graph
+//} // namespace b40c
 

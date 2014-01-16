@@ -33,32 +33,31 @@
 #include <b40c/util/kernel_runtime_stats.cuh>
 #include <b40c/util/global_barrier.cuh>
 
-#include <b40c/graph/GASengine/problem_type.cuh>
-#include <b40c/graph/GASengine/csr_problem.cuh>
-#include <b40c/graph/GASengine/enactor_base.cuh>
+#include <GASengine/problem_type.cuh>
+#include <GASengine/csr_problem.cuh>
+#include <GASengine/enactor_base.cuh>
 
 //#include <b40c/graph/GASengine/vertex_centric/filter_atomic/kernel.cuh>
 //#include <b40c/graph/GASengine/vertex_centric/filter_atomic/kernel_policy.cuh>
-#include <b40c/graph/GASengine/vertex_centric/gather/kernel.cuh>
-#include <b40c/graph/GASengine/vertex_centric/gather/kernel_policy.cuh>
-#include <b40c/graph/GASengine/vertex_centric/expand_atomic/kernel.cuh>
-#include <b40c/graph/GASengine/vertex_centric/expand_atomic/kernel_policy.cuh>
-#include <b40c/graph/GASengine/vertex_centric/contract_atomic/kernel.cuh>
-#include <b40c/graph/GASengine/vertex_centric/contract_atomic/kernel_policy.cuh>
-#include <b40c/graph/GASengine/vertex_centric/backward_contract_atomic/kernel.cuh>
-#include <b40c/graph/GASengine/vertex_centric/backward_contract_atomic/kernel_policy.cuh>
-#include <b40c/graph/GASengine/vertex_centric/backward_sum_atomic/kernel.cuh>
-#include <b40c/graph/GASengine/vertex_centric/backward_sum_atomic/kernel_policy.cuh>
+#include <GASengine/vertex_centric/gather/kernel.cuh>
+#include <GASengine/vertex_centric/gather/kernel_policy.cuh>
+#include <GASengine/vertex_centric/expand_atomic/kernel.cuh>
+#include <GASengine/vertex_centric/expand_atomic/kernel_policy.cuh>
+#include <GASengine/vertex_centric/contract_atomic/kernel.cuh>
+#include <GASengine/vertex_centric/contract_atomic/kernel_policy.cuh>
 
 #include <thrust/device_vector.h>
 #include <thrust/device_ptr.h>
 
+using namespace b40c;
+using namespace graph;
+
 using namespace std;
 
-namespace b40c
-{
-  namespace graph
-  {
+//namespace b40c
+//{
+//  namespace graph
+//  {
     namespace GASengine
     {
 
@@ -238,32 +237,32 @@ namespace b40c
 //            if (retval = util::B40CPerror(cudaBindTexture(0, vertex_centric::filter_atomic::BitmaskTex<VisitedMask>::ref, graph_slice->d_visited_mask, bitmask_desc, bytes),
 //                                          "EnactorVertexCentric cudaBindTexture bitmask_tex_ref failed", __FILE__, __LINE__)) break;
 
-            // Bind row-offsets texture
-            cudaChannelFormatDesc row_offsets_desc =
-                cudaCreateChannelDesc<SizeT>();
-            if (retval =
-                util::B40CPerror(
-                    cudaBindTexture(0,
-                        vertex_centric::expand_atomic::RowOffsetTex<
-                            SizeT>::ref,
-                        graph_slice->d_row_offsets,
-                        row_offsets_desc,
-                        (graph_slice->nodes + 1) * sizeof(SizeT)),
-                    "EnactorVertexCentric cudaBindTexture row_offset_tex_ref failed",
-                    __FILE__, __LINE__))
-              break;
-
-            if (retval =
-                util::B40CPerror(
-                    cudaBindTexture(0,
-                        vertex_centric::backward_sum_atomic::RowOffsetTex<
-                            SizeT>::ref,
-                        graph_slice->d_row_offsets,
-                        row_offsets_desc,
-                        (graph_slice->nodes + 1) * sizeof(SizeT)),
-                    "EnactorVertexCentric cudaBindTexture row_offset_tex_ref failed",
-                    __FILE__, __LINE__))
-              break;
+//            // Bind row-offsets texture
+//            cudaChannelFormatDesc row_offsets_desc =
+//                cudaCreateChannelDesc<SizeT>();
+//            if (retval =
+//                util::B40CPerror(
+//                    cudaBindTexture(0,
+//                        vertex_centric::expand_atomic::RowOffsetTex<
+//                            SizeT>::ref,
+//                        graph_slice->d_row_offsets,
+//                        row_offsets_desc,
+//                        (graph_slice->nodes + 1) * sizeof(SizeT)),
+//                    "EnactorVertexCentric cudaBindTexture row_offset_tex_ref failed",
+//                    __FILE__, __LINE__))
+//              break;
+//
+//            if (retval =
+//                util::B40CPerror(
+//                    cudaBindTexture(0,
+//                        vertex_centric::backward_sum_atomic::RowOffsetTex<
+//                            SizeT>::ref,
+//                        graph_slice->d_row_offsets,
+//                        row_offsets_desc,
+//                        (graph_slice->nodes + 1) * sizeof(SizeT)),
+//                    "EnactorVertexCentric cudaBindTexture row_offset_tex_ref failed",
+//                    __FILE__, __LINE__))
+//              break;
 
             // Bind column-offsets texture
             //            if (retval = util::B40CPerror(
@@ -1140,6 +1139,6 @@ namespace b40c
         }
       };
 
-    } // namespace bc
-  } // namespace graph
+//    } // namespace bc
+//  } // namespace graph
 } // namespace b40c

@@ -38,8 +38,8 @@ typedef unsigned int uint;
 #include <b40c/graph/builder/market.cuh>
 #include <b40c/graph/builder/random.cuh>
 
-#include <b40c/graph/GASengine/csr_problem.cuh>
-#include <b40c/graph/GASengine/enactor_vertex_centric.cuh>
+#include <GASengine/csr_problem.cuh>
+#include <GASengine/enactor_vertex_centric.cuh>
 
 using namespace b40c;
 using namespace graph;

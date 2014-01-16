@@ -8,7 +8,7 @@
 #ifndef PR_H_
 #define PR_H_
 
-#include <b40c/graph/GASengine/csr_problem.cuh>
+#include <GASengine/csr_problem.cuh>
 #include <thrust/adjacent_difference.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>

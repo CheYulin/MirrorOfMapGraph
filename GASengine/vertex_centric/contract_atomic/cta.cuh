@@ -39,9 +39,11 @@
 #include <b40c/util/reduction/serial_reduce.cuh>
 #include <b40c/util/reduction/tree_reduce.cuh>
 #include <cuda.h>
+using namespace b40c;
+using namespace graph;
 
-namespace b40c {
-namespace graph {
+//namespace b40c {
+//namespace graph {
 namespace GASengine {
 namespace vertex_centric {
 namespace contract_atomic {
@@ -630,7 +632,7 @@ struct Cta
 
 } // namespace contract_atomic
 } // namespace vertex_centric
-} // namespace bc
-} // namespace graph
-} // namespace b40c
+} // namespace GASengine
+//} // namespace graph
+//} // namespace b40c
 

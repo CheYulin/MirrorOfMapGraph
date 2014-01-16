@@ -8,7 +8,7 @@
 #ifndef BFS_H_
 #define BFS_H_
 
-#include <b40c/graph/GASengine/csr_problem.cuh>
+#include <GASengine/csr_problem.cuh>
 
 //TODO: edge data not currently represented
 //TODO: initialize frontier

@@ -29,8 +29,10 @@
 #include <b40c/util/basic_utils.cuh>
 #include <b40c/radix_sort/sort_utils.cuh>
 
-namespace b40c {
-namespace graph {
+using namespace b40c;
+
+//namespace b40c {
+//namespace graph {
 namespace GASengine {
 
 
@@ -71,6 +73,6 @@ struct ProblemType : partition::ProblemType<
 
 
 } // namespace bc
-} // namespace graph
-} // namespace b40c
+//} // namespace graph
+//} // namespace b40c
 

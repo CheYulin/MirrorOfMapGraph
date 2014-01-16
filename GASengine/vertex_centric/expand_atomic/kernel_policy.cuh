@@ -35,8 +35,11 @@
 #include <b40c/util/io/modified_store.cuh>
 #include <b40c/util/operators.cuh>
 
-namespace b40c {
-namespace graph {
+using namespace b40c;
+using namespace graph;
+
+//namespace b40c {
+//namespace graph {
 namespace GASengine {
 namespace vertex_centric {
 namespace expand_atomic {
@@ -271,7 +274,7 @@ struct KernelPolicy : _ProblemType
 
 } // namespace expand_atomic
 } // namespace vertex_centric
-} // namespace bc
-} // namespace graph
-} // namespace b40c
+} // namespace GASengine
+//} // namespace graph
+//} // namespace b40c
 
