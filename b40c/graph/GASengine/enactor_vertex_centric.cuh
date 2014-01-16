@@ -345,10 +345,6 @@ namespace b40c
           typedef typename CsrProblem::EValue EValue;
           typedef typename CsrProblem::VisitedMask VisitedMask;
 
-//          int src_node = cfg.getParameter<int>("src");
-//          char* source_file_name = cfg.getParameter<char*>("source_file_name");
-//          double max_queue_sizing = cfg.getParameter<double>("max_queue_sizing");
-
           DEBUG = cfg.getParameter<int>("verbose");
           cudaError_t retval = cudaSuccess;
 
@@ -1115,21 +1111,6 @@ namespace b40c
                 128 * 4, // CTA_GATHER_THRESHOLD,
                 7> // LOG_SCHEDULE_GRANULARITY
             GatherPolicy;
-
-//            // Filter kernel config
-//            typedef vertex_centric::filter_atomic::KernelPolicy<typename CsrProblem::ProblemType, 200, // CUDA_ARCH
-//                    INSTRUMENT, // INSTRUMENT
-//                    0, // SATURATION_QUIT
-//                    8, // CTA_OCCUPANCY
-//                    7, // LOG_THREADS
-//                    1, // LOG_LOAD_VEC_SIZE
-//                    1, // LOG_LOADS_PER_TILE
-//                    5, // LOG_RAKING_THREADS
-//                    util::io::ld::NONE, // QUEUE_READ_MODIFIER,
-//                    util::io::st::NONE, // QUEUE_WRITE_MODIFIER,
-//                    false, // WORK_STEALING
-//                    9 > // LOG_SCHEDULE_GRANULARITY
-//                    FilterPolicy;
 
             // Contraction kernel config
             typedef vertex_centric::contract_atomic::KernelPolicy<Program,

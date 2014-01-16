@@ -175,16 +175,17 @@ void CPUSSSP(CsrGraph<VertexId, Value, SizeT> const &graph, VertexId* dist, Vert
       << std::endl;
 }
 
-void printUsageAndExit()
+void printUsageAndExit(char* algo_name)
 {
   std::cout
-      << "Usage: ./simpleSSSP [-graph (-g) graph_file] [-sources src_file] [-SSSP \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
+      << "Usage: " << algo_name << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-SSSP \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
   std::cout << "     -graph or -g specify a sparse matrix in Matrix Market (.mtx) format\n";
+  std::cout << "     -output or -o specify file for output result\n";
   std::cout << "     -sources or -s set the starting vertices file\n";
   std::cout << "     -c set the SSSP options from the configuration file\n";
   std::cout
-      << "     -SSSP set the options.  Options include the following:\n";
+      << "     -parameters (-p) set the options.  Options include the following:\n";
   Config::printOptions();
 
   exit(0);
@@ -202,7 +203,7 @@ int main(int argc, char **argv)
   bool g_verbose = false;
   typedef int VertexId; // Use as the node identifier type
   typedef int Value; // Use as the value type
-  typedef int SizeT; // Use as the graph size type
+  typedef typename sssp::DataType SizeT; // Use as the graph size type
   char* graph_file = NULL;
   CsrGraph<VertexId, Value, SizeT> csr_graph(g_stream_from_host);
   char source_file_name[1000] = "";
@@ -214,7 +215,7 @@ int main(int argc, char **argv)
   {
 
     if (strncmp(argv[i], "-help", 100) == 0) // print the usage information
-      printUsageAndExit();
+      printUsageAndExit(argv[0]);
 
     else if (strncmp(argv[i], "-graph", 100) == 0
         || strncmp(argv[i], "-g", 100) == 0)
@@ -257,7 +258,7 @@ int main(int argc, char **argv)
 
   if (graph_file == NULL)
   {
-    printUsageAndExit();
+    printUsageAndExit(argv[0]);
     exit(1);
   }
 
@@ -295,21 +296,6 @@ int main(int argc, char **argv)
     //    return 0;
   }
 
-  VertexId* h_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
-  int* h_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
-//    VertexId* reference_check = (g_quick) ? NULL : reference_labels;
-//
-//    //Allocate host-side node_value array (both ref and gpu-computed results)
-//    Value* ref_node_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
-  Value* h_node_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
-//    Value* ref_node_value_check = (g_quick) ? NULL : ref_node_values;
-//
-//    //Allocate host-side sigma value array (both ref and gpu-computed results)
-//    Value* ref_sigmas = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
-  Value* h_sigmas = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
-//    Value* ref_sigmas_check = (g_quick) ? NULL : ref_sigmas;
-  Value* h_deltas = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
-
 // Allocate problem on GPU
   int num_gpus = 1;
   typedef GASengine::CsrProblem<sssp, VertexId, SizeT, Value,
@@ -335,17 +321,18 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  csr_problem.ExtractResults(h_dists, h_labels, h_sigmas, h_deltas);
+  Value* h_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
+  csr_problem.ExtractResults(h_values);
 
   if (strcmp(source_file_name, "") == 0)
-    correctTest(csr_graph.nodes, reference_dists, h_dists);
+    correctTest(csr_graph.nodes, reference_dists, h_values);
 
   if (outFileName)
   {
     FILE* f = fopen(outFileName, "w");
     for (int i = 0; i < csr_graph.nodes; ++i)
     {
-      fprintf(f, "%d\n", h_dists[i]);
+      fprintf(f, "%d\n", h_values[i]);
     }
 
     fclose(f);

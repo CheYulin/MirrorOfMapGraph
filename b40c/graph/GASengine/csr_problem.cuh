@@ -302,7 +302,7 @@ namespace b40c
          * Extract into a single host vector the BFS results disseminated across
          * all GPUs
          */
-        cudaError_t ExtractResults(EValue *h_dists, EValue *h_labels, EValue *h_sigmas, EValue *h_deltas)
+        cudaError_t ExtractResults(EValue *h_values)
         {
           cudaError_t retval = cudaSuccess;
 
@@ -310,16 +310,16 @@ namespace b40c
           {
             if (graph_slices.size() == 1)
             {
-
               // Set device
               if (util::B40CPerror(cudaSetDevice(graph_slices[0]->gpu), "CsrProblem cudaSetDevice failed", __FILE__, __LINE__)) break;
 
-              _Program::extractResult(graph_slices[0]->vertex_list, h_dists);
+              _Program::extractResult(graph_slices[0]->vertex_list, h_values);
 
             }
             else
             {
-
+              printf("Multi GPU is not supported yet!\n");
+              exit(0);
             }
           }
           while (0);
