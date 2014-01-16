@@ -20,7 +20,7 @@
 
 MPGraph is Massively Parallel Graph processing on GPUs.
 
-The MPGraph API makes it easy to develop high performance graph
+- The MPGraph API makes it easy to develop high performance graph
 analytics on GPUs. The API is based on the Gather-Apply-Scatter (GAS)
 model as used in GraphLab. To deliver high performance computation and
 efficiently utilize the high memory bandwidth of GPUs, MPGraph's CUDA
@@ -28,18 +28,33 @@ kernels use multiple sophisticated strategies, such as
 vertex-degree-dependent dynamic parallelism granularity and frontier
 compaction.
 
-MPGraph is up to two order of magnitude faster than parallel CPU
-implementations on up 24 CPU cores and has performance comparable to a
-state-of-the-art manually optimized GPU implementation.
-
-New algorithms can be implemented in a few hours that fully exploit
+- New algorithms can be implemented in a few hours that fully exploit
 the data-level parallelism of the GPU and offer throughput of up to 3
 billion traversed edges per second on a single GPU.
 
-Partitioned graphs and Multi-GPU support will be in a future release.
+- Partitioned graphs and Multi-GPU support will be in a future release.
 
 This work was (partially) funded by the DARPA XDATA program under AFRL
 Contract #FA8750-13-C-0002.
+
+\subsection performance MPGraph vs Many-Core CPUs
+
+MPGraph is up to two orders of magnitude faster than parallel CPU
+implementations on up 24 CPU cores and has performance comparable to a
+state-of-the-art manually optimized GPU implementation.  For example,
+the diagram below shows the speedups of MPGraph versus GraphLab for SSSP.
+
+\image html MPGraphv2-vs-GraphLab-SSSP.jpg "MPGraph v2 Speedups (versus GraphLab, SSSP, N-core)"
+
+For our GPU evaluations we used a NVIDIA c2075 (Fermi architecture), but
+performance is similar on other NVIDIA cards.
+The CPU platform was a machine containing a 3.33 GHz X5680 CPU chipset.
+This is a dual-socket Westmere chipset that contains 12 physical cores
+and 12 MB of cache. The machine contains 24 GB of 1333 MHz ECC memory.
+The software environment is RedHat 6.2 Beta. CPU code was compiled with
+gcc (GCC) 4.4.6 20110731 (Red Hat 4.4.6-3). The results were obtained
+using the synchronous engine for GraphLab due to core faults with some
+data sets when using the asynchronous engine.
 
 \section api The MPGraph API
 
