@@ -75,18 +75,7 @@ If you wish to view the results of a run (which currently consists of all the
 vertices and their final values), then supply a second argument for the output
 file.
 
-./simpleBFS ../smallRegressionGraphs/small.mtx small.out
-
-The printed output should look something like:
-
-numActive: 3
-numActive: 3
-numActive: 0
-Took: 0.216544 ms
-Graph Diameter: 2
-M-Edges / sec: .050798
-
-Each iteration will print the number of active vertices on that iteration.
+./Algorithms/SSSP/SSSP -g smallRegressionGraphs/small.mtx -o small.out
 
 The contents of small.out should be:
 
