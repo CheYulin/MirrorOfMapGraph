@@ -4,7 +4,7 @@ NVCC_OPTS = -O3 -Xcompiler -fopenmp  -I. -I../../
 #NVCC_OPTS = -G -g -Xptxas -v -Xcompiler -fopenmp  -I. -I../../
 #NVCC_ARCHS = -gencode=arch=compute_20,code=sm_20
 #NVCC_ARCHS = -gencode arch=compute_35,code=sm_35
-LD_LIBS = -lz -lgomp
+LD_LIBS = -lgomp
 
 GEN_SM35 = -gencode=arch=compute_35,code=\"sm_35,compute_35\" 
 GEN_SM30 = -gencode=arch=compute_30,code=\"sm_30,compute_30\" 
