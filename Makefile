@@ -14,9 +14,9 @@ CLEAN = $(foreach DIR,$(SUBDIRS),$(DIR).clean)
 # Define top-level targets.
 #
 
-all: $(ALL)
+all: $(ALL) doc.all
 
-clean: $(CLEAN)
+clean: $(CLEAN) doc.clean
 
 # Parameterized implementation of the mock targets, invoked by
 # top-level targets for each subdirectory.
@@ -32,3 +32,9 @@ clean: $(CLEAN)
 # some things will be built before others.
 
 #foo: baz
+
+# Generates documentation from the code.
+doc: doc.create
+
+doc.create:
+	$(MAKE) -C doc
