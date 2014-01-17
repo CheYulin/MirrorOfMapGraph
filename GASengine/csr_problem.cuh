@@ -123,6 +123,7 @@ namespace GASengine
       int *srcs;
       int init_num_elements;
       int outer_iter_num;
+      int directed;
 
       VertexType vertex_list;
       EdgeType edge_list;
@@ -149,8 +150,9 @@ namespace GASengine
       /**
        * Constructor
        */
-      GraphSlice(int gpu, cudaStream_t stream) :
-          gpu(gpu), d_vertex_ids(NULL), d_column_indices(NULL), d_row_offsets(NULL), d_edge_values(NULL), d_node_values(NULL), d_labels(NULL), d_preds(NULL), d_sigmas(NULL), d_deltas(NULL), d_dists(
+      GraphSlice(int gpu, int directed, cudaStream_t stream) :
+          gpu(gpu), directed(directed), d_vertex_ids(NULL), d_column_indices(NULL), d_row_offsets(NULL), d_edge_values(NULL), d_node_values(NULL), d_labels(NULL), d_preds(NULL), d_sigmas(NULL), d_deltas(
+              NULL), d_dists(
               NULL), d_changed(NULL), d_visited_mask(NULL), d_filter_mask(NULL), d_visit_flags(NULL), nodes(0), edges(0), stream(stream)
       {
         // Initialize triple-buffer frontier queue lengths
@@ -173,8 +175,10 @@ namespace GASengine
         if (d_vertex_ids) util::B40CPerror(cudaFree(d_vertex_ids), "GpuSlice cudaFree d_vertex_ids failed", __FILE__, __LINE__);
         if (d_column_indices) util::B40CPerror(cudaFree(d_column_indices), "GpuSlice cudaFree d_column_indices failed", __FILE__, __LINE__);
         if (d_row_offsets) util::B40CPerror(cudaFree(d_row_offsets), "GpuSlice cudaFree d_row_offsets failed", __FILE__, __LINE__);
-        if (d_row_indices) util::B40CPerror(cudaFree(d_row_indices), "GpuSlice cudaFree d_column_indices failed", __FILE__, __LINE__);
-        if (d_column_offsets) util::B40CPerror(cudaFree(d_column_offsets), "GpuSlice cudaFree d_row_offsets failed", __FILE__, __LINE__);
+        if (directed == 1)
+          if (d_row_indices) util::B40CPerror(cudaFree(d_row_indices), "GpuSlice cudaFree d_row_indices failed", __FILE__, __LINE__);
+        if (directed == 1)
+          if (d_column_offsets) util::B40CPerror(cudaFree(d_column_offsets), "GpuSlice cudaFree d_column_offsets failed", __FILE__, __LINE__);
         if (d_edge_values) util::B40CPerror(cudaFree(d_edge_values), "GpuSlice cudaFree d_edge_values", __FILE__, __LINE__);
         if (d_node_values) util::B40CPerror(cudaFree(d_node_values), "GpuSlice cudaFree d_node_values", __FILE__, __LINE__);
         if (d_visited_mask) util::B40CPerror(cudaFree(d_visited_mask), "GpuSlice cudaFree d_visited_mask failed", __FILE__, __LINE__);
@@ -332,7 +336,7 @@ namespace GASengine
 //              if (retval = util::B40CPerror(cudaGetDevice(&gpu), "CsrProblem cudaGetDevice failed", __FILE__, __LINE__)) break;
           if (retval = util::B40CPerror(cudaSetDevice(gpu), "CsrProblem cudaGetDevice failed", __FILE__, __LINE__)) break;
 //              printf("Running on device %d\n", device);
-          graph_slices.push_back(new GraphSlice(gpu, 0));
+          graph_slices.push_back(new GraphSlice(gpu, directed, 0));
           graph_slices[0]->nodes = nodes;
           graph_slices[0]->edges = edges;
 
@@ -492,159 +496,159 @@ namespace GASengine
           if (retval = util::B40CPerror(cudaThreadSynchronize(), "MemsetKernel failed", __FILE__, __LINE__)) return retval;
 
         }
-        else
+        else //TODO: multiple GPU
         {
-
-          // Create multiple GPU graph slices
-          for (int gpu = 0; gpu < num_gpus; gpu++)
-          {
-
-            // Set device
-            if (retval = util::B40CPerror(cudaSetDevice(gpu), "CsrProblem cudaSetDevice failed", __FILE__, __LINE__)) break;
-
-            // Create stream
-            cudaStream_t stream;
-            if (retval = util::B40CPerror(cudaStreamCreate(&stream), "CsrProblem cudaStreamCreate failed", __FILE__, __LINE__)) break;
-
-            // Create slice
-            graph_slices.push_back(new GraphSlice(gpu, stream));
-          }
-          if (retval) break;
-
-          // Count up nodes and edges for each gpu
-          for (VertexId node = 0; node < nodes; node++)
-          {
-            int gpu = GpuIndex(node);
-            graph_slices[gpu]->nodes++;
-            graph_slices[gpu]->edges += h_row_offsets[node + 1] - h_row_offsets[node];
-          }
-
-          // Allocate data structures for gpu on host
-          VertexId **slice_vertex_ids = new VertexId*[num_gpus];
-          SizeT **slice_row_offsets = new SizeT*[num_gpus];
-          VertexId **slice_column_indices = new VertexId*[num_gpus];
-          EValue **slice_edge_values = new EValue*[num_gpus];
-          EValue **slice_node_values = new EValue*[num_gpus];
-          for (int gpu = 0; gpu < num_gpus; gpu++)
-          {
-
-            printf("GPU %d gets %lld vertices and %lld edges\n", gpu, (long long) graph_slices[gpu]->nodes, (long long) graph_slices[gpu]->edges);
-            fflush (stdout);
-
-            slice_row_offsets[gpu] = new SizeT[graph_slices[gpu]->nodes + 1];
-            slice_row_offsets[gpu][0] = 0;
-
-            slice_vertex_ids[gpu] = new VertexId[graph_slices[gpu]->nodes];
-            slice_column_indices[gpu] = new VertexId[graph_slices[gpu]->edges];
-            slice_edge_values[gpu] = new EValue[graph_slices[gpu]->edges];
-            slice_node_values[gpu] = new EValue[graph_slices[gpu]->nodes];
-
-            // Reset for construction
-            graph_slices[gpu]->edges = 0;
-          }
-
-          printf("Done allocating gpu data structures on host\n");
-          fflush (stdout);
-
-          // Construct data structures for gpus on host
-          for (VertexId node = 0; node < nodes; node++)
-          {
-
-            int gpu = GpuIndex(node);
-            VertexId slice_row = GraphSliceRow(node);
-            SizeT row_edges = h_row_offsets[node + 1] - h_row_offsets[node];
-
-            memcpy(slice_column_indices[gpu] + slice_row_offsets[gpu][slice_row], h_column_indices + h_row_offsets[node], row_edges * sizeof(VertexId));
-
-            memcpy(slice_vertex_ids[gpu] + slice_row_offsets[gpu][slice_row], h_vertex_ids + h_row_offsets[node], row_edges * sizeof(VertexId));
-
-            if (WITH_VALUE)
-            {
-              memcpy(slice_edge_values[gpu] + slice_row_offsets[gpu][slice_row], h_edge_values + h_row_offsets[node], row_edges * sizeof(EValue));
-              slice_node_values[gpu][slice_row] = h_node_values[node];
-            }
-
-            graph_slices[gpu]->edges += row_edges;
-            slice_row_offsets[gpu][slice_row + 1] = graph_slices[gpu]->edges;
-
-            // Mask in owning gpu
-            for (int edge = 0; edge < row_edges; edge++)
-            {
-              VertexId *ptr = slice_column_indices[gpu] + slice_row_offsets[gpu][slice_row] + edge;
-              VertexId owner = GpuIndex(*ptr);
-              (*ptr) |= (owner << ProblemType::GPU_MASK_SHIFT);
-            }
-          }
-
-          printf("Done constructing gpu data structures on host\n");
-          fflush(stdout);
-
-          // Initialize data structures on GPU
-          for (int gpu = 0; gpu < num_gpus; gpu++)
-          {
-
-            // Set device
-            if (util::B40CPerror(cudaSetDevice(graph_slices[gpu]->gpu), "CsrProblem cudaSetDevice failed", __FILE__, __LINE__)) break;
-
-            // Allocate and initialize d_row_offsets: copy and adjust by gpu offset
-
-            printf("GPU %d row_offsets: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) (graph_slices[gpu]->nodes + 1),
-                (unsigned long long) (graph_slices[gpu]->nodes + 1) * sizeof(SizeT));
-
-            if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_row_offsets, (graph_slices[gpu]->nodes + 1) * sizeof(SizeT)), "CsrProblem cudaMalloc d_row_offsets failed",
-                __FILE__, __LINE__)) break;
-
-            if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_node_values, (graph_slices[gpu]->nodes + 1) * sizeof(EValue)), "CsrProblem cudaMalloc d_row_offsets failed",
-                __FILE__, __LINE__)) break;
-
-            if (retval = util::B40CPerror(cudaMemcpy(graph_slices[gpu]->d_row_offsets, slice_row_offsets[gpu], (graph_slices[gpu]->nodes + 1) * sizeof(SizeT), cudaMemcpyHostToDevice),
-                "CsrProblem cudaMemcpy d_row_offsets failed", __FILE__, __LINE__)) break;
-
-            // Allocate and initialize d_column_indices
-
-            printf("GPU %d column_indices: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) (graph_slices[gpu]->edges),
-                (unsigned long long) (graph_slices[gpu]->edges * sizeof(VertexId) * sizeof(SizeT)));
-
-            if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_column_indices, graph_slices[gpu]->edges * sizeof(VertexId)), "CsrProblem cudaMalloc d_column_indices failed",
-                __FILE__, __LINE__)) break;
-
-            if (retval = util::B40CPerror(cudaMemcpy(graph_slices[gpu]->d_column_indices, slice_column_indices[gpu], graph_slices[gpu]->edges * sizeof(VertexId), cudaMemcpyHostToDevice),
-                "CsrProblem cudaMemcpy d_column_indices failed", __FILE__, __LINE__)) break;
-
-            if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_vertex_ids, graph_slices[gpu]->edges * sizeof(VertexId)), "CsrProblem cudaMalloc d_vertex_ids failed", __FILE__,
-                __LINE__)) break;
-
-            if (retval = util::B40CPerror(cudaMemcpy(graph_slices[gpu]->d_vertex_ids, slice_vertex_ids[gpu], graph_slices[gpu]->nodes * sizeof(VertexId), cudaMemcpyHostToDevice),
-                "CsrProblem cudaMemcpy dverte_ids failed", __FILE__, __LINE__)) break;
-
-            // Allocate and initialize d_edge_values
-            if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_edge_values, graph_slices[gpu]->edges * sizeof(VertexId)), "CsrProblem cudaMalloc d_edge_values failed",
-                __FILE__, __LINE__)) break;
-
-            if (WITH_VALUE)
-            {
-              if (retval = util::B40CPerror(cudaMemcpy(graph_slices[gpu]->d_edge_values, slice_edge_values[gpu], graph_slices[gpu]->edges * sizeof(EValue), cudaMemcpyHostToDevice),
-                  "CsrProblem cudaMemcpy d_edge_values failed", __FILE__, __LINE__)) break;
-              if (retval = util::B40CPerror(cudaMemcpy(graph_slices[gpu]->d_node_values, slice_node_values[gpu], graph_slices[gpu]->nodes * sizeof(EValue), cudaMemcpyHostToDevice),
-                  "CsrProblem cudaMemcpy d_node_values failed", __FILE__, __LINE__)) break;
-            }
-            // Cleanup host construction arrays
-            if (slice_row_offsets[gpu]) delete slice_row_offsets[gpu];
-            if (slice_vertex_ids[gpu]) delete slice_vertex_ids[gpu];
-            if (slice_column_indices[gpu]) delete slice_column_indices[gpu];
-            if (slice_edge_values[gpu]) delete slice_edge_values[gpu];
-            if (slice_node_values[gpu]) delete slice_node_values[gpu];
-          }
-          if (retval) break;
-
-          printf("Done initializing gpu data structures on gpus\n");
-          fflush(stdout);
-
-          if (slice_row_offsets) delete slice_row_offsets;
-          if (slice_vertex_ids) delete slice_vertex_ids;
-          if (slice_column_indices) delete slice_column_indices;
-          if (slice_edge_values) delete slice_edge_values;
-          if (slice_node_values) delete slice_node_values;
+//
+//          // Create multiple GPU graph slices
+//          for (int gpu = 0; gpu < num_gpus; gpu++)
+//          {
+//
+//            // Set device
+//            if (retval = util::B40CPerror(cudaSetDevice(gpu), "CsrProblem cudaSetDevice failed", __FILE__, __LINE__)) break;
+//
+//            // Create stream
+//            cudaStream_t stream;
+//            if (retval = util::B40CPerror(cudaStreamCreate(&stream), "CsrProblem cudaStreamCreate failed", __FILE__, __LINE__)) break;
+//
+//            // Create slice
+//            graph_slices.push_back(new GraphSlice(gpu, directed, stream));
+//          }
+//          if (retval) break;
+//
+//          // Count up nodes and edges for each gpu
+//          for (VertexId node = 0; node < nodes; node++)
+//          {
+//            int gpu = GpuIndex(node);
+//            graph_slices[gpu]->nodes++;
+//            graph_slices[gpu]->edges += h_row_offsets[node + 1] - h_row_offsets[node];
+//          }
+//
+//          // Allocate data structures for gpu on host
+//          VertexId **slice_vertex_ids = new VertexId*[num_gpus];
+//          SizeT **slice_row_offsets = new SizeT*[num_gpus];
+//          VertexId **slice_column_indices = new VertexId*[num_gpus];
+//          EValue **slice_edge_values = new EValue*[num_gpus];
+//          EValue **slice_node_values = new EValue*[num_gpus];
+//          for (int gpu = 0; gpu < num_gpus; gpu++)
+//          {
+//
+//            printf("GPU %d gets %lld vertices and %lld edges\n", gpu, (long long) graph_slices[gpu]->nodes, (long long) graph_slices[gpu]->edges);
+//            fflush (stdout);
+//
+//            slice_row_offsets[gpu] = new SizeT[graph_slices[gpu]->nodes + 1];
+//            slice_row_offsets[gpu][0] = 0;
+//
+//            slice_vertex_ids[gpu] = new VertexId[graph_slices[gpu]->nodes];
+//            slice_column_indices[gpu] = new VertexId[graph_slices[gpu]->edges];
+//            slice_edge_values[gpu] = new EValue[graph_slices[gpu]->edges];
+//            slice_node_values[gpu] = new EValue[graph_slices[gpu]->nodes];
+//
+//            // Reset for construction
+//            graph_slices[gpu]->edges = 0;
+//          }
+//
+//          printf("Done allocating gpu data structures on host\n");
+//          fflush (stdout);
+//
+//          // Construct data structures for gpus on host
+//          for (VertexId node = 0; node < nodes; node++)
+//          {
+//
+//            int gpu = GpuIndex(node);
+//            VertexId slice_row = GraphSliceRow(node);
+//            SizeT row_edges = h_row_offsets[node + 1] - h_row_offsets[node];
+//
+//            memcpy(slice_column_indices[gpu] + slice_row_offsets[gpu][slice_row], h_column_indices + h_row_offsets[node], row_edges * sizeof(VertexId));
+//
+//            memcpy(slice_vertex_ids[gpu] + slice_row_offsets[gpu][slice_row], h_vertex_ids + h_row_offsets[node], row_edges * sizeof(VertexId));
+//
+//            if (WITH_VALUE)
+//            {
+//              memcpy(slice_edge_values[gpu] + slice_row_offsets[gpu][slice_row], h_edge_values + h_row_offsets[node], row_edges * sizeof(EValue));
+//              slice_node_values[gpu][slice_row] = h_node_values[node];
+//            }
+//
+//            graph_slices[gpu]->edges += row_edges;
+//            slice_row_offsets[gpu][slice_row + 1] = graph_slices[gpu]->edges;
+//
+//            // Mask in owning gpu
+//            for (int edge = 0; edge < row_edges; edge++)
+//            {
+//              VertexId *ptr = slice_column_indices[gpu] + slice_row_offsets[gpu][slice_row] + edge;
+//              VertexId owner = GpuIndex(*ptr);
+//              (*ptr) |= (owner << ProblemType::GPU_MASK_SHIFT);
+//            }
+//          }
+//
+//          printf("Done constructing gpu data structures on host\n");
+//          fflush(stdout);
+//
+//          // Initialize data structures on GPU
+//          for (int gpu = 0; gpu < num_gpus; gpu++)
+//          {
+//
+//            // Set device
+//            if (util::B40CPerror(cudaSetDevice(graph_slices[gpu]->gpu), "CsrProblem cudaSetDevice failed", __FILE__, __LINE__)) break;
+//
+//            // Allocate and initialize d_row_offsets: copy and adjust by gpu offset
+//
+//            printf("GPU %d row_offsets: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) (graph_slices[gpu]->nodes + 1),
+//                (unsigned long long) (graph_slices[gpu]->nodes + 1) * sizeof(SizeT));
+//
+//            if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_row_offsets, (graph_slices[gpu]->nodes + 1) * sizeof(SizeT)), "CsrProblem cudaMalloc d_row_offsets failed",
+//                __FILE__, __LINE__)) break;
+//
+//            if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_node_values, (graph_slices[gpu]->nodes + 1) * sizeof(EValue)), "CsrProblem cudaMalloc d_row_offsets failed",
+//                __FILE__, __LINE__)) break;
+//
+//            if (retval = util::B40CPerror(cudaMemcpy(graph_slices[gpu]->d_row_offsets, slice_row_offsets[gpu], (graph_slices[gpu]->nodes + 1) * sizeof(SizeT), cudaMemcpyHostToDevice),
+//                "CsrProblem cudaMemcpy d_row_offsets failed", __FILE__, __LINE__)) break;
+//
+//            // Allocate and initialize d_column_indices
+//
+//            printf("GPU %d column_indices: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) (graph_slices[gpu]->edges),
+//                (unsigned long long) (graph_slices[gpu]->edges * sizeof(VertexId) * sizeof(SizeT)));
+//
+//            if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_column_indices, graph_slices[gpu]->edges * sizeof(VertexId)), "CsrProblem cudaMalloc d_column_indices failed",
+//                __FILE__, __LINE__)) break;
+//
+//            if (retval = util::B40CPerror(cudaMemcpy(graph_slices[gpu]->d_column_indices, slice_column_indices[gpu], graph_slices[gpu]->edges * sizeof(VertexId), cudaMemcpyHostToDevice),
+//                "CsrProblem cudaMemcpy d_column_indices failed", __FILE__, __LINE__)) break;
+//
+//            if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_vertex_ids, graph_slices[gpu]->edges * sizeof(VertexId)), "CsrProblem cudaMalloc d_vertex_ids failed", __FILE__,
+//                __LINE__)) break;
+//
+//            if (retval = util::B40CPerror(cudaMemcpy(graph_slices[gpu]->d_vertex_ids, slice_vertex_ids[gpu], graph_slices[gpu]->nodes * sizeof(VertexId), cudaMemcpyHostToDevice),
+//                "CsrProblem cudaMemcpy dverte_ids failed", __FILE__, __LINE__)) break;
+//
+//            // Allocate and initialize d_edge_values
+//            if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_edge_values, graph_slices[gpu]->edges * sizeof(VertexId)), "CsrProblem cudaMalloc d_edge_values failed",
+//                __FILE__, __LINE__)) break;
+//
+//            if (WITH_VALUE)
+//            {
+//              if (retval = util::B40CPerror(cudaMemcpy(graph_slices[gpu]->d_edge_values, slice_edge_values[gpu], graph_slices[gpu]->edges * sizeof(EValue), cudaMemcpyHostToDevice),
+//                  "CsrProblem cudaMemcpy d_edge_values failed", __FILE__, __LINE__)) break;
+//              if (retval = util::B40CPerror(cudaMemcpy(graph_slices[gpu]->d_node_values, slice_node_values[gpu], graph_slices[gpu]->nodes * sizeof(EValue), cudaMemcpyHostToDevice),
+//                  "CsrProblem cudaMemcpy d_node_values failed", __FILE__, __LINE__)) break;
+//            }
+//            // Cleanup host construction arrays
+//            if (slice_row_offsets[gpu]) delete slice_row_offsets[gpu];
+//            if (slice_vertex_ids[gpu]) delete slice_vertex_ids[gpu];
+//            if (slice_column_indices[gpu]) delete slice_column_indices[gpu];
+//            if (slice_edge_values[gpu]) delete slice_edge_values[gpu];
+//            if (slice_node_values[gpu]) delete slice_node_values[gpu];
+//          }
+//          if (retval) break;
+//
+//          printf("Done initializing gpu data structures on gpus\n");
+//          fflush(stdout);
+//
+//          if (slice_row_offsets) delete slice_row_offsets;
+//          if (slice_vertex_ids) delete slice_vertex_ids;
+//          if (slice_column_indices) delete slice_column_indices;
+//          if (slice_edge_values) delete slice_edge_values;
+//          if (slice_node_values) delete slice_node_values;
         }
 
       }
@@ -779,9 +783,9 @@ namespace GASengine
         }
 
         //only 1 sourc is allowed now
-        int srcs[1] = { src };
+
         _Program::Initialize(graph_slices[gpu]->nodes, graph_slices[gpu]->edges, 1,
-            srcs, graph_slices[gpu]->d_row_offsets, graph_slices[gpu]->d_column_indices, graph_slices[gpu]->d_column_offsets, graph_slices[gpu]->d_row_indices,
+            graph_slices[gpu]->srcs, graph_slices[gpu]->d_row_offsets, graph_slices[gpu]->d_column_indices, graph_slices[gpu]->d_column_offsets, graph_slices[gpu]->d_row_indices,
             graph_slices[gpu]->d_edge_values,
             graph_slices[gpu]->vertex_list, graph_slices[gpu]->edge_list,
             graph_slices[gpu]->frontier_queues.d_keys,

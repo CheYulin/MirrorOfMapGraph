@@ -185,7 +185,8 @@ void correctTest(int nodes, int* reference_labels, int* h_labels)
 void printUsageAndExit(char *algo_name)
 {
   std::cout
-      << "Usage: "<< algo_name << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-BFS \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
+      << "Usage: " << algo_name
+      << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-BFS \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
   std::cout << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
   std::cout << "     -output or -o specify file for output result\n";
@@ -268,6 +269,7 @@ int main(int argc, char **argv)
 
   int directed = cfg.getParameter<int>("directed");
 
+
   if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
       !directed) != 0)
     exit(1);
@@ -275,14 +277,17 @@ int main(int argc, char **argv)
 //  csr_graph.DisplayGraph();
 
   bool cudaEnabled = cudaInit(cfg.getParameter<int>("device"));
-  VertexId* reference_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
-  if (strcmp(source_file_name, "") == 0)//Do correctness test only with single starting vertex
+  VertexId* reference_labels;
+
+  int run_CPU = cfg.getParameter<int>("run_CPU");
+  if (strcmp(source_file_name, "") == 0 && run_CPU) //Do correctness test only with single starting vertex
   {
+    reference_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
     int test_iteration = 1;
     int src = cfg.getParameter<int>("src");
     int origin = cfg.getParameter<int>("origin");
 
-    if(origin == 1)
+    if (origin == 1)
       src--;
 
     CPUBFS(
@@ -324,8 +329,11 @@ int main(int argc, char **argv)
   Value* h_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
   csr_problem.ExtractResults(h_values);
 
-  if (strcmp(source_file_name, "") == 0)
+  if (strcmp(source_file_name, "") == 0 && run_CPU)
+  {
     correctTest(csr_graph.nodes, reference_labels, h_values);
+    free(reference_labels);
+  }
 
   if (outFileName)
   {

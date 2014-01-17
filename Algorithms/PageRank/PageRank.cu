@@ -169,21 +169,21 @@ void printUsageAndExit(char* algo_name)
 template<typename Value, typename SizeT>
 Value l2norm(Value* v1, Value* v2, SizeT n)
 {
-    Value result = 0.0;
-    for(unsigned int i = 0; i < n; ++i)
-        result += (v1[i]-v2[i]) * (v1[i]-v2[i]);
+  Value result = 0.0;
+  for (unsigned int i = 0; i < n; ++i)
+    result += (v1[i] - v2[i]) * (v1[i] - v2[i]);
 
-    return sqrt(result);
+  return sqrt(result);
 }
 
 template<typename Value, typename SizeT>
 Value l2norm(Value* v, SizeT n)
 {
-    Value result = 0.0;
-    for(unsigned int i = 0; i < n; ++i)
-        result += v[i] * v[i];
+  Value result = 0.0;
+  for (unsigned int i = 0; i < n; ++i)
+    result += v[i] * v[i];
 
-    return sqrt(result);
+  return sqrt(result);
 }
 
 int main(int argc, char **argv)
@@ -255,9 +255,14 @@ int main(int argc, char **argv)
       !directed) != 0)
     return 1;
 
-  Value* reference_dists = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
+  Value* reference_dists;
 
-  CPUPR(csr_graph, reference_dists);
+  int run_CPU = cfg.getParameter<int>("run_CPU");
+  if (run_CPU)
+  {
+    reference_dists = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
+    CPUPR(csr_graph, reference_dists);
+  }
 
 // Allocate problem on GPU
   int num_gpus = 1;
@@ -286,13 +291,17 @@ int main(int argc, char **argv)
   Value* h_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
   csr_problem.ExtractResults(h_values);
 
-  double tol = cfg.getParameter<double>("tol");
-  printf("Correctness testing ... ");
-  Value l2error = l2norm(reference_dists, h_values, csr_graph.nodes) / l2norm(reference_dists, csr_graph.nodes);// / sqrt((Value)csr_graph.nodes);
-  if( l2error < tol)
-    printf("passed! l2 error = %f\n", l2error);
-  else
-    printf("failed! l2 error = %f\n", l2error);
+  if (run_CPU)
+  {
+    double tol = cfg.getParameter<double>("tol");
+    printf("Correctness testing ... ");
+    Value l2error = l2norm(reference_dists, h_values, csr_graph.nodes) / l2norm(reference_dists, csr_graph.nodes); // / sqrt((Value)csr_graph.nodes);
+    if (l2error < tol)
+      printf("passed! l2 error = %f\n", l2error);
+    else
+      printf("failed! l2 error = %f\n", l2error);
+    free(reference_dists);
+  }
 
   if (outFileName)
   {

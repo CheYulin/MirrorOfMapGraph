@@ -275,9 +275,12 @@ int main(int argc, char **argv)
       !directed) != 0)
     return 1;
 
-  VertexId* reference_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
-  if (strcmp(source_file_name, "") == 0) //Do correctness test only with single starting vertex
+  int run_CPU = cfg.getParameter<int>("run_CPU");
+
+  VertexId* reference_dists;
+  if (strcmp(source_file_name, "") == 0 && run_CPU) //Do correctness test only with single starting vertex
   {
+    reference_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
     int src = cfg.getParameter<int>("src");
     int origin = cfg.getParameter<int>("origin");
 
@@ -324,8 +327,11 @@ int main(int argc, char **argv)
   Value* h_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
   csr_problem.ExtractResults(h_values);
 
-  if (strcmp(source_file_name, "") == 0)
+  if (strcmp(source_file_name, "") == 0  && run_CPU)
+  {
     correctTest(csr_graph.nodes, reference_dists, h_values);
+    free(reference_dists);
+  }
 
   if (outFileName)
   {

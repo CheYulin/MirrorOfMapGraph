@@ -166,7 +166,8 @@ void CPUCC(CsrGraph<VertexId, Value, SizeT> const &graph, Value* dist)
 void printUsageAndExit(char* algo_name)
 {
   std::cout
-      << "Usage: " << algo_name << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-CC \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
+      << "Usage: " << algo_name
+      << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-CC \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
   std::cout << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
   std::cout << "     -output or -o specify file for output result\n";
@@ -255,10 +256,12 @@ int main(int argc, char **argv)
       !directed) != 0)
     return 1;
 
-  VertexId* reference_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
-
-  CPUCC(csr_graph, reference_dists);
-
+  VertexId* reference_dists;
+  if (run_CPU)
+  {
+    reference_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
+    CPUCC(csr_graph, reference_dists);
+  }
 // Allocate problem on GPU
   int num_gpus = 1;
   typedef GASengine::CsrProblem<cc, VertexId, SizeT, Value,
@@ -287,7 +290,12 @@ int main(int argc, char **argv)
   Value* h_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
   csr_problem.ExtractResults(h_values);
 
-  correctTest(csr_graph.nodes, reference_dists, h_values);
+  int run_CPU = cfg.getParameter<int>("run_CPU");
+  if (run_CPU)
+  {
+    correctTest(csr_graph.nodes, reference_dists, h_values);
+    free(reference_dists);
+  }
 
   if (outFileName)
   {
