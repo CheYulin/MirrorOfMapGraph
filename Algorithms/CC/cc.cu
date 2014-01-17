@@ -257,6 +257,7 @@ int main(int argc, char **argv)
     return 1;
 
   VertexId* reference_dists;
+  int run_CPU = cfg.getParameter<int>("run_CPU");
   if (run_CPU)
   {
     reference_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
@@ -290,7 +291,6 @@ int main(int argc, char **argv)
   Value* h_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
   csr_problem.ExtractResults(h_values);
 
-  int run_CPU = cfg.getParameter<int>("run_CPU");
   if (run_CPU)
   {
     correctTest(csr_graph.nodes, reference_dists, h_values);
