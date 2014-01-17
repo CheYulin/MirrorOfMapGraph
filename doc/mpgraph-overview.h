@@ -49,7 +49,9 @@ href="https://sourceforge.net/p/mpgraph/mailman/" >MPGraph mailing
 lists</a> or file a <a
 href="https://sourceforge.net/p/mpgraph/tickets/" >ticket</a>.  To
 inquire about commercial support, please email us at
-licenses@bigdata.com.
+licenses@bigdata.com.  You can follow MPGraph and the bigdata graph
+database platform at <a href="http://www.bigdata.com/blog"
+>http://www.bigdata.com/blog</a>.
 
 This work was (partially) funded by the DARPA XDATA program under AFRL
 <tt>Contract #FA8750-13-C-0002</tt>.
