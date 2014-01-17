@@ -34,8 +34,25 @@ billion traversed edges per second on a single GPU.
 
 - Partitioned graphs and Multi-GPU support will be in a future release.
 
+MPGraph is under the <a
+href="http://www.apache.org/licenses/LICENSE-2.0.html" > Apache 2
+license</a>.  You can download MPGraph from <a
+href="http://sourceforge.net/projects/mpgraph/" >
+http://sourceforge.net/projects/mpgraph/ </a>. For the lastest version
+of this documentation, see <a
+href="http://www.systap.com/mpgraph/api/html/index.html">
+http://www.systap.com/mpgraph/api/html/index.html </a>.  You can
+subscribe to receive notice for future updates on the <a
+href="http://sourceforge.net/projects/mpgraph/" >project home
+page</a>.  For open source support, please ask a question on the <a
+href="https://sourceforge.net/p/mpgraph/mailman/" >MPGraph mailing
+lists</a> or file a <a
+href="https://sourceforge.net/p/mpgraph/tickets/" >ticket</a>.  To
+inquire about commercial support, please email us at
+licenses@bigdata.com.
+
 This work was (partially) funded by the DARPA XDATA program under AFRL
-Contract #FA8750-13-C-0002.
+<tt>Contract #FA8750-13-C-0002</tt>.
 
 \subsection performance MPGraph vs Many-Core CPUs
 
