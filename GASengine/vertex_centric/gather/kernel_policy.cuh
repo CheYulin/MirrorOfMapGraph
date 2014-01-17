@@ -44,19 +44,6 @@ namespace GASengine
   {
     namespace gather
     {
-
-      /**
-       * Kernel configuration policy for BFS frontier contraction kernels.
-       *
-       * Parameterizations of this type encapsulate our kernel-tuning parameters
-       * (i.e., they are reflected via the static fields).
-       *
-       * Kernels can be specialized for problem-type, SM-version, etc. by parameterizing
-       * them with different performance-tuned parameterizations of this type.  By
-       * incorporating this type into the kernel code itself, we guide the compiler in
-       * expanding/unrolling the kernel code for specific architectures and problem
-       * types.
-       */
       template<
           typename Program,
           // ProblemType type parameters

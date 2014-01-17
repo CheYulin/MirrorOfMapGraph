@@ -64,6 +64,11 @@ struct bfs
         -1,
         nodes);
 
+    printf("Starting vertex: ");
+    for(int i=0; i<num_srcs; i++)
+      printf("%d ", srcs[i]);
+    printf("\n");
+
     if (b40c::util::B40CPerror(
         cudaMemcpy(d_frontier_keys[0], srcs, num_srcs * sizeof(int),
             cudaMemcpyHostToDevice),

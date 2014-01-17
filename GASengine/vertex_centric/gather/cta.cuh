@@ -1,28 +1,5 @@
 /******************************************************************************
- * 
- * Copyright 2010-2012 Duane Merrill
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License. 
- * 
- * For more information, see our Google Code project site: 
- * http://code.google.com/p/back40computing/
- * 
- * Thanks!
- * 
- ******************************************************************************/
-
-/******************************************************************************
- * CTA tile-processing abstraction for BFS frontier expansion
+ * CTA tile-processing abstraction for frontier expansion
  ******************************************************************************/
 
 #pragma once
@@ -49,7 +26,7 @@ namespace GASengine
     {
 
       /**
-       * CTA tile-processing abstraction for BFS frontier expansion
+       * CTA tile-processing abstraction for frontier expansion
        */
       template<typename SizeT>
       struct RowOffsetTex
@@ -72,7 +49,7 @@ namespace GASengine
 
         //CTA reduction
         template<typename T>
-        static __device__                                                                  __forceinline__ T CTAReduce(T* partial)
+        static __device__                                                                   __forceinline__ T CTAReduce(T* partial)
         {
           for (size_t s = KernelPolicy::THREADS / 2; s > 0; s >>= 1)
           {
@@ -84,7 +61,7 @@ namespace GASengine
         }
 
         template<typename T>
-        static __device__                                                                  __forceinline__ T CTAReduceMIN(T* partial)
+        static __device__                                                                   __forceinline__ T CTAReduceMIN(T* partial)
         {
           for (size_t s = KernelPolicy::THREADS / 2; s > 0; s >>= 1)
           {
@@ -96,7 +73,7 @@ namespace GASengine
 
         //Warp reduction
         template<typename T>
-        static __device__                                                                  __forceinline__ T WarpReduce(T* partial, size_t warp_id)
+        static __device__                                                                   __forceinline__ T WarpReduce(T* partial, size_t warp_id)
         {
           for (size_t s = B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) / 2; s > 0; s >>= 1)
           {
@@ -120,7 +97,7 @@ namespace GASengine
 //            }
         //Warp reduction
         template<typename T>
-        static __device__                                                                    __forceinline__ T WarpReduceMIN(T* partial, size_t warp_id)
+        static __device__                                                                     __forceinline__ T WarpReduceMIN(T* partial, size_t warp_id)
         {
           for (size_t s = B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) / 2; s > 0; s >>= 1)
           {
@@ -436,23 +413,6 @@ namespace GASengine
 
                     typename Program::gather_sum gather_sum_functor;
                     cta->smem_storage.gather_delta_values[threadIdx.x] = gather_sum_functor(cta->smem_storage.gather_delta_values[threadIdx.x], new_dist);
-//                        // Gather
-//                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + lane_id);
-//
-//                        // Scatter neighbor
-//                        //util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, cta->d_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
-//
-//                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(nb_dist, cta->d_dists + neighbor_id);
-////                        util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
-//                        new_dist = nb_dist + 1;
-//
-////                        printf("Gather_WARP465: bidx=%d, tidx=%d, vid=%d, neighbor_id=%d, nb_dist=%d, s_dist=%d, new_dist=%d\n", blockIdx.x, threadIdx.x, row_id, neighbor_id, nb_dist,
-////                            cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id], new_dist);
-//
-//                        cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id] = min(new_dist,cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id]);
-
-                    // Scatter predecessor
-                    //util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, cta->d_predecessor_out + cta->smem_storage.state.coarse_enqueue_offset + coop_rank);
 
                     coop_offset += B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH);
                     coop_rank += B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH);
@@ -532,10 +492,6 @@ namespace GASengine
                 while ((tile->row_progress[LOAD][VEC] < tile->row_length[LOAD][VEC]) /*&& (scratch_offset < SmemStorage::GATHER_ELEMENTS)*/)
                 {
 
-//                      // Put gather offset into scratch space
-////                      cta->smem_storage.gather_offsets[scratch_offset] = tile->row_offset[LOAD][VEC] + tile->row_progress[LOAD][VEC];
-//
-////                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + cta->smem_storage.gather_offsets[scratch_offset]);
                   util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + tile->row_offset[LOAD][VEC] + tile->row_progress[LOAD][VEC]);
 
                   typename Program::gather_edge gather_edge_functor;
@@ -543,16 +499,6 @@ namespace GASengine
 
                   typename Program::gather_sum gather_sum_functor;
                   dist = gather_sum_functor(dist, new_dist);
-
-                  ////                      int num_out_edge;
-////                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(num_out_edge, cta->d_num_out_edges + neighbor_id);
-//                      // Put dequeued vertex as the predecessor into scratch space
-//                      //cta->smem_storage.gather_predecessors[scratch_offset] = tile->vertex_id[LOAD][VEC];
-//                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(nb_dist, cta->d_dists + neighbor_id);
-//                      new_dist = nb_dist+1;
-//                      dist = min(new_dist, dist);
-
-//                      printf("Gather_SCAN603: bidx=%d, tidx=%d, vid=%d, neighbor_id=%d, nb_dist=%d, dist=%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], neighbor_id, nb_dist, dist);
 
                   tile->row_progress[LOAD][VEC]++;
 //                      scratch_offset++;
@@ -756,35 +702,6 @@ namespace GASengine
 
           SizeT coarse_count = totals.t0;
           tile.fine_count = totals.t1;
-//              if (threadIdx.x == 0)printf("Gather_processtile884: bidx=%d, tidx=%d, coarse_count=%d, fine_count=%d\n", blockIdx.x, threadIdx.x, coarse_count, tile.fine_count);
-
-          // Use a single atomic add to reserve room in the queue
-//              if (threadIdx.x == 0)
-//              {
-//
-//                SizeT enqueue_amt = coarse_count + tile.fine_count;
-////                SizeT enqueue_offset = work_progress.Enqueue(enqueue_amt, queue_index + 1);
-//                SizeT enqueue_offset = work_progress.Enqueue(enqueue_amt, 0);
-//
-//                smem_storage.state.coarse_enqueue_offset = enqueue_offset;
-//                smem_storage.state.fine_enqueue_offset = enqueue_offset + coarse_count;
-//
-//                // Check for queue overflow due to redundant expansion
-//                if (enqueue_offset + enqueue_amt >= max_edge_frontier)
-//                {
-//                  smem_storage.state.overflowed = true;
-//                  work_progress.SetOverflow<SizeT>();
-//                }
-//              }
-
-//              // Protect overflowed flag
-//              __syncthreads();
-//
-//              // Quit if overflow
-//              if (smem_storage.state.overflowed)
-//              {
-//                util::ThreadExit();
-//              }
 
           if (coarse_count > 0)
           {
@@ -804,35 +721,11 @@ namespace GASengine
           // frontier queue.
           //
 
-//              printf("ProcessTile875: bidx=%d, tidx=%d, vid[0][0]=%d, tile.row_progress[0][0]=%d\n", blockIdx.x, threadIdx.x, tile.vertex_id[0][0], tile.row_progress[0][0]);
-
           tile.progress = 0;
 //              while (tile.progress < tile.fine_count)
           {
             // Fill the scratch space with gather-offsets for neighbor-lists.
             tile.ExpandByScan(this);
-
-//                __syncthreads();
-//
-//                // Copy scratch space into queue
-//                int scratch_remainder = B40C_MIN(SmemStorage::GATHER_ELEMENTS, tile.fine_count - tile.progress);
-//
-//                for (int scratch_offset = threadIdx.x; scratch_offset < scratch_remainder; scratch_offset += KernelPolicy::THREADS)
-//                {
-//                  // Gather a neighbor
-//                  VertexId neighbor_id;
-//                  util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, d_column_indices + smem_storage.gather_offsets[scratch_offset]);
-//
-//                  // Scatter it into queue
-//                  util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(neighbor_id, d_out + smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset);
-//
-//                  // Scatter predecessor it into queue
-//                  VertexId predecessor_id = smem_storage.gather_predecessors[scratch_offset];
-//                  //VertexId predecessor_id = 1;
-//                  util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor_id, d_predecessor_out + smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset);
-//                }
-
-//                tile.progress += SmemStorage::GATHER_ELEMENTS;
 
 //                __syncthreads();
           }

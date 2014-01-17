@@ -1,26 +1,6 @@
-/******************************************************************************
- * Copyright 2010-2012 Duane Merrill
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License. 
- * 
- * For more information, see our Google Code project site: 
- * http://code.google.com/p/back40computing/
- * 
- * Thanks!
- ******************************************************************************/
 
 /******************************************************************************
- * Base BFS Search Enactor
+ * Base Search Enactor
  ******************************************************************************/
 
 #pragma once
@@ -32,19 +12,9 @@
 #include <GASengine/csr_problem.cuh>
 
 using namespace b40c;
-using namespace graph;
 
 namespace GASengine
 {
-
-  /**
-   * Base class for breadth-first-search enactors.
-   *
-   * A BFS search iteratively expands outwards from the given source node.  At
-   * each iteration, the algorithm discovers unvisited nodes that are adjacent
-   * to the nodes discovered by the previous iteration.  The first iteration
-   discovers the source node.
-   */
   class EnactorBase
   {
   protected:

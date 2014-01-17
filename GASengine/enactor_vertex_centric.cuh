@@ -1,26 +1,5 @@
 /******************************************************************************
- * Copyright 2010-2012 Duane Merrill
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License. 
- * 
- * For more information, see our Google Code project site: 
- * http://code.google.com/p/back40computing/
- * 
- * Thanks!
- ******************************************************************************/
-
-/******************************************************************************
- * BC enactor
+ * enactor
  ******************************************************************************/
 
 #pragma once
@@ -48,22 +27,11 @@
 #include <thrust/device_ptr.h>
 
 using namespace b40c;
-using namespace graph;
 
 using namespace std;
 
 namespace GASengine
 {
-
-  /**
-   * Vertex-centric BC enactor
-   *
-   * For each BFS iteration, visited/duplicate vertices are culled from
-   * the incoming edge-frontier in global memory.  The remaining vertices are
-   * compacted to a vertex-frontier in global memory.  Then these
-   * vertices are read back in and expanded to construct the outgoing
-   * edge-frontier in global memory.
-   */
   template<bool INSTRUMENT> // Whether or not to collect per-CTA clock-count statistics
   class EnactorVertexCentric: public EnactorBase
   {
@@ -86,12 +54,6 @@ namespace GASengine
     unsigned long long total_lifetimes; // Total time elapsed by each cta
     unsigned long long total_queued;
 
-    /**
-     * Throttle state.  We want the host to have an additional BFS iteration
-     * of kernel launches queued up for for pipeline efficiency (particularly on
-     * Windows), so we keep a pinned, mapped word that the traversal kernels will
-     * signal when done.
-     */
     volatile int *done;
     int *d_done;
     cudaEvent_t throttle_event;
@@ -227,42 +189,6 @@ namespace GASengine
                 "EnactorVertexCentric cudaBindTexture bitmask_tex_ref failed",
                 __FILE__, __LINE__))
           break;
-
-//            if (retval = util::B40CPerror(cudaBindTexture(0, vertex_centric::filter_atomic::BitmaskTex<VisitedMask>::ref, graph_slice->d_visited_mask, bitmask_desc, bytes),
-//                                          "EnactorVertexCentric cudaBindTexture bitmask_tex_ref failed", __FILE__, __LINE__)) break;
-
-//            // Bind row-offsets texture
-//            cudaChannelFormatDesc row_offsets_desc =
-//                cudaCreateChannelDesc<SizeT>();
-//            if (retval =
-//                util::B40CPerror(
-//                    cudaBindTexture(0,
-//                        vertex_centric::expand_atomic::RowOffsetTex<
-//                            SizeT>::ref,
-//                        graph_slice->d_row_offsets,
-//                        row_offsets_desc,
-//                        (graph_slice->nodes + 1) * sizeof(SizeT)),
-//                    "EnactorVertexCentric cudaBindTexture row_offset_tex_ref failed",
-//                    __FILE__, __LINE__))
-//              break;
-//
-//            if (retval =
-//                util::B40CPerror(
-//                    cudaBindTexture(0,
-//                        vertex_centric::backward_sum_atomic::RowOffsetTex<
-//                            SizeT>::ref,
-//                        graph_slice->d_row_offsets,
-//                        row_offsets_desc,
-//                        (graph_slice->nodes + 1) * sizeof(SizeT)),
-//                    "EnactorVertexCentric cudaBindTexture row_offset_tex_ref failed",
-//                    __FILE__, __LINE__))
-//              break;
-
-        // Bind column-offsets texture
-        //            if (retval = util::B40CPerror(
-        //                cudaBindTexture(0, vertex_centric::gather::RowOffsetTex<SizeT>::ref, graph_slice->d_column_offsets, row_offsets_desc, (graph_slice->nodes + 1) * sizeof(SizeT)),
-        //                "EnactorVertexCentric cudaBindTexture row_offset_tex_ref failed", __FILE__, __LINE__)) break;
-
       }
       while (0);
 
@@ -322,12 +248,6 @@ namespace GASengine
                                   0.0;
     }
 
-    /**
-     * Enacts a breadth-first-search on the specified graph problem. Invokes
-     * new expansion and contraction grid kernels for each BFS iteration.
-     *
-     * @return cudaSuccess on success, error enumeration otherwise
-     */
     template<typename ExpandPolicy, typename GatherPolicy,
         typename ContractPolicy, typename Program, typename CsrProblem>
     cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
@@ -345,8 +265,6 @@ namespace GASengine
       int expand_occupancy = ExpandPolicy::CTA_OCCUPANCY;
       int expand_grid_size = MaxGridSize(expand_occupancy);
 
-//          int filter_occupancy = FilterPolicy::CTA_OCCUPANCY;
-//          int filter_grid_size = MaxGridSize(filter_occupancy, max_grid_size);
 
       int gather_occupancy = GatherPolicy::CTA_OCCUPANCY;
       int gather_grid_size = MaxGridSize(gather_occupancy);
@@ -1046,12 +964,6 @@ namespace GASengine
       return retval;
     }
 
-    /**
-     * Enacts a breadth-first-search on the specified graph problem. Invokes
-     * new expansion and contraction grid kernels for each BFS iteration.
-     *
-     * @return cudaSuccess on success, error enumeration otherwise
-     */
     template<typename CsrProblem, typename Program>
     cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
         char* source_file_name, typename CsrProblem::SizeT* h_row_offsets, int directed)

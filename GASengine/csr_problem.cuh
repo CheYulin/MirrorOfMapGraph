@@ -1,26 +1,5 @@
 /******************************************************************************
- * Copyright 2010-2012 Duane Merrill
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License. 
- * 
- * For more information, see our Google Code project site: 
- * http://code.google.com/p/back40computing/
- * 
- * Thanks!
- ******************************************************************************/
-
-/******************************************************************************
- * GPU CSR storage management structure for BFS problem data
+ * GPU CSR storage management structure for problem data
  ******************************************************************************/
 
 #pragma once
@@ -37,7 +16,6 @@
 #include <vector>
 
 using namespace b40c;
-//using namespace graph;
 
 enum SrcVertex
 {
@@ -148,10 +126,6 @@ namespace GASengine
 
       VertexType vertex_list;
       EdgeType edge_list;
-
-      //          VertexType gather_list;
-//          VertexType gather_list_out;
-
       // Best-effort mask for keeping track of which vertices we've seen so far
       VisitedMask *d_visited_mask;
       SizeT *d_visit_flags; // Track if same vertex is being expanded inside the same frontier-queue
@@ -199,16 +173,10 @@ namespace GASengine
         if (d_vertex_ids) util::B40CPerror(cudaFree(d_vertex_ids), "GpuSlice cudaFree d_vertex_ids failed", __FILE__, __LINE__);
         if (d_column_indices) util::B40CPerror(cudaFree(d_column_indices), "GpuSlice cudaFree d_column_indices failed", __FILE__, __LINE__);
         if (d_row_offsets) util::B40CPerror(cudaFree(d_row_offsets), "GpuSlice cudaFree d_row_offsets failed", __FILE__, __LINE__);
-        if (d_row_indices) util::B40CPerror(cudaFree(d_column_indices), "GpuSlice cudaFree d_column_indices failed", __FILE__, __LINE__);
-        if (d_column_offsets) util::B40CPerror(cudaFree(d_row_offsets), "GpuSlice cudaFree d_row_offsets failed", __FILE__, __LINE__);
+        if (d_row_indices) util::B40CPerror(cudaFree(d_row_indices), "GpuSlice cudaFree d_column_indices failed", __FILE__, __LINE__);
+        if (d_column_offsets) util::B40CPerror(cudaFree(d_column_offsets), "GpuSlice cudaFree d_row_offsets failed", __FILE__, __LINE__);
         if (d_edge_values) util::B40CPerror(cudaFree(d_edge_values), "GpuSlice cudaFree d_edge_values", __FILE__, __LINE__);
         if (d_node_values) util::B40CPerror(cudaFree(d_node_values), "GpuSlice cudaFree d_node_values", __FILE__, __LINE__);
-//            if (d_labels) util::B40CPerror(cudaFree(d_labels), "GpuSlice cudaFree d_labels failed", __FILE__, __LINE__);
-//            if (d_preds) util::B40CPerror(cudaFree(d_preds), "GpuSlice cudaFree d_preds failed", __FILE__, __LINE__);
-//            if (d_sigmas) util::B40CPerror(cudaFree(d_sigmas), "GpuSlice cudaFree d_sigmas failed", __FILE__, __LINE__);
-//            if (d_deltas) util::B40CPerror(cudaFree(d_deltas), "GpuSlice cudaFree d_deltas failed", __FILE__, __LINE__);
-//            if (d_dists) util::B40CPerror(cudaFree(d_dists), "GpuSlice cudaFree d_dists failed", __FILE__, __LINE__);
-//            if (d_changed) util::B40CPerror(cudaFree(d_changed), "GpuSlice cudaFree d_changed failed", __FILE__, __LINE__);
         if (d_visited_mask) util::B40CPerror(cudaFree(d_visited_mask), "GpuSlice cudaFree d_visited_mask failed", __FILE__, __LINE__);
         if (d_filter_mask) util::B40CPerror(cudaFree(d_filter_mask), "GpuSlice cudaFree d_filter_mask failed", __FILE__, __LINE__);
         if (d_visit_flags) util::B40CPerror(cudaFree(d_visit_flags), "GpuSlice cudaFree d_visit_flags failed", __FILE__, __LINE__);
@@ -259,10 +227,10 @@ namespace GASengine
     virtual ~CsrProblem()
     {
       // Cleanup graph slices on the heap
-//          for (typename std::vector<GraphSlice*>::iterator itr = graph_slices.begin(); itr != graph_slices.end(); itr++)
-//          {
-//            if (*itr) delete (*itr);
-//          }
+      for (typename std::vector<GraphSlice*>::iterator itr = graph_slices.begin(); itr != graph_slices.end(); itr++)
+      {
+        if (*itr) delete (*itr);
+      }
     }
 
     /**
@@ -696,80 +664,13 @@ namespace GASengine
         int src) //starting vertex
     {
       cudaError_t retval = cudaSuccess;
-      printf("Starting vertex: %d\n", src);
+//      printf("Starting vertex: %d\n", src);
 
       for (int gpu = 0; gpu < num_gpus; gpu++)
       {
 
         // Set device
         if (retval = util::B40CPerror(cudaSetDevice(graph_slices[gpu]->gpu), "CsrProblem cudaSetDevice failed", __FILE__, __LINE__)) return retval;
-
-        //
-        // Allocate output labels, preds, sigmas and deltas if necessary
-        //
-//            typename Program::Initialize init_functor;
-//            _Program::Initialize(graph_slices[gpu]->nodes, graph_slices[gpu]->edges, graph_slices[gpu]->num_srcs, graph_slices[gpu]->srcs, graph_slices[gpu]->vertex_list, graph_slices[gpu]->frontier_queues.d_keys, graph_slices[gpu]->frontier_queues.d_values);
-//            graph_slices[gpu]->vertex_list.init(graph_slices[gpu]->nodes, graph_slices[gpu]->edges, graph_slices[gpu]->frontier_queues.d_keys);
-//            graph_slices[gpu]->gather_list.init();
-
-//            if (!graph_slices[gpu]->d_labels)
-//            {
-//
-//              printf("GPU %d labels: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) graph_slices[gpu]->nodes,
-//                  (unsigned long long) graph_slices[gpu]->nodes * sizeof(VertexId));
-//
-//              if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_labels, graph_slices[gpu]->nodes * sizeof(VertexId)), "CsrProblem cudaMalloc d_labels failed", __FILE__,
-//                  __LINE__)) return retval;
-//            }
-//
-//            if (!graph_slices[gpu]->d_preds)
-//            {
-//
-//              printf("GPU %d preds: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) graph_slices[gpu]->nodes,
-//                  (unsigned long long) graph_slices[gpu]->nodes * sizeof(VertexId));
-//
-//              if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_preds, graph_slices[gpu]->nodes * sizeof(VertexId)), "CsrProblem cudaMalloc d_preds failed", __FILE__, __LINE__))
-//                return retval;
-//            }
-//
-//            if (!graph_slices[gpu]->d_sigmas)
-//            {
-//
-//              printf("GPU %d sigmas: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) graph_slices[gpu]->nodes,
-//                  (unsigned long long) graph_slices[gpu]->nodes * sizeof(EValue));
-//
-//              if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_sigmas, graph_slices[gpu]->nodes * sizeof(EValue)), "CsrProblem cudaMalloc d_sigmas failed", __FILE__, __LINE__))
-//                return retval;
-//            }
-//
-//            if (!graph_slices[gpu]->d_deltas)
-//            {
-//
-//              printf("GPU %d labels: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) graph_slices[gpu]->nodes,
-//                  (unsigned long long) graph_slices[gpu]->nodes * sizeof(EValue));
-//
-//              if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_deltas, graph_slices[gpu]->nodes * sizeof(EValue)), "CsrProblem cudaMalloc d_deltas failed", __FILE__, __LINE__))
-//                return retval;
-//            }
-//
-//            if (!graph_slices[gpu]->d_dists)
-//            {
-//
-//              printf("GPU %d dists: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) graph_slices[gpu]->nodes, (unsigned long long) graph_slices[gpu]->nodes * sizeof(int));
-//
-//              if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_dists, graph_slices[gpu]->nodes * sizeof(int)), "CsrProblem cudaMalloc d_deltas failed", __FILE__, __LINE__))
-//                return retval;
-//            }
-//
-//            if (!graph_slices[gpu]->d_changed)
-//            {
-//
-//              printf("GPU %d changed: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) graph_slices[gpu]->nodes,
-//                  (unsigned long long) graph_slices[gpu]->nodes * sizeof(int));
-//
-//              if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_changed, graph_slices[gpu]->nodes * sizeof(int)), "CsrProblem cudaMalloc d_deltas failed", __FILE__, __LINE__))
-//                return retval;
-//            }
 
         //
         // Allocate visited masks for the entire graph if necessary
@@ -785,20 +686,6 @@ namespace GASengine
           if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_visited_mask, visited_mask_bytes), "CsrProblem cudaMalloc d_visited_mask failed", __FILE__, __LINE__))
             return retval;
         }
-
-//            //
-//            // Allocate visit flag for the entire graph if necessary
-//            //
-//
-//            if (!graph_slices[gpu]->d_visit_flags)
-//            {
-//              printf("GPU %d visit flag: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) graph_slices[gpu]->nodes,
-//                  (unsigned long long) graph_slices[gpu]->nodes * sizeof(SizeT));
-//
-//              if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_visit_flags, graph_slices[gpu]->nodes * sizeof(SizeT)), "CsrProblem cudaMalloc d_visit_flags failed", __FILE__,
-//                  __LINE__)) return retval;
-//
-//            }
 
         //
         // Allocate frontier queues if necessary
@@ -859,10 +746,6 @@ namespace GASengine
 
             graph_slices[gpu]->frontier_elements[i] = new_frontier_elements[i];
 
-//                printf("GPU %d frontier queue[%d] (queue-sizing factor %.2fx): %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, i, queue_sizing,
-//                    (unsigned long long) graph_slices[gpu]->frontier_elements[i], (unsigned long long) graph_slices[gpu]->frontier_elements[i] * sizeof(VertexId));
-//                fflush (stdout);
-
             if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->frontier_queues.d_keys[i], graph_slices[gpu]->frontier_elements[i] * sizeof(VertexId)),
                 "CsrProblem cudaMalloc frontier_queues.d_keys failed", __FILE__, __LINE__)) return retval;
           }
@@ -879,10 +762,6 @@ namespace GASengine
 
             graph_slices[gpu]->predecessor_elements[i] = new_predecessor_elements[i];
 
-//                printf("GPU %d predecessor queue[%d] (queue-sizing factor %.2fx): %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, i, queue_sizing,
-//                    (unsigned long long) graph_slices[gpu]->predecessor_elements[i], (unsigned long long) graph_slices[gpu]->predecessor_elements[i] * sizeof(VertexId));
-//                fflush (stdout);
-
             if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->frontier_queues.d_values[i], graph_slices[gpu]->predecessor_elements[i] * sizeof(MiscType)),
                 "CsrProblem cudaMalloc frontier_queues.d_values failed", __FILE__, __LINE__)) return retval;
           }
@@ -895,33 +774,9 @@ namespace GASengine
         if ((frontier_type == MULTI_GPU_FRONTIERS) && (!graph_slices[gpu]->d_filter_mask))
         {
 
-//              printf("GPU %d_filter_mask flags: %lld elements (%lld bytes)\n", graph_slices[gpu]->gpu, (unsigned long long) graph_slices[gpu]->frontier_elements[1],
-//                  (unsigned long long) graph_slices[gpu]->frontier_elements[1] * sizeof(ValidFlag));
-
           if (retval = util::B40CPerror(cudaMalloc((void**) &graph_slices[gpu]->d_filter_mask, graph_slices[gpu]->frontier_elements[1] * sizeof(ValidFlag)),
               "CsrProblem cudaMalloc d_filter_mask failed", __FILE__, __LINE__)) return retval;
         }
-
-        //
-        // Initialize labels and visited mask
-        //
-//            printf("num_srcs=%d, srcs[0]=%d\n", graph_slices[gpu]->num_srcs, graph_slices[gpu]->srcs[0]);
-
-//            if (_Program::srcVertex() == SINGLE)
-//            {
-//              graph_slices[gpu]->num_src = 1;
-//              graph_slices[gpu]->srcs = new int[1];
-//              graph_slices[gpu]->srcs[0] = src;
-//            }
-//            else if (_Program::srcVertex() == ALL)
-//            {
-//              graph_slices[gpu]->num_srcs = graph_slices[gpu]->nodes;
-//            }
-//            else
-//            {
-//              printf("Invalid srcVertex!\n");
-//              exit(0);
-//            }
 
         //only 1 sourc is allowed now
         int srcs[1] = { src };
@@ -935,36 +790,6 @@ namespace GASengine
         int memset_block_size = 256;
         int memset_grid_size_max = 32 * 1024;	// 32K CTAs
         int memset_grid_size;
-//
-////            graph_slices[gpu]->vertex_list.reset();
-////            graph_slices[gpu]->gather_list.reset();
-//
-//            // Initialize d_labels elements to -1
-//            memset_grid_size = B40C_MIN(memset_grid_size_max, (graph_slices[gpu]->nodes + memset_block_size - 1) / memset_block_size);
-//            util::MemsetKernel<VertexId><<<memset_grid_size, memset_block_size, 0, graph_slices[gpu]->stream>>>(
-//                graph_slices[gpu]->d_labels,
-//                -1,
-//                graph_slices[gpu]->nodes);
-//
-//            if (retval = util::B40CPerror(cudaThreadSynchronize(), "MemsetKernel failed", __FILE__, __LINE__)) return retval;
-//
-//            // Initialize d_dists elements to 1000000
-//            memset_grid_size = B40C_MIN(memset_grid_size_max, (graph_slices[gpu]->nodes + memset_block_size - 1) / memset_block_size);
-//            util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0, graph_slices[gpu]->stream>>>(
-//                graph_slices[gpu]->d_dists,
-//                100000000,
-//                graph_slices[gpu]->nodes);
-//
-//            if (retval = util::B40CPerror(cudaThreadSynchronize(), "MemsetKernel failed", __FILE__, __LINE__)) return retval;
-//
-//            // Initialize d_changed elements to 0
-//            memset_grid_size = B40C_MIN(memset_grid_size_max, (graph_slices[gpu]->nodes + memset_block_size - 1) / memset_block_size);
-//            util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0, graph_slices[gpu]->stream>>>(
-//                graph_slices[gpu]->d_changed,
-//                0,
-//                graph_slices[gpu]->nodes);
-//
-//            if (retval = util::B40CPerror(cudaThreadSynchronize(), "MemsetKernel failed", __FILE__, __LINE__)) return retval;
 
         // Initialize d_visited_mask elements to 0
         memset_grid_size = B40C_MIN(memset_grid_size_max, (visited_mask_elements + memset_block_size - 1) / memset_block_size);
@@ -973,43 +798,6 @@ namespace GASengine
         graph_slices[gpu]->stream>>>(graph_slices[gpu]->d_visited_mask, 0, visited_mask_elements);
 
         if (retval = util::B40CPerror(cudaThreadSynchronize(), "MemsetKernel failed", __FILE__, __LINE__)) return retval;
-
-//            // Initialize d_preds elements to -1
-//            memset_grid_size = B40C_MIN(memset_grid_size_max, (graph_slices[gpu]->nodes + memset_block_size - 1) / memset_block_size);
-//            util::MemsetKernel<VertexId><<<memset_grid_size, memset_block_size, 0, graph_slices[gpu]->stream>>>(
-//                graph_slices[gpu]->d_preds,
-//                -1,
-//                graph_slices[gpu]->nodes);
-//
-//            if (retval = util::B40CPerror(cudaThreadSynchronize(), "MemsetKernel failed", __FILE__, __LINE__)) return retval;
-//
-//            // Initialize d_sigmas elements to 0
-//            memset_grid_size = B40C_MIN(memset_grid_size_max, (graph_slices[gpu]->nodes + memset_block_size - 1) / memset_block_size);
-//            util::MemsetKernel<EValue><<<memset_grid_size, memset_block_size, 0, graph_slices[gpu]->stream>>>(
-//                graph_slices[gpu]->d_sigmas,
-//                0.0f,
-//                graph_slices[gpu]->nodes);
-//
-//            if (retval = util::B40CPerror(cudaThreadSynchronize(), "MemsetKernel failed", __FILE__, __LINE__)) return retval;
-//
-//            // Initialize d_deltas elements to 0
-//            memset_grid_size = B40C_MIN(memset_grid_size_max, (graph_slices[gpu]->nodes + memset_block_size - 1) / memset_block_size);
-//            util::MemsetKernel<EValue><<<memset_grid_size, memset_block_size, 0, graph_slices[gpu]->stream>>>(
-//                graph_slices[gpu]->d_deltas,
-//                0.0f,
-//                graph_slices[gpu]->nodes);
-//
-//            if (retval = util::B40CPerror(cudaThreadSynchronize(), "MemsetKernel failed", __FILE__, __LINE__)) return retval;
-//
-//            // Initialize d_visit_flags elements to 0
-//            memset_grid_size = B40C_MIN(memset_grid_size_max, (graph_slices[gpu]->nodes + memset_block_size - 1) / memset_block_size);
-//            util::MemsetKernel<SizeT><<<memset_grid_size, memset_block_size, 0, graph_slices[gpu]->stream>>>(
-//                graph_slices[gpu]->d_visit_flags,
-//                0,
-//                graph_slices[gpu]->nodes);
-//
-//            if (retval = util::B40CPerror(cudaThreadSynchronize(), "MemsetKernel failed", __FILE__, __LINE__)) return retval;
-
       }
 
       return retval;

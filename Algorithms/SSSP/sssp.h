@@ -131,6 +131,11 @@ struct sssp
         "CsrProblem cudaMemcpy edge d_weights failed", __FILE__, __LINE__))
       exit(0);
 
+    printf("Starting vertex: ");
+        for(int i=0; i<num_srcs; i++)
+          printf("%d ", srcs[i]);
+        printf("\n");
+
     int init_dists[1];
     init_dists[0] = 0;
 
