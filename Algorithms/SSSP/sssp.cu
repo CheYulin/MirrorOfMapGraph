@@ -44,7 +44,12 @@ using namespace b40c;
 using namespace graph;
 using namespace std;
 
-void cudaInit(int device)
+/**
+ * \brief Initialize the specified CUDA device.
+ *
+ * @param device The device number.
+ */
+void cudaInit(const int device)
 {
   int deviceCount = 0;
   cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
