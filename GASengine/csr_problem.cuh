@@ -61,7 +61,7 @@ namespace GASengine
   /**
    * CSR storage management structure for BFS problems.
    */
-  template<typename _Program, typename _VertexId, typename _SizeT, typename _EValue, bool MARK_PREDECESSORS, // Whether to mark predecessors (vs. mark distance from source)
+  template<typename Program, typename _VertexId, typename _SizeT, typename _EValue, bool MARK_PREDECESSORS, // Whether to mark predecessors (vs. mark distance from source)
       bool WITH_VALUE>
   // Whether to include edge/ndoe value computation with BFS
   struct CsrProblem
@@ -70,7 +70,7 @@ namespace GASengine
     // Typedefs and constants
     //---------------------------------------------------------------------
 
-    typedef ProblemType<_Program, // vertex type
+    typedef ProblemType<Program, // vertex type
         _VertexId,				// VertexId
         _SizeT,					// SizeT
         _EValue,				// Edge Value
@@ -80,14 +80,14 @@ namespace GASengine
         WITH_VALUE>             // WITH_VALUE
     ProblemType;
 
-    typedef typename ProblemType::Program::VertexType VertexType;
-    typedef typename ProblemType::Program::EdgeType EdgeType;
-    typedef typename ProblemType::Program::MiscType MiscType;
-    typedef typename ProblemType::VertexId VertexId;
-    typedef typename ProblemType::SizeT SizeT;
+    typedef typename Program::VertexType VertexType;
+    typedef typename Program::EdgeType EdgeType;
+    typedef typename Program::MiscType MiscType;
+    typedef typename Program::VertexId VertexId;
+    typedef typename Program::SizeT SizeT;
     typedef typename ProblemType::VisitedMask VisitedMask;
     typedef typename ProblemType::ValidFlag ValidFlag;
-    typedef typename ProblemType::Program::DataType EValue;
+    typedef typename Program::DataType EValue;
 
     //---------------------------------------------------------------------
     // Helper structures
@@ -151,7 +151,7 @@ namespace GASengine
        * Constructor
        */
       GraphSlice(int gpu, int directed, cudaStream_t stream) :
-          gpu(gpu), directed(directed), d_vertex_ids(NULL), d_column_indices(NULL), d_row_offsets(NULL), d_edge_values(NULL), d_node_values(NULL), d_labels(NULL), d_preds(NULL), d_sigmas(NULL), d_deltas(
+          gpu(gpu), directed(directed), d_vertex_ids(NULL), d_column_indices(NULL), d_row_offsets(NULL), d_row_indices(NULL), d_column_offsets(NULL), d_edge_values(NULL), d_node_values(NULL), d_labels(NULL), d_preds(NULL), d_sigmas(NULL), d_deltas(
               NULL), d_dists(
               NULL), d_changed(NULL), d_visited_mask(NULL), d_filter_mask(NULL), d_visit_flags(NULL), nodes(0), edges(0), stream(stream)
       {
@@ -176,9 +176,10 @@ namespace GASengine
         if (d_column_indices) util::B40CPerror(cudaFree(d_column_indices), "GpuSlice cudaFree d_column_indices failed", __FILE__, __LINE__);
         if (d_row_offsets) util::B40CPerror(cudaFree(d_row_offsets), "GpuSlice cudaFree d_row_offsets failed", __FILE__, __LINE__);
         if (directed == 1)
+        {
           if (d_row_indices) util::B40CPerror(cudaFree(d_row_indices), "GpuSlice cudaFree d_row_indices failed", __FILE__, __LINE__);
-        if (directed == 1)
           if (d_column_offsets) util::B40CPerror(cudaFree(d_column_offsets), "GpuSlice cudaFree d_column_offsets failed", __FILE__, __LINE__);
+        }
         if (d_edge_values) util::B40CPerror(cudaFree(d_edge_values), "GpuSlice cudaFree d_edge_values", __FILE__, __LINE__);
         if (d_node_values) util::B40CPerror(cudaFree(d_node_values), "GpuSlice cudaFree d_node_values", __FILE__, __LINE__);
         if (d_visited_mask) util::B40CPerror(cudaFree(d_visited_mask), "GpuSlice cudaFree d_visited_mask failed", __FILE__, __LINE__);
@@ -284,7 +285,7 @@ namespace GASengine
           // Set device
           if (util::B40CPerror(cudaSetDevice(graph_slices[0]->gpu), "CsrProblem cudaSetDevice failed", __FILE__, __LINE__)) break;
 
-          _Program::extractResult(graph_slices[0]->vertex_list, h_values);
+          Program::extractResult(graph_slices[0]->vertex_list, h_values);
 
         }
         else
@@ -301,7 +302,7 @@ namespace GASengine
     /**
      * Initialize from host CSR problem
      */
-    cudaError_t FromHostProblem(char* source_file_name, bool stream_from_host,		// Only meaningful for single-GPU BFS
+    cudaError_t FromHostProblem(bool stream_from_host,		// Only meaningful for single-GPU BFS
         SizeT nodes,
         SizeT edges,
         VertexId *h_column_indices,
@@ -313,7 +314,6 @@ namespace GASengine
         int num_gpus,
         int directed)
     {
-      printf("source_file_name2=%s\n", source_file_name);
       int device = cfg.getParameter<int>("device");
       cudaError_t retval = cudaSuccess;
       this->nodes = nodes;
@@ -336,90 +336,14 @@ namespace GASengine
 //              if (retval = util::B40CPerror(cudaGetDevice(&gpu), "CsrProblem cudaGetDevice failed", __FILE__, __LINE__)) break;
           if (retval = util::B40CPerror(cudaSetDevice(gpu), "CsrProblem cudaGetDevice failed", __FILE__, __LINE__)) break;
 //              printf("Running on device %d\n", device);
+          graph_slices.clear();
           graph_slices.push_back(new GraphSlice(gpu, directed, 0));
           graph_slices[0]->nodes = nodes;
           graph_slices[0]->edges = edges;
 
-          graph_slices[0]->num_src = 1;
-          graph_slices[0]->outer_iter_num = cfg.getParameter<int>("iter_num");
-
-          if (_Program::srcVertex() == SINGLE)
-          {
-            graph_slices[0]->init_num_elements = 1;
-            int src_node = cfg.getParameter<int>("src");
-            int origin = cfg.getParameter<int>("origin");
-            printf("origin: %d\n", origin);
-            const int max_src_num = 100;
-            printf("Using single starting vertex!\n");
-
-            if (strcmp(source_file_name, ""))
-            {
-              //TODO random sources
-              if (strcmp(source_file_name, "RANDOM") == 0)
-              {
-                printf("Using random starting vertices!\n");
-                graph_slices[0]->num_src = cfg.getParameter<int>("num_src");
-                graph_slices[0]->srcs = new int[graph_slices[0]->num_src];
-                printf("Using %d random starting vertices!\n", graph_slices[0]->num_src);
-                srand (time(NULL));
-                int count = 0;
-                while (count < graph_slices[0]->num_src)
-                {
-                  int tmp_src = rand() % graph_slices[0]->nodes;
-                  if (h_row_offsets[tmp_src + 1] - h_row_offsets[tmp_src] > 0)
-                  {
-                    graph_slices[0]->srcs[count++] = tmp_src;
-                  }
-                }
-
-              }
-              else
-              {
-                printf("Using source file: %s!\n", source_file_name);
-                FILE* src_file;
-                if ((src_file = fopen(source_file_name, "r")) == NULL)
-                {
-                  printf("Source file open error!\n");
-                  exit(0);
-                }
-
-                graph_slices[0]->srcs = new int[max_src_num];
-                for (graph_slices[0]->num_src = 0; graph_slices[0]->num_src < max_src_num; graph_slices[0]->num_src++)
-                {
-                  if ((fscanf(src_file, "%d\n", &graph_slices[0]->srcs[graph_slices[0]->num_src]) != EOF))
-                  {
-                    if (origin == 1)
-                      graph_slices[0]->srcs[graph_slices[0]->num_src]--; //0-based index
-                  }
-                  else
-                    break;
-                }
-              }
-
-            }
-            else
-            {
-              printf("Single source vertex!\n");
-              graph_slices[0]->num_src = 1;
-              graph_slices[0]->srcs = new int[1];
-              graph_slices[0]->srcs[0] = src_node;
-              if (origin == 1)
-                graph_slices[0]->srcs[0]--;
-            }
-          }
-
-          else if (_Program::srcVertex() == ALL)
-          {
-            graph_slices[0]->srcs = new int[1]; //dummy not used
-            graph_slices[0]->srcs[0] = -1; // dummy not used
-            graph_slices[0]->num_src = 1;
-            graph_slices[0]->init_num_elements = nodes;
-          }
-          else
-          {
-            printf("Invalid src vertex!\n");
-            exit(0);
-          }
+//          graph_slices[0]->num_src = num_srcs;
+//          graph_slices[0]->srcs = srcs;
+//          graph_slices[0]->init_num_elements = num_srcs;
 
           printf("GPU %d column_indices: %lld elements (%lld bytes)\n", graph_slices[0]->gpu, (unsigned long long) (graph_slices[0]->edges),
               (unsigned long long) (graph_slices[0]->edges * sizeof(VertexId) * sizeof(SizeT)));
@@ -664,8 +588,7 @@ namespace GASengine
      * prior to each search
      */
     cudaError_t Reset(FrontierType frontier_type,	// The frontier type (i.e., edge/vertex/mixed)
-        double queue_sizing,	// Size scaling factor for work queue allocation (e.g., 1.0 creates n-element and m-element vertex and edge frontiers, respectively).  0.0 is unspecified.
-        int src) //starting vertex
+        double queue_sizing) //starting vertex
     {
       cudaError_t retval = cudaSuccess;
 //      printf("Starting vertex: %d\n", src);
@@ -782,14 +705,16 @@ namespace GASengine
               "CsrProblem cudaMalloc d_filter_mask failed", __FILE__, __LINE__)) return retval;
         }
 
-        //only 1 sourc is allowed now
-
-        _Program::Initialize(graph_slices[gpu]->nodes, graph_slices[gpu]->edges, 1,
-            graph_slices[gpu]->srcs, graph_slices[gpu]->d_row_offsets, graph_slices[gpu]->d_column_indices, graph_slices[gpu]->d_column_offsets, graph_slices[gpu]->d_row_indices,
-            graph_slices[gpu]->d_edge_values,
-            graph_slices[gpu]->vertex_list, graph_slices[gpu]->edge_list,
-            graph_slices[gpu]->frontier_queues.d_keys,
-            graph_slices[gpu]->frontier_queues.d_values);
+//        graph_slices[gpu]->num_src = num_srcs;
+//        graph_slices[gpu]->srcs = srcs;
+//        graph_slices[gpu]->init_num_elements = num_srcs;
+//        //only 1 sourc is allowed now
+//        Program::Initialize(graph_slices[gpu]->nodes, graph_slices[gpu]->edges, graph_slices[gpu]->num_src,
+//            graph_slices[gpu]->srcs, graph_slices[gpu]->d_row_offsets, graph_slices[gpu]->d_column_indices, graph_slices[gpu]->d_column_offsets, graph_slices[gpu]->d_row_indices,
+//            graph_slices[gpu]->d_edge_values,
+//            graph_slices[gpu]->vertex_list, graph_slices[gpu]->edge_list,
+//            graph_slices[gpu]->frontier_queues.d_keys,
+//            graph_slices[gpu]->frontier_queues.d_values);
 
         int memset_block_size = 256;
         int memset_grid_size_max = 32 * 1024;	// 32K CTAs

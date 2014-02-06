@@ -51,20 +51,24 @@ template<
 void CPUBFS(
     int test_iteration,
     const CsrGraph<VertexId, Value, SizeT> &csr_graph,
-    VertexId *source_path,
-    VertexId src)
+    VertexId *source_path, SizeT num_srcs,
+    VertexId* srcs)
 {
   // (Re)initialize distances
   for (VertexId i = 0; i < csr_graph.nodes; i++)
   {
     source_path[i] = -1;
   }
-  source_path[src] = 0;
+//  source_path[src] = 0;
   VertexId search_depth = 0;
 
   // Initialize queue for managing previously-discovered nodes
   std::deque<VertexId> frontier;
-  frontier.push_back(src);
+  for(int i=0; i<num_srcs; i++)
+  {
+    frontier.push_back(srcs[i]);
+    source_path[srcs[i]] = 0;
+  }
 
   double startTime = omp_get_wtime();
   //
@@ -172,7 +176,7 @@ void correctTest(int nodes, int* reference_labels, int* h_labels)
   {
     if (reference_labels[i] != h_labels[i])
     {
-//      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n", i, reference_labels[i], h_labels[i]);
+      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n", i, reference_labels[i], h_labels[i]);
       pass = false;
     }
   }
@@ -278,23 +282,25 @@ int main(int argc, char **argv)
 
   bool cudaEnabled = cudaInit(cfg.getParameter<int>("device"));
   VertexId* reference_labels;
+  int srcs[2] = {0,1};
 
   int run_CPU = cfg.getParameter<int>("run_CPU");
   if (strcmp(source_file_name, "") == 0 && run_CPU) //Do correctness test only with single starting vertex
   {
     reference_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
     int test_iteration = 1;
-    int src = cfg.getParameter<int>("src");
-    int origin = cfg.getParameter<int>("origin");
-
-    if (origin == 1)
-      src--;
+//    int src = cfg.getParameter<int>("src");
+//    int origin = cfg.getParameter<int>("origin");
+//
+//    if (origin == 1)
+//      src--;
 
     CPUBFS(
         test_iteration,
         csr_graph,
         reference_labels,
-        src);
+        2,
+        srcs);
     //    return 0;
   }
 
@@ -306,7 +312,7 @@ int main(int argc, char **argv)
   typedef GASengine::CsrProblem<bfs, VertexId, SizeT, Value,
       g_mark_predecessor, g_with_value> CsrProblem;
   CsrProblem csr_problem(cfg);
-  if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
+  if (csr_problem.FromHostProblem(g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices,
       csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
       csr_graph.column_offsets, csr_graph.node_values, num_gpus, directed))
@@ -318,8 +324,9 @@ int main(int argc, char **argv)
 
   cudaError_t retval = cudaSuccess;
 
-  retval = vertex_centric.EnactIterativeSearch<CsrProblem, bfs>(csr_problem, source_file_name,
-      csr_graph.row_offsets, directed);
+
+  retval = vertex_centric.EnactIterativeSearch<CsrProblem, bfs>(csr_problem,
+      csr_graph.row_offsets, directed, 2, srcs);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
   {

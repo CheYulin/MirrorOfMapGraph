@@ -174,7 +174,7 @@ namespace GASengine
         typedef typename Program::EdgeType EdgeType;
         typedef typename Program::MiscType MiscType;
 
-        static __device__ __forceinline__ void Kernel(VertexId &src,
+        static __device__ __forceinline__ void Kernel(
             VertexId &iteration,
             SizeT &num_elements,
             VertexId &queue_index,
@@ -321,7 +321,7 @@ namespace GASengine
       template<typename KernelPolicy, typename Program>
       __launch_bounds__ (KernelPolicy::THREADS, KernelPolicy::CTA_OCCUPANCY)
       __global__
-      void Kernel(typename KernelPolicy::VertexId src,						// Source vertex (may be -1 if iteration != 0)
+      void Kernel(
           typename KernelPolicy::VertexId iteration,					// Current BFS iteration
           typename KernelPolicy::SizeT num_elements,				// Number of elements in incoming edge frontier (used when !KernelPolicy::DEQUEUE_PROBLEM_SIZE)
           typename KernelPolicy::VertexId queue_index,				// Current frontier queue counter index
@@ -345,7 +345,7 @@ namespace GASengine
           typename KernelPolicy::SizeT max_vertex_frontier, 		// Maximum number of elements we can place into the outgoing vertex frontier
           util::KernelRuntimeStats kernel_stats)				// Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
       {
-        Dispatch<KernelPolicy, Program>::Kernel(src, iteration, num_elements, queue_index, steal_index, num_gpus, d_done, d_edge_frontier, d_vertex_frontier,
+        Dispatch<KernelPolicy, Program>::Kernel(iteration, num_elements, queue_index, steal_index, num_gpus, d_done, d_edge_frontier, d_vertex_frontier,
             d_predecessor, vertex_list, edge_list,
             //                                           gather_list,
             d_labels, d_preds, d_sigmas, d_dists, d_changed,
