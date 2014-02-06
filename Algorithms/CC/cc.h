@@ -20,6 +20,8 @@ struct cc
   typedef int DataType;
   typedef DataType MiscType;
   typedef DataType GatherType;
+  typedef int VertexId;
+  typedef int SizeT;
 
   static const int INIT_VALUE = 100000000;
 
@@ -45,7 +47,7 @@ struct cc
     int edges; // #of edges.
 
     EdgeType() :
-       nodes(0), edges(0)
+        nodes(0), edges(0)
     {
     }
   };
@@ -76,9 +78,9 @@ struct cc
   }
 
   static void Initialize(const int nodes, const int edges, int num_srcs,
-        int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, int* d_edge_values,
-        VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
-        MiscType* d_frontier_values[3])
+      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, int* d_edge_values,
+      VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
+      MiscType* d_frontier_values[3])
   {
     vertex_list.nodes = nodes;
     vertex_list.edges = edges;
@@ -109,11 +111,10 @@ struct cc
     int memset_grid_size_max = 32 * 1024;	// 32K CTAs
     int memset_grid_size;
 
-    // Initialize d_dists elements to 100000000
     memset_grid_size = B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
 
     b40c::util::SequenceKernel<DataType><<<memset_grid_size,
-        memset_block_size, 0, 0>>>(vertex_list.d_dists,
+    memset_block_size, 0, 0>>>(vertex_list.d_dists,
         nodes);
 
     // Initialize d_dists_out elements
@@ -123,10 +124,10 @@ struct cc
         cudaMemcpyDeviceToDevice);
 
     b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
-        0>>>(vertex_list.d_changed, 1, nodes);
+    0>>>(vertex_list.d_changed, 1, nodes);
 
     b40c::util::MemsetKernel<DataType><<<memset_grid_size,
-        memset_block_size, 0, 0>>>(vertex_list.d_min_dists, INIT_VALUE,
+    memset_block_size, 0, 0>>>(vertex_list.d_min_dists, INIT_VALUE,
         nodes);
 
     if (b40c::util::B40CPerror(
@@ -144,10 +145,10 @@ struct cc
       exit(0);
 
     b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
-        0>>>(d_frontier_values[0], INIT_VALUE, nodes);
+    0>>>(d_frontier_values[0], INIT_VALUE, nodes);
 
     b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
-        0>>>(d_frontier_values[1], INIT_VALUE, nodes);
+    0>>>(d_frontier_values[1], INIT_VALUE, nodes);
 
   }
 
@@ -158,7 +159,7 @@ struct cc
   {
     __device__
     void operator()(const int vertex_id, const GatherType final_value,
-            VertexType &vertex_list, EdgeType &edge_list)
+        VertexType &vertex_list, EdgeType &edge_list)
     {
 
     }
@@ -171,7 +172,7 @@ struct cc
   {
     __device__
     void operator()(const int vertex_id, const int neighbor_id_in,
-            VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
+        VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
     {
 
     }
@@ -197,7 +198,7 @@ struct cc
      *
      */
     void operator()(const int vertex_id, const int iteration,
-            VertexType& vertex_list, EdgeType& edge_list)
+        VertexType& vertex_list, EdgeType& edge_list)
     {
 
       const int oldvalue = vertex_list.d_dists[vertex_id];
@@ -205,9 +206,9 @@ struct cc
       const int newvalue = min(oldvalue, gathervalue);
 
       if (oldvalue == newvalue)
-        vertex_list.d_changed[vertex_id] = 0;
+      vertex_list.d_changed[vertex_id] = 0;
       else
-        vertex_list.d_changed[vertex_id] = 1;
+      vertex_list.d_changed[vertex_id] = 1;
 
       vertex_list.d_dists_out[vertex_id] = newvalue;
     }
@@ -285,15 +286,15 @@ struct cc
      * has a 1:1 correspondence with the frontier array.
      */
     void operator()(const bool changed, const int iteration,
-            const int vertex_id, const int neighbor_id_in, const int edge_id,
-            VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
+        const int vertex_id, const int neighbor_id_in, const int edge_id,
+        VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
     {
       const int src_dist = vertex_list.d_dists[vertex_id];
       const int dst_dist = vertex_list.d_dists[neighbor_id_in];
       if ((changed || iteration == 0) && dst_dist > src_dist)
-        frontier = neighbor_id_in;
+      frontier = neighbor_id_in;
       else
-        frontier = -1;
+      frontier = -1;
       misc_value = src_dist; // source dist + edge weight
     }
   };
@@ -323,7 +324,7 @@ struct cc
      * function.
      */
     void operator()(const int iteration, int &vertex_id,
-            VertexType &vertex_list, EdgeType &edge_list, int& misc_value)
+        VertexType &vertex_list, EdgeType &edge_list, int& misc_value)
     {
 
       /**
@@ -342,6 +343,17 @@ struct cc
   {
     cudaMemcpy(h_output, vertex_list.d_dists, sizeof(DataType) * vertex_list.nodes, cudaMemcpyDeviceToHost);
   }
+
+//  /**
+//   * destructor: free device memory
+//   */
+//  ~cc()
+//  {
+//    if (d_dists_out) util::B40CPerror(cudaFree(d_dists_out), "GpuSlice cudaFree d_dists_out failed", __FILE__, __LINE__);
+//    if (d_changed) util::B40CPerror(cudaFree(d_changed), "GpuSlice cudaFree d_changed failed", __FILE__, __LINE__);
+//    if (d_dists) util::B40CPerror(cudaFree(d_dists), "GpuSlice cudaFree d_dists failed", __FILE__, __LINE__);
+//    if (d_min_dists) util::B40CPerror(cudaFree(d_min_dists), "GpuSlice cudaFree d_min_dists failed", __FILE__, __LINE__);
+//  }
 
 };
 

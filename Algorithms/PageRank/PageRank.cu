@@ -160,7 +160,7 @@ void printUsageAndExit(char* algo_name)
   std::cout << "     -output or -o specify file for output result\n";
   std::cout << "     -c set the PR options from the configuration file\n";
   std::cout
-      << "     -PR set the options.  Options include the following:\n";
+      << "     -p set the options.  Options include the following:\n";
   Config::printOptions();
 
   exit(0);
@@ -201,7 +201,6 @@ int main(int argc, char **argv)
   typedef int SizeT; // Use as the graph size type
   char* graph_file = NULL;
   CsrGraph<VertexId, Value, SizeT> csr_graph(g_stream_from_host);
-  char source_file_name[100] = "";
 //  int device = 0;
 //  double max_queue_sizing = 1.3;
   Config cfg;
@@ -269,7 +268,7 @@ int main(int argc, char **argv)
   typedef GASengine::CsrProblem<pagerank, VertexId, SizeT, Value,
       g_mark_predecessor, g_with_value> CsrProblem;
   CsrProblem csr_problem(cfg);
-  if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
+  if (csr_problem.FromHostProblem(g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices,
       csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
       csr_graph.column_offsets, csr_graph.node_values, num_gpus, directed))
@@ -280,8 +279,8 @@ int main(int argc, char **argv)
 
   cudaError_t retval = cudaSuccess;
 
-  retval = vertex_centric.EnactIterativeSearch<CsrProblem, pagerank>(csr_problem, source_file_name,
-      csr_graph.row_offsets, directed);
+  retval = vertex_centric.EnactIterativeSearch<CsrProblem, pagerank>(csr_problem,
+      csr_graph.row_offsets, directed, csr_graph.nodes, NULL, INT_MAX);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
   {

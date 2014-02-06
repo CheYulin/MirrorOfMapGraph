@@ -173,7 +173,7 @@ void printUsageAndExit(char* algo_name)
   std::cout << "     -output or -o specify file for output result\n";
   std::cout << "     -c set the SSSP options from the configuration file\n";
   std::cout
-      << "     -CC set the options.  Options include the following:\n";
+      << "     -p set the options.  Options include the following:\n";
   Config::printOptions();
 
   exit(0);
@@ -268,7 +268,7 @@ int main(int argc, char **argv)
   typedef GASengine::CsrProblem<cc, VertexId, SizeT, Value,
       g_mark_predecessor, g_with_value> CsrProblem;
   CsrProblem csr_problem(cfg);
-  if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
+  if (csr_problem.FromHostProblem(g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices,
       csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
       csr_graph.column_offsets, csr_graph.node_values, num_gpus, directed))
@@ -280,8 +280,8 @@ int main(int argc, char **argv)
 
   cudaError_t retval = cudaSuccess;
 
-  retval = vertex_centric.EnactIterativeSearch<CsrProblem, cc>(csr_problem, source_file_name,
-      csr_graph.row_offsets, directed);
+  retval = vertex_centric.EnactIterativeSearch<CsrProblem, cc>(csr_problem,
+      csr_graph.row_offsets, directed, csr_graph.nodes, NULL, INT_MAX);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
   {

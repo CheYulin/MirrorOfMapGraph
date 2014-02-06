@@ -302,9 +302,11 @@ namespace GASengine
 
       double startcontract, endcontract;
       double startexpand, endexpand;
+      double startgather, endgather;
 
       double elapsedcontract = 0.0;
       double elapsedexpand = 0.0;
+      double elapsedgather = 0.0;
 
       cudaEventRecord(start);
       double startTime = omp_get_wtime();
@@ -418,6 +420,11 @@ namespace GASengine
         if (done[0] == 0)
           break;
 
+        if (DEBUG)
+        {
+          cudaDeviceSynchronize();
+          startgather = omp_get_wtime();
+        }
         //
         //Gather stage
         //
@@ -536,19 +543,14 @@ namespace GASengine
             break;
           }
         }
-//                else
-//                {
-//                  printf("Error: Invalid gather over edge type!\n");
-//                  exit(1);
-//                }
-//
-//                if (DEBUG
-//                    && (retval = util::B40CPerror(
-//                        cudaThreadSynchronize(),
-//                        "gather::Kernel failed ", __FILE__,
-//                        __LINE__)))
-//                  break;
+
         cudaEventQuery(throttle_event); // give host memory mapped visibility to GPU updates
+        if (DEBUG)
+        {
+          cudaDeviceSynchronize();
+          endgather = omp_get_wtime();
+          elapsedgather += endgather - startgather;
+        }
 
         //                queue_index++;
         //                selector ^= 1;
@@ -922,6 +924,8 @@ namespace GASengine
           << std::endl;
       std::cout << "Contract time took: " << elapsedcontract * 1000
           << " ms" << std::endl;
+      std::cout << "Gather time took: " << elapsedgather * 1000
+          << " ms" << std::endl;
       std::cout << "Expand time took: " << elapsedexpand * 1000 << " ms"
           << std::endl;
       // Compute nodes and edges visited
@@ -983,7 +987,7 @@ namespace GASengine
             typename CsrProblem::ProblemType, 200, // CUDA_ARCH
             INSTRUMENT, // INSTRUMENT
             1, // CTA_OCCUPANCY
-            7, // LOG_THREADS
+            9, // LOG_THREADS
             0, // LOG_LOAD_VEC_SIZE
             0, // LOG_LOADS_PER_TILE
             5, // LOG_RAKING_THREADS
@@ -1003,7 +1007,7 @@ namespace GASengine
         typedef vertex_centric::gather::KernelPolicy<Program,
             typename CsrProblem::ProblemType, 200, // CUDA_ARCH
             INSTRUMENT, // INSTRUMENT
-            1, // CTA_OCCUPANCY
+            4, // CTA_OCCUPANCY
             7, // LOG_THREADS
             0, // LOG_LOAD_VEC_SIZE
             0, // LOG_LOADS_PER_TILE

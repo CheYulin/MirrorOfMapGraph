@@ -20,7 +20,6 @@
  */
 struct sssp
 {
-
   /**
    * The data type for the edge weights, the distance labels on the
    * vertices, etc.
@@ -35,6 +34,9 @@ struct sssp
    * The data type for the intermediate results of the GATHER kernel.
    */
   typedef DataType GatherType;
+
+  typedef int VertexId;
+  typedef int SizeT;
 
   /**
    * The initial distance for all vertices.  If a vertex is never
@@ -93,20 +95,20 @@ struct sssp
    * somewhere else.
    */
   static void Initialize
-  ( const int nodes, /**< The number of vertices in the graph. */
-    const int edges, /**< The number of edges in the graph. */
-    int num_srcs, /**< The number of vertices in the initial frontier. */
-    int* srcs, /**< The vertices in the initial frontier. */
-    int* d_row_offsets,
-    int* d_column_indices,
-    int* d_column_offsets,
-    int* d_row_indices,
-    int* d_edge_values,
-    VertexType &vertex_list,
-    EdgeType &edge_list,
-    int* d_frontier_keys[3], /**< The frontier arrays. */
-    MiscType* d_frontier_values[3] /**< User data arrays that are 1:1 with the frontier. */
-    )
+  (const int nodes, /**< The number of vertices in the graph. */
+  const int edges, /**< The number of edges in the graph. */
+  int num_srcs, /**< The number of vertices in the initial frontier. */
+  int* srcs, /**< The vertices in the initial frontier. */
+  int* d_row_offsets,
+      int* d_column_indices,
+      int* d_column_offsets,
+      int* d_row_indices,
+      int* d_edge_values,
+      VertexType &vertex_list,
+      EdgeType &edge_list,
+      int* d_frontier_keys[3], /**< The frontier arrays. */
+      MiscType* d_frontier_values[3] /**< User data arrays that are 1:1 with the frontier. */
+      )
   {
     // save the #of nodes (vertices) and #of edges in the graph.
     vertex_list.nodes = nodes;
@@ -156,27 +158,27 @@ struct sssp
     memset_grid_size =
         B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
     b40c::util::MemsetKernel<DataType><<<memset_grid_size,
-        memset_block_size, 0, 0>>>(vertex_list.d_dists, INIT_VALUE,
+    memset_block_size, 0, 0>>>(vertex_list.d_dists, INIT_VALUE,
         nodes);
 
     // Initialize d_labels elements to -1
     memset_grid_size =
         B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
     b40c::util::MemsetKernel<DataType><<<memset_grid_size,
-        memset_block_size, 0, 0>>>(vertex_list.d_dists_out, INIT_VALUE,
+    memset_block_size, 0, 0>>>(vertex_list.d_dists_out, INIT_VALUE,
         nodes);
 
     // Initialize d_labels elements to -1
     memset_grid_size =
         B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
     b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
-        0>>>(vertex_list.d_changed, 0, nodes);
+    0>>>(vertex_list.d_changed, 0, nodes);
 
     // Initialize d_min_dists elements to -1
     memset_grid_size =
         B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
     b40c::util::MemsetKernel<DataType><<<memset_grid_size,
-        memset_block_size, 0, 0>>>(vertex_list.d_min_dists, INIT_VALUE,
+    memset_block_size, 0, 0>>>(vertex_list.d_min_dists, INIT_VALUE,
         nodes);
 
     // Initialize edge data
@@ -187,9 +189,9 @@ struct sssp
       exit(0);
 
     printf("Starting vertex: ");
-        for(int i=0; i<num_srcs; i++)
-          printf("%d ", srcs[i]);
-        printf("\n");
+    for (int i = 0; i < num_srcs; i++)
+      printf("%d ", srcs[i]);
+    printf("\n");
 
     int init_dists[1];
     init_dists[0] = 0;
@@ -556,6 +558,17 @@ struct sssp
   {
     cudaMemcpy(h_output, vertex_list.d_dists, sizeof(DataType) * vertex_list.nodes, cudaMemcpyDeviceToHost);
   }
+
+//  /**
+//   * destructor: free device memory
+//   */
+//  ~sssp()
+//  {
+//    if (d_dists_out) util::B40CPerror(cudaFree(d_dists_out), "GpuSlice cudaFree d_dists_out failed", __FILE__, __LINE__);
+//    if (d_changed) util::B40CPerror(cudaFree(d_changed), "GpuSlice cudaFree d_changed failed", __FILE__, __LINE__);
+//    if (d_dists) util::B40CPerror(cudaFree(d_dists), "GpuSlice cudaFree d_dists failed", __FILE__, __LINE__);
+//    if (d_min_dists) util::B40CPerror(cudaFree(d_min_dists), "GpuSlice cudaFree d_min_dists failed", __FILE__, __LINE__);
+//  }
 
 };
 

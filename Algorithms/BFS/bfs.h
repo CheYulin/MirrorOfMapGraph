@@ -85,20 +85,32 @@ struct bfs
         __LINE__))
       exit(0);
 
-    int init_value[1] = { 0 };
-    if (b40c::util::B40CPerror(
-        cudaMemcpy(d_frontier_values[0], init_value,
-            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
-        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
-        __LINE__))
-      exit(0);
+//    memset_grid_size = B40C_MIN(memset_grid_size_max, (num_srcs + memset_block_size - 1) / memset_block_size);
+//    b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0, 0>>>(
+//        d_frontier_values[0],
+//        0,
+//        num_srcs);
+//
+//    memset_grid_size = B40C_MIN(memset_grid_size_max, (num_srcs + memset_block_size - 1) / memset_block_size);
+//    b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0, 0>>>(
+//        d_frontier_values[1],
+//        -1,
+//        num_srcs);
 
-    if (b40c::util::B40CPerror(
-        cudaMemcpy(d_frontier_values[1], init_value,
-            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
-        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
-        __LINE__))
-      exit(0);
+//    int init_value[1] = { 0 };
+//    if (b40c::util::B40CPerror(
+//        cudaMemcpy(d_frontier_values[0], init_value,
+//            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
+//        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
+//        __LINE__))
+//      exit(0);
+//
+//    if (b40c::util::B40CPerror(
+//        cudaMemcpy(d_frontier_values[1], init_value,
+//            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
+//        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
+//        __LINE__))
+//      exit(0);
 
   }
 
@@ -233,6 +245,13 @@ struct bfs
     cudaMemcpy(h_output, vertex_list.d_labels, sizeof(DataType) * vertex_list.nodes, cudaMemcpyDeviceToHost);
   }
 
+//  /**
+//   * destructor: free device memory
+//   */
+//  ~bfs()
+//  {
+//    if (d_labels) util::B40CPerror(cudaFree(d_changed), "GpuSlice cudaFree d_changed failed", __FILE__, __LINE__);
+//  }
 };
 
 #endif /* BFS_H_ */

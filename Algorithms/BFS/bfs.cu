@@ -44,15 +44,10 @@ using namespace b40c;
 using namespace graph;
 using namespace std;
 
-template<
-    typename VertexId,
-    typename Value,
-    typename SizeT>
-void CPUBFS(
-    int test_iteration,
+template<typename VertexId, typename Value, typename SizeT>
+void CPUBFS(int test_iteration,
     const CsrGraph<VertexId, Value, SizeT> &csr_graph,
-    VertexId *source_path, SizeT num_srcs,
-    VertexId* srcs)
+    VertexId *source_path, SizeT num_srcs, VertexId* srcs)
 {
   // (Re)initialize distances
   for (VertexId i = 0; i < csr_graph.nodes; i++)
@@ -64,7 +59,7 @@ void CPUBFS(
 
   // Initialize queue for managing previously-discovered nodes
   std::deque<VertexId> frontier;
-  for(int i=0; i<num_srcs; i++)
+  for (int i = 0; i < num_srcs; i++)
   {
     frontier.push_back(srcs[i]);
     source_path[srcs[i]] = 0;
@@ -176,7 +171,8 @@ void correctTest(int nodes, int* reference_labels, int* h_labels)
   {
     if (reference_labels[i] != h_labels[i])
     {
-      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n", i, reference_labels[i], h_labels[i]);
+      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n",
+          i, reference_labels[i], h_labels[i]);
       pass = false;
     }
   }
@@ -188,11 +184,11 @@ void correctTest(int nodes, int* reference_labels, int* h_labels)
 
 void printUsageAndExit(char *algo_name)
 {
-  std::cout
-      << "Usage: " << algo_name
+  std::cout << "Usage: " << algo_name
       << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-BFS \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
-  std::cout << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
+  std::cout
+      << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
   std::cout << "     -output or -o specify file for output result\n";
   std::cout << "     -sources or -s set starting vertices file\n";
   std::cout << "     -c set the BFS options from the configuration file\n";
@@ -235,19 +231,22 @@ int main(int argc, char **argv)
       graph_file = argv[i];
 
     }
-    else if (strncmp(argv[i], "-output", 100) == 0 || strncmp(argv[i], "-o", 100) == 0)
+    else if (strncmp(argv[i], "-output", 100) == 0
+        || strncmp(argv[i], "-o", 100) == 0)
     { //output file name
       i++;
       outFileName = argv[i];
     }
 
-    else if (strncmp(argv[i], "-sources", 100) == 0 || strncmp(argv[i], "-s", 100) == 0)
+    else if (strncmp(argv[i], "-sources", 100) == 0
+        || strncmp(argv[i], "-s", 100) == 0)
     { //the file containing starting vertices
       i++;
       strcpy(source_file_name, argv[i]);
     }
 
-    else if (strncmp(argv[i], "-parameters", 100) == 0 || strncmp(argv[i], "-p", 100) == 0)
+    else if (strncmp(argv[i], "-parameters", 100) == 0
+        || strncmp(argv[i], "-p", 100) == 0)
     { //The BFS specific options
       i++;
       cfg.parseParameterString(argv[i]);
@@ -272,22 +271,85 @@ int main(int argc, char **argv)
   printf("Running on host: %s\n", hostname);
 
   int directed = cfg.getParameter<int>("directed");
-
+  int origin = cfg.getParameter<int>("origin");
+  int iter_num = cfg.getParameter<int>("iter_num");
 
   if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
       !directed) != 0)
     exit(1);
 
 //  csr_graph.DisplayGraph();
+  int num_srcs = 0;
+  int* srcs = NULL;
+
+  const int max_src_num = 1000;
+
+  if (strcmp(source_file_name, ""))
+  {
+    if (strcmp(source_file_name, "RANDOM") == 0)
+    {
+      printf("Using random starting vertices!\n");
+      num_srcs = cfg.getParameter<int>("num_src");
+      srcs = new int[num_srcs];
+      printf("Using %d random starting vertices!\n", num_srcs);
+      srand (time(NULL));int
+      count = 0;
+      while (count < num_srcs)
+      {
+        int tmp_src = rand() % csr_graph.nodes;
+        if (csr_graph.row_offsets[tmp_src + 1]
+            - csr_graph.row_offsets[tmp_src] > 0)
+        {
+          srcs[count++] = tmp_src;
+        }
+      }
+
+    }
+    else
+    {
+      printf("Using source file: %s!\n", source_file_name);
+      FILE* src_file;
+      if ((src_file = fopen(source_file_name, "r")) == NULL)
+      {
+        printf("Source file open error!\n");
+        exit(0);
+      }
+
+      srcs = new int[max_src_num];
+      for (num_srcs = 0; num_srcs < max_src_num; num_srcs++)
+      {
+        if (fscanf(src_file, "%d\n", &srcs[num_srcs]) != EOF)
+        {
+          if (origin == 1)
+            srcs[num_srcs]--; //0-based index
+        }
+        else
+          break;
+      }
+      printf("number of srcs used: %d\n", num_srcs);
+    }
+
+  }
+  else
+  {
+    int src_node = cfg.getParameter<int>("src");
+    int origin = cfg.getParameter<int>("origin");
+    num_srcs = 1;
+    srcs = new int[1];
+    srcs[0] = src_node;
+    if (origin == 1)
+      srcs[0]--;
+    printf("Single source vertex: %d\n", srcs[0]);
+  }
 
   bool cudaEnabled = cudaInit(cfg.getParameter<int>("device"));
   VertexId* reference_labels;
-  int srcs[2] = {0,1};
 
   int run_CPU = cfg.getParameter<int>("run_CPU");
   if (strcmp(source_file_name, "") == 0 && run_CPU) //Do correctness test only with single starting vertex
   {
-    reference_labels = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
+    reference_labels = (VertexId*) malloc(
+        sizeof(VertexId) * csr_graph.nodes);
     int test_iteration = 1;
 //    int src = cfg.getParameter<int>("src");
 //    int origin = cfg.getParameter<int>("origin");
@@ -295,12 +357,7 @@ int main(int argc, char **argv)
 //    if (origin == 1)
 //      src--;
 
-    CPUBFS(
-        test_iteration,
-        csr_graph,
-        reference_labels,
-        2,
-        srcs);
+    CPUBFS(test_iteration, csr_graph, reference_labels, 2, srcs);
     //    return 0;
   }
 
@@ -313,24 +370,30 @@ int main(int argc, char **argv)
       g_mark_predecessor, g_with_value> CsrProblem;
   CsrProblem csr_problem(cfg);
   if (csr_problem.FromHostProblem(g_stream_from_host, csr_graph.nodes,
-      csr_graph.edges, csr_graph.column_indices,
-      csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
-      csr_graph.column_offsets, csr_graph.node_values, num_gpus, directed))
+      csr_graph.edges, csr_graph.column_indices, csr_graph.row_offsets,
+      csr_graph.edge_values, csr_graph.row_indices,
+      csr_graph.column_offsets, csr_graph.node_values, num_gpus,
+      directed))
     exit(1);
 
   const bool INSTRUMENT = true;
 
   GASengine::EnactorVertexCentric<INSTRUMENT> vertex_centric(cfg, g_verbose);
 
-  cudaError_t retval = cudaSuccess;
-
-
-  retval = vertex_centric.EnactIterativeSearch<CsrProblem, bfs>(csr_problem,
-      csr_graph.row_offsets, directed, 2, srcs);
-
-  if (retval && (retval != cudaErrorInvalidDeviceFunction))
+  for (int i = 0; i < num_srcs; i++)
   {
-    exit(1);
+    int tmpsrcs[1];
+    tmpsrcs[0] = srcs[i];
+
+    cudaError_t retval = cudaSuccess;
+
+    retval = vertex_centric.EnactIterativeSearch<CsrProblem, bfs>(csr_problem,
+        csr_graph.row_offsets, directed, 1, tmpsrcs, iter_num);
+
+    if (retval && (retval != cudaErrorInvalidDeviceFunction))
+    {
+      exit(1);
+    }
   }
 
   Value* h_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);

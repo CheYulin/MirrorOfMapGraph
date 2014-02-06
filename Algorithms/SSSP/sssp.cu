@@ -183,7 +183,8 @@ void CPUSSSP(CsrGraph<VertexId, Value, SizeT> const &graph, VertexId* dist, Vert
 void printUsageAndExit(char* algo_name)
 {
   std::cout
-      << "Usage: " << algo_name << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-SSSP \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
+      << "Usage: " << algo_name
+      << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-SSSP \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
   std::cout << "     -graph or -g specify a sparse matrix in Matrix Market (.mtx) format\n";
   std::cout << "     -output or -o specify file for output result\n";
@@ -274,20 +275,85 @@ int main(int argc, char **argv)
   printf("Running on host: %s\n", hostname);
 
   cudaInit(cfg.getParameter<int>("device"));
-  int directed = cfg.getParameter<int>("directed");
 
+  int directed = cfg.getParameter<int>("directed");
+  int origin = cfg.getParameter<int>("origin");
+  int iter_num = cfg.getParameter<int>("iter_num");
   if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
       !directed) != 0)
     return 1;
 
   int run_CPU = cfg.getParameter<int>("run_CPU");
 
+  int num_srcs = 0;
+  int* srcs = NULL;
+
+  const int max_src_num = 1000;
+
+  if (strcmp(source_file_name, ""))
+  {
+    if (strcmp(source_file_name, "RANDOM") == 0)
+    {
+      printf("Using random starting vertices!\n");
+      num_srcs = cfg.getParameter<int>("num_src");
+      srcs = new int[num_srcs];
+      printf("Using %d random starting vertices!\n", num_srcs);
+      srand (time(NULL));int
+      count = 0;
+      while (count < num_srcs)
+      {
+        int tmp_src = rand() % csr_graph.nodes;
+        if (csr_graph.row_offsets[tmp_src + 1]
+            - csr_graph.row_offsets[tmp_src] > 0)
+        {
+          srcs[count++] = tmp_src;
+        }
+      }
+
+    }
+    else
+    {
+      printf("Using source file: %s!\n", source_file_name);
+      FILE* src_file;
+      if ((src_file = fopen(source_file_name, "r")) == NULL)
+      {
+        printf("Source file open error!\n");
+        exit(0);
+      }
+
+      srcs = new int[max_src_num];
+      for (num_srcs = 0; num_srcs < max_src_num; num_srcs++)
+      {
+        if (fscanf(src_file, "%d\n", &srcs[num_srcs]) != EOF)
+        {
+          if (origin == 1)
+            srcs[num_srcs]--; //0-based index
+        }
+        else
+          break;
+      }
+      printf("number of srcs used: %d\n", num_srcs);
+    }
+
+  }
+  else
+  {
+    int src_node = cfg.getParameter<int>("src");
+    int origin = cfg.getParameter<int>("origin");
+    num_srcs = 1;
+    srcs = new int[1];
+    srcs[0] = src_node;
+    if (origin == 1)
+      srcs[0]--;
+    printf("Single source vertex: %d\n", srcs[0]);
+  }
+
   VertexId* reference_dists;
   if (strcmp(source_file_name, "") == 0 && run_CPU) //Do correctness test only with single starting vertex
   {
     reference_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
     int src = cfg.getParameter<int>("src");
-    int origin = cfg.getParameter<int>("origin");
+//    int origin = cfg.getParameter<int>("origin");
 
     if (origin == 1)
       src--;
@@ -309,7 +375,7 @@ int main(int argc, char **argv)
   typedef GASengine::CsrProblem<sssp, VertexId, SizeT, Value,
       g_mark_predecessor, g_with_value> CsrProblem;
   CsrProblem csr_problem(cfg);
-  if (csr_problem.FromHostProblem(source_file_name, g_stream_from_host, csr_graph.nodes,
+  if (csr_problem.FromHostProblem(g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices,
       csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
       csr_graph.column_offsets, csr_graph.node_values, num_gpus, directed))
@@ -319,20 +385,25 @@ int main(int argc, char **argv)
 
   GASengine::EnactorVertexCentric<INSTRUMENT> vertex_centric(cfg, g_verbose);
 
-  cudaError_t retval = cudaSuccess;
-
-  retval = vertex_centric.EnactIterativeSearch<CsrProblem, sssp>(csr_problem, source_file_name,
-      csr_graph.row_offsets, directed);
-
-  if (retval && (retval != cudaErrorInvalidDeviceFunction))
+  for (int i = 0; i < num_srcs; i++)
   {
-    exit(1);
+    int tmpsrcs[1];
+    tmpsrcs[0] = srcs[i];
+    cudaError_t retval = cudaSuccess;
+
+    retval = vertex_centric.EnactIterativeSearch<CsrProblem, sssp>(csr_problem,
+        csr_graph.row_offsets, directed, 1, tmpsrcs, iter_num);
+
+    if (retval && (retval != cudaErrorInvalidDeviceFunction))
+    {
+      exit(1);
+    }
   }
 
   Value* h_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
   csr_problem.ExtractResults(h_values);
 
-  if (strcmp(source_file_name, "") == 0  && run_CPU)
+  if (strcmp(source_file_name, "") == 0 && run_CPU)
   {
     correctTest(csr_graph.nodes, reference_dists, h_values);
     free(reference_dists);

@@ -19,6 +19,8 @@ struct pagerank
   typedef float DataType;
   typedef int MiscType;
   typedef float GatherType;
+  typedef int VertexId;
+  typedef int SizeT;
 
   static const DataType INIT_VALUE = 0.0;
 
@@ -36,28 +38,28 @@ struct pagerank
 
     VertexType() :
         d_dists(NULL),
-//        d_dists_out(NULL),
-        d_changed(NULL), d_num_out_edge(NULL), d_visited_flag(NULL), d_min_dists(NULL),
-        nodes(0), edges(0)
+            //        d_dists_out(NULL),
+            d_changed(NULL), d_num_out_edge(NULL), d_visited_flag(NULL), d_min_dists(NULL),
+            nodes(0), edges(0)
     {
     }
   };
 
   struct EdgeType
-   {
-     int nodes; // #of nodes.
-     int edges; // #of edges.
+  {
+    int nodes; // #of nodes.
+    int edges; // #of edges.
 
-     EdgeType() :
-          nodes(0), edges(0)
-     {
-     }
-   };
+    EdgeType() :
+        nodes(0), edges(0)
+    {
+    }
+  };
 
   static void Initialize(const int nodes, const int edges, int num_srcs,
-        int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, DataType* d_edge_values,
-        VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
-        MiscType* d_frontier_values[3])
+      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, DataType* d_edge_values,
+      VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
+      MiscType* d_frontier_values[3])
   {
     vertex_list.nodes = nodes;
     vertex_list.edges = edges;
@@ -93,11 +95,10 @@ struct pagerank
     int memset_grid_size_max = 32 * 1024;   // 32K CTAs
     int memset_grid_size;
 
-    // Initialize d_dists elements to 100000000
     memset_grid_size = B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
 
     b40c::util::MemsetKernel<DataType><<<memset_grid_size, memset_block_size, 0,
-        0>>>(vertex_list.d_dists, 0.15, nodes);
+    0>>>(vertex_list.d_dists, 0.15, nodes);
 
 //    // Initialize d_dists_out elements
 //    cudaMemcpy(vertex_list.d_dists_out,
@@ -106,17 +107,17 @@ struct pagerank
 //        cudaMemcpyDeviceToDevice);
 
     b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
-        0>>>(vertex_list.d_changed, 0, nodes);
+    0>>>(vertex_list.d_changed, 0, nodes);
 
     b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
-        0>>>(vertex_list.d_visited_flag, 0, nodes);
+    0>>>(vertex_list.d_visited_flag, 0, nodes);
 
     b40c::util::MemsetKernel<DataType><<<memset_grid_size,
-        memset_block_size, 0, 0>>>(vertex_list.d_min_dists, 0.0,
+    memset_block_size, 0, 0>>>(vertex_list.d_min_dists, 0.0,
         nodes);
 
     b40c::util::SequenceKernel<int><<<memset_grid_size,
-        memset_block_size, 0, 0>>>(d_frontier_keys[0],
+    memset_block_size, 0, 0>>>(d_frontier_keys[0],
         nodes);
 
     if (b40c::util::B40CPerror(
@@ -129,7 +130,7 @@ struct pagerank
     //compute d_num_out_edges
     b40c::util::B40CPerror(
         cudaMalloc((void**) &vertex_list.d_num_out_edge,
-            (nodes+1) * sizeof(int)),
+            (nodes + 1) * sizeof(int)),
         "cudaMalloc d_num_out_edges failed", __FILE__, __LINE__);
 
     thrust::device_ptr<int> d_row_offsets_ptr(d_row_offsets);
@@ -172,7 +173,7 @@ struct pagerank
   {
     __device__
     void operator()(const int vertex_id, const GatherType final_value,
-            VertexType &vertex_list, EdgeType &edge_list)
+        VertexType &vertex_list, EdgeType &edge_list)
     {
       vertex_list.d_min_dists[vertex_id] += final_value;
     }
@@ -185,7 +186,7 @@ struct pagerank
   {
     __device__
     void operator()(const int vertex_id, const int neighbor_id_in,
-            VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
+        VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
     {
       DataType nb_dist = vertex_list.d_dists[neighbor_id_in];
       new_value = nb_dist / (DataType) vertex_list.d_num_out_edge[neighbor_id_in];
@@ -213,7 +214,7 @@ struct pagerank
      *
      */
     void operator()(const int vertex_id, const int iteration,
-            VertexType& vertex_list, EdgeType& edge_list)
+        VertexType& vertex_list, EdgeType& edge_list)
     {
 
       const DataType oldvalue = vertex_list.d_dists[vertex_id];
@@ -305,8 +306,8 @@ struct pagerank
      * has a 1:1 correspondence with the frontier array.
      */
     void operator()(const bool changed, const int iteration,
-            const int vertex_id, const int neighbor_id_in, const int edge_id,
-            VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
+        const int vertex_id, const int neighbor_id_in, const int edge_id,
+        VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
     {
 //      const int src_dist = vertex_list.d_dists[vertex_id];
 //      const int dst_dist = vertex_list.d_dists[neighbor_id_in];
@@ -343,7 +344,7 @@ struct pagerank
      * function.
      */
     void operator()(const int iteration, int &vertex_id,
-            VertexType &vertex_list, EdgeType &edge_list, int& misc_value)
+        VertexType &vertex_list, EdgeType &edge_list, int& misc_value)
     {
 
       /**
@@ -362,6 +363,17 @@ struct pagerank
     cudaMemcpy(h_output, vertex_list.d_dists, sizeof(DataType) * vertex_list.nodes, cudaMemcpyDeviceToHost);
   }
 
+//  /**
+//   * destructor: free device memory
+//   */
+//  ~pagerank()
+//  {
+//    if (d_changed) util::B40CPerror(cudaFree(d_changed), "GpuSlice cudaFree d_changed failed", __FILE__, __LINE__);
+//    if (d_dists) util::B40CPerror(cudaFree(d_dists), "GpuSlice cudaFree d_dists failed", __FILE__, __LINE__);
+//    if (d_min_dists) util::B40CPerror(cudaFree(d_min_dists), "GpuSlice cudaFree d_min_dists failed", __FILE__, __LINE__);
+//    if (d_num_out_edge) util::B40CPerror(cudaFree(d_num_out_edge), "GpuSlice cudaFree d_num_out_edge failed", __FILE__, __LINE__);
+//    if (d_visited_flag) util::B40CPerror(cudaFree(d_visited_flag), "GpuSlice cudaFree d_visited_flag failed", __FILE__, __LINE__);
+//  }
 };
 
 #endif /* SSSP_H_ */
