@@ -1,7 +1,3 @@
-/******************************************************************************
- * CTA tile-processing abstraction for frontier expansion
- ******************************************************************************/
-
 #pragma once
 
 #include <b40c/util/device_intrinsics.cuh>

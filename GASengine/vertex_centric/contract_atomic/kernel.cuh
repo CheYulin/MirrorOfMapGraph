@@ -1,7 +1,3 @@
-/******************************************************************************
- * Upsweep Contraction kernel
- ******************************************************************************/
-
 #pragma once
 
 #include <b40c/util/cta_work_distribution.cuh>
@@ -35,9 +31,7 @@ namespace GASengine
             typename KernelPolicy::VertexId *&d_predecessor,
             typename Program::VertexType &vertex_list,
             typename Program::EdgeType &edge_list,
-            typename KernelPolicy::VertexId *&d_labels,
             typename Program::MiscType *&d_preds,
-            typename KernelPolicy::EValue *&d_sigmas,
             typename KernelPolicy::VisitedMask *&d_visited_mask,
             util::CtaWorkProgress &work_progress, util::CtaWorkDistribution<typename KernelPolicy::SizeT> &work_decomposition, typename KernelPolicy::SizeT &max_vertex_frontier,
             typename KernelPolicy::SmemStorage &smem_storage)
@@ -56,7 +50,7 @@ namespace GASengine
           }
 
           // CTA processing abstraction
-          Cta cta(iteration, queue_index, num_gpus, smem_storage, d_edge_frontier, d_vertex_frontier, d_predecessor, vertex_list, edge_list, d_labels, d_preds, d_sigmas, d_visited_mask, work_progress,
+          Cta cta(iteration, queue_index, num_gpus, smem_storage, d_edge_frontier, d_vertex_frontier, d_predecessor, vertex_list, edge_list, d_preds, d_visited_mask, work_progress,
               max_vertex_frontier);
 
           // Process full tiles
@@ -104,7 +98,7 @@ namespace GASengine
             typename KernelPolicy::VertexId &steal_index,
             int &num_gpus, typename KernelPolicy::VertexId *&d_edge_frontier, typename KernelPolicy::VertexId *&d_vertex_frontier,
             typename KernelPolicy::VertexId *&d_predecessor,
-            typename KernelPolicy::VertexId *&d_labels, typename Program::MiscType *&d_preds, typename KernelPolicy::EValue *&d_sigmas,
+            typename Program::MiscType *&d_preds,
             typename KernelPolicy::VisitedMask *&d_visited_mask,
             util::CtaWorkProgress &work_progress,
             util::CtaWorkDistribution<typename KernelPolicy::SizeT> &work_decomposition,
@@ -115,7 +109,7 @@ namespace GASengine
           typedef typename KernelPolicy::SizeT SizeT;
 
           // CTA processing abstraction
-          Cta cta(iteration, queue_index, num_gpus, smem_storage, d_edge_frontier, d_vertex_frontier, d_predecessor, d_labels, d_preds, d_sigmas, d_visited_mask, work_progress,
+          Cta cta(iteration, queue_index, num_gpus, smem_storage, d_edge_frontier, d_vertex_frontier, d_predecessor, d_preds, d_visited_mask, work_progress,
               max_vertex_frontier);
 
           // Total number of elements in full tiles
@@ -186,61 +180,26 @@ namespace GASengine
             MiscType *&d_predecessor,
             VertexType &vertex_list,
             EdgeType &edge_list,
-            VertexId *&d_labels,
             VertexId *&d_preds,
-            EValue *&d_sigmas,
-            int *&d_dists,
-            int *&d_changed,
             VisitedMask *&d_visited_mask,
             util::CtaWorkProgress &work_progress,
             SizeT &max_edge_frontier,
-            SizeT &max_vertex_frontier,
-            util::KernelRuntimeStats &kernel_stats)
+            SizeT &max_vertex_frontier)
         {
 
           // Shared storage for the kernel
           __shared__ typename KernelPolicy::SmemStorage smem_storage;
 
-          if (KernelPolicy::INSTRUMENT && (threadIdx.x == 0))
-          {
-            kernel_stats.MarkStart();
-          }
-
           if (iteration == 0)
           {
-
             if (threadIdx.x < util::CtaWorkProgress::COUNTERS)
             {
-
               // Reset all counters
               work_progress.template Reset<SizeT>();
 
               // Determine work decomposition for first iteration
               if (threadIdx.x == 0)
               {
-
-//                    SizeT num_elements = 0;
-//                    if (src != -1)
-//                    {
-//
-//                      num_elements = 1;
-//
-//                      // We'll be the only block with active work this iteration.
-//                      // Enqueue the source for us to subsequently process.
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(src, d_edge_frontier);
-//
-//                      // Enqueue predecessor of source
-//                      typename KernelPolicy::VertexId predecessor = 100000000;
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(predecessor, d_predecessor);
-//
-//                      int init_dist = 0;
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(init_dist, vertex_list.d_dists + src);
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(init_dist, vertex_list.d_dists_out + src);
-//
-//                      int init_changed = 1;
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(init_changed, d_changed + src);
-//                    }
-
                 // Initialize work decomposition in smem
                 smem_storage.state.work_decomposition.template Init<KernelPolicy::LOG_SCHEDULE_GRANULARITY>(num_elements, gridDim.x);
               }
@@ -254,7 +213,7 @@ namespace GASengine
             // across CTAs
             SweepPass<KernelPolicy, Program, false>::Invoke(iteration, queue_index, steal_index, num_gpus, d_edge_frontier, d_vertex_frontier, d_predecessor,
                 vertex_list, edge_list,
-                d_labels, d_preds, d_sigmas, d_visited_mask,
+                d_preds, d_visited_mask,
                 work_progress, smem_storage.state.work_decomposition, max_vertex_frontier, smem_storage);
 
           }
@@ -298,14 +257,8 @@ namespace GASengine
             __syncthreads();
 
             SweepPass<KernelPolicy, Program, KernelPolicy::WORK_STEALING>::Invoke(iteration, queue_index, steal_index, num_gpus, d_edge_frontier, d_vertex_frontier,
-                d_predecessor, vertex_list, edge_list, d_labels, d_preds,
-                d_sigmas, d_visited_mask, work_progress, smem_storage.state.work_decomposition, max_vertex_frontier, smem_storage);
-          }
-
-          if (KernelPolicy::INSTRUMENT && (threadIdx.x == 0))
-          {
-            kernel_stats.MarkStop();
-            kernel_stats.Flush();
+                d_predecessor, vertex_list, edge_list, d_preds,
+                d_visited_mask, work_progress, smem_storage.state.work_decomposition, max_vertex_frontier, smem_storage);
           }
         }
 
@@ -322,7 +275,7 @@ namespace GASengine
       __launch_bounds__ (KernelPolicy::THREADS, KernelPolicy::CTA_OCCUPANCY)
       __global__
       void Kernel(
-          typename KernelPolicy::VertexId iteration,					// Current BFS iteration
+          typename KernelPolicy::VertexId iteration,					// Current iteration
           typename KernelPolicy::SizeT num_elements,				// Number of elements in incoming edge frontier (used when !KernelPolicy::DEQUEUE_PROBLEM_SIZE)
           typename KernelPolicy::VertexId queue_index,				// Current frontier queue counter index
           typename KernelPolicy::VertexId steal_index,				// Current workstealing counter index
@@ -333,23 +286,15 @@ namespace GASengine
           typename Program::MiscType *d_predecessor,				// Incoming predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
           typename Program::VertexType vertex_list, //
           typename Program::EdgeType edge_list, //
-//              typename KernelPolicy::VertexType gather_list, //
-          typename KernelPolicy::VertexId *d_labels,					// BFS labels to set
           typename KernelPolicy::VertexId *d_preds,                   // Predecessor output
-          typename KernelPolicy::EValue *d_sigmas,                  // BFS sigmas to set
-          int *d_dists,                        //distances
-          int *d_changed,                      //changed flag
           typename KernelPolicy::VisitedMask *d_visited_mask,			// Mask for detecting visited status
           util::CtaWorkProgress work_progress,				// Atomic workstealing and queueing counters
           typename KernelPolicy::SizeT max_edge_frontier, 			// Maximum number of elements we can place into the outgoing edge frontier
-          typename KernelPolicy::SizeT max_vertex_frontier, 		// Maximum number of elements we can place into the outgoing vertex frontier
-          util::KernelRuntimeStats kernel_stats)				// Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
+          typename KernelPolicy::SizeT max_vertex_frontier)				// Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
       {
         Dispatch<KernelPolicy, Program>::Kernel(iteration, num_elements, queue_index, steal_index, num_gpus, d_done, d_edge_frontier, d_vertex_frontier,
             d_predecessor, vertex_list, edge_list,
-            //                                           gather_list,
-            d_labels, d_preds, d_sigmas, d_dists, d_changed,
-            d_visited_mask, work_progress, max_edge_frontier, max_vertex_frontier, kernel_stats);
+            d_preds, d_visited_mask, work_progress, max_edge_frontier, max_vertex_frontier);
       }
 
     } // namespace contract_atomic

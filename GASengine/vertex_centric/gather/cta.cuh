@@ -1,7 +1,3 @@
-/******************************************************************************
- * CTA tile-processing abstraction for frontier expansion
- ******************************************************************************/
-
 #pragma once
 
 #include <b40c/util/device_intrinsics.cuh>
@@ -49,7 +45,7 @@ namespace GASengine
 
         //CTA reduction
         template<typename T>
-        static __device__                                                                   __forceinline__ T CTAReduce(T* partial)
+        static __device__                                                                     __forceinline__ T CTAReduce(T* partial)
         {
           for (size_t s = KernelPolicy::THREADS / 2; s > 0; s >>= 1)
           {
@@ -60,49 +56,15 @@ namespace GASengine
           return partial[0];
         }
 
-        template<typename T>
-        static __device__                                                                   __forceinline__ T CTAReduceMIN(T* partial)
-        {
-          for (size_t s = KernelPolicy::THREADS / 2; s > 0; s >>= 1)
-          {
-            if (threadIdx.x < s) partial[threadIdx.x] = min(partial[threadIdx.x], partial[threadIdx.x + s]);
-            __syncthreads();
-          }
-          return partial[0];
-        }
-
         //Warp reduction
         template<typename T>
-        static __device__                                                                   __forceinline__ T WarpReduce(T* partial, size_t warp_id)
+        static __device__                                                                     __forceinline__ T WarpReduce(T* partial, size_t warp_id)
         {
           for (size_t s = B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) / 2; s > 0; s >>= 1)
           {
             typename Program::gather_sum gather_sum_functor;
             if (threadIdx.x < warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + s) partial[threadIdx.x] = gather_sum_functor(partial[threadIdx.x], partial[threadIdx.x + s]);
 //                __syncthreads();
-          }
-          return partial[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH)];
-        }
-
-//            //Warp reduction
-//            template<typename T>
-//            static __device__                                          __forceinline__ T WarpReduceMIN(T* partial, size_t warp_id)
-//            {
-//              for (size_t s = B40C_LOG_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) / 2; s > 0; s >>= 1)
-//              {
-//                if (threadIdx.x < warp_id * B40C_LOG_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + s) partial[threadIdx.x] = min(partial[threadIdx.x], partial[threadIdx.x + s]);
-//                __syncthreads();
-//              }
-//              return partial[warp_id * B40C_LOG_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH)];
-//            }
-        //Warp reduction
-        template<typename T>
-        static __device__                                                                     __forceinline__ T WarpReduceMIN(T* partial, size_t warp_id)
-        {
-          for (size_t s = B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) / 2; s > 0; s >>= 1)
-          {
-            if (threadIdx.x < warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + s) partial[threadIdx.x] = min(partial[threadIdx.x], partial[threadIdx.x + s]);
-            __syncthreads();
           }
           return partial[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH)];
         }
@@ -132,13 +94,6 @@ namespace GASengine
         // Input and output device pointers
         VertexId *d_in;						// Incoming vertex frontier
         VertexId *d_out;						// Outgoing edge frontier
-        VertexId *d_labels;                 // BFS labels to set
-//            EValue *d_dists; //
-//            EValue* d_gather_results; //gather results
-//            int *d_changed; //changed flag
-//            SizeT *d_num_out_edges; // number of out edges
-//            SizeT *d_visit_flags;             // Global vertex visit flag, preventing value on one vertex being multiple updated
-//            VertexId *d_predecessor_out;						// Outgoing predecessor edge frontier
         VertexId *d_column_indices;			// CSR column-indices array
         SizeT *d_row_offsets;				// CSR row-offsets array
         VertexType vertex_list;
@@ -234,23 +189,15 @@ namespace GASengine
                 Vec2SizeT row_range;
                 row_range.x = cta->d_row_offsets[row_id];
                 row_range.y = cta->d_row_offsets[row_id + 1];
-//                    row_range.x = tex1Dfetch(RowOffsetTex<SizeT>::ref, row_id);
-//                    row_range.y = tex1Dfetch(RowOffsetTex<SizeT>::ref, row_id + 1);
 
                 // Node is previously unvisited: compute row offset and length
                 tile->row_offset[LOAD][VEC] = row_range.x;
                 tile->row_length[LOAD][VEC] = row_range.y - row_range.x;
-
-//                    if (tile->vertex_id[LOAD][VEC] == 38) printf("Inspect: tile->vertex_id[LOAD][VEC]=%d, row_range.x=%d, row_range.y=%d\n", tile->vertex_id[LOAD][VEC], row_range.x, row_range.y);
               }
 
               tile->fine_row_rank[LOAD][VEC] = (tile->row_length[LOAD][VEC] < KernelPolicy::WARP_GATHER_THRESHOLD) ? tile->row_length[LOAD][VEC] : 0;
 
               tile->coarse_row_rank[LOAD][VEC] = (tile->row_length[LOAD][VEC] < KernelPolicy::WARP_GATHER_THRESHOLD) ? 0 : tile->row_length[LOAD][VEC];
-
-//                  if (tile->vertex_id[LOAD][VEC] == 38)
-//                    printf("Inspect: tile->vertex_id[LOAD][VEC]=%d, tile->fine_row_rank[LOAD][VEC]=%d, tile->coarse_row_rank[LOAD][VEC]=%d\n", tile->vertex_id[LOAD][VEC],
-//                        tile->fine_row_rank[LOAD][VEC], tile->coarse_row_rank[LOAD][VEC]);
 
               Iterate<LOAD, VEC + 1>::Inspect(cta, tile);
             }
@@ -263,10 +210,7 @@ namespace GASengine
             {
               // CTA-based expansion/loading
               while (true)
-              //                  for(int k=0; k<1; k++)
               {
-                //                    int changed;
-                //                    util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(changed, cta->d_changed + tile->vertex_id[LOAD][VEC]);
                 cta->smem_storage.state.cta_comm = KernelPolicy::THREADS;
                 __syncthreads();
 
@@ -304,7 +248,6 @@ namespace GASengine
 
                   // Unset row length
                   tile->row_length[LOAD][VEC] = 0;
-                  //                      printf("gather:cta:%d won\n", cta->smem_storage.state.warp_comm[0][3]);
 
                   // Unset my command
                   cta->smem_storage.state.cta_comm = KernelPolicy::THREADS; // invalid
@@ -342,7 +285,6 @@ namespace GASengine
                 {
                   typename Program::gather_vertex gather_vertex_functor;
                   gather_vertex_functor(row_id, final_delta_value, cta->vertex_list, cta->edge_list);
-//                      util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(final_delta_value, cta->vertex_list.d_min_dists + row_id);
                 }
               }
               // Next vector element
@@ -355,9 +297,6 @@ namespace GASengine
             template<typename Cta, typename Tile>
             static __device__ __forceinline__ void ExpandByWarp(Cta *cta, Tile *tile)
             {
-//                  if(threadIdx.x==0)
-//                  printf("Gather_WARP412: bidx=%d, tidx=%d, vid=%d, WARP_GATHER_THRESHOLD=%d, CTA_GATHER_THRESHOLD=%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC],
-//                      KernelPolicy::WARP_GATHER_THRESHOLD, KernelPolicy::CTA_GATHER_THRESHOLD);
               if (KernelPolicy::WARP_GATHER_THRESHOLD < KernelPolicy::CTA_GATHER_THRESHOLD)
               {
                 // Warp-based expansion/loading
@@ -374,7 +313,6 @@ namespace GASengine
 
                   if (tile->row_length[LOAD][VEC] >= KernelPolicy::WARP_GATHER_THRESHOLD)
                   {
-//                        printf("Gather_WARP422: vid=%d, tile->row_length[LOAD][VEC]=%d, lane_id=%d\n", tile->vertex_id[LOAD][VEC], tile->row_length[LOAD][VEC], lane_id);
                     // Vie for control of the warp
                     cta->smem_storage.state.warp_comm[warp_id][0] = lane_id;
                   }
@@ -386,9 +324,6 @@ namespace GASengine
                     cta->smem_storage.state.warp_comm[warp_id][1] = tile->coarse_row_rank[LOAD][VEC];	// queue rank
                     cta->smem_storage.state.warp_comm[warp_id][2] = tile->row_offset[LOAD][VEC] + tile->row_length[LOAD][VEC];	// oob
                     cta->smem_storage.state.warp_comm[warp_id][3] = tile->vertex_id[LOAD][VEC];	// predecessor
-//                        printf("Gather_WARP348: vid=%d, row_offset=%d, coarse_row_rank=%d, row_length=%d\n", tile->vertex_id[LOAD][VEC], cta->smem_storage.state.warp_comm[warp_id][0],
-//                            cta->smem_storage.state.warp_comm[warp_id][1] = tile->coarse_row_rank[LOAD][VEC], cta->smem_storage.state.warp_comm[warp_id][2]);
-
                     // Unset row length
                     tile->row_length[LOAD][VEC] = 0;
                   }
@@ -398,11 +333,9 @@ namespace GASengine
                   SizeT coop_oob = cta->smem_storage.state.warp_comm[warp_id][2];
                   VertexId row_id = cta->smem_storage.state.warp_comm[warp_id][3];
 
-                  // VertexId predecessor_id = cta->smem_storage.state.warp_comm[warp_id][3];
-
                   VertexId neighbor_id;
                   EValue new_dist;
-//                      SizeT num_out_edge;
+
                   while (coop_offset + lane_id < coop_oob)
                   {
 
@@ -418,49 +351,13 @@ namespace GASengine
                     coop_rank += B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH);
                   }
 
-//                      if (row_id == 1049)
-//                        printf("bidx=%d, tidx=%d, warp_id=%d, lane_id=%d, smem_storage.gather_delta_values[%d]=%d\n", blockIdx.x, threadIdx.x, warp_id, lane_id, lane_id,
-//                            cta->smem_storage.gather_delta_values[warp_id * B40C_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) + lane_id]);
                   typename Program::GatherType final_dist = WarpReduce(cta->smem_storage.gather_delta_values, warp_id);
-//                      printf("Gather_WARP522: bidx=%d, tidx=%d, reduce=%d\n", blockIdx.x, threadIdx.x, final_dist);
-                  // vie for write into delta_values
-//                        if (threadIdx.x == 0) //correct? lane_id == 0??
                   if (lane_id == 0)
                   {
                     typename Program::gather_vertex gather_vertex_functor;
                     gather_vertex_functor(row_id, final_dist, cta->vertex_list, cta->edge_list);
-//                        util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(final_dist, cta->d_gather_results + row_id);
-//                        EValue current_dist, dist;
-//                        //try to set the d_visit_flag in global memory
-////                          if (atomicCAS(cta->d_visit_flags + tile->vertex_id[LOAD][VEC], 0, 1) == 0)
-////                        if (atomicCAS(cta->d_visit_flags + row_id, 0, 1) == 0)
-//                        {
-//
-//                          //accumulate to node values
-////                            util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(current_dist, cta->d_dists + tile->vertex_id[LOAD][VEC]);
-//                          util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(current_dist, cta->d_dists + row_id);
-//
-//                          dist = min(current_dist, final_dist);
-//                          if (row_id == 1) printf("bidx=%d, tidx=%d, row_id=%d, current_dist=%d, final_dist=%d\n", blockIdx.x, threadIdx.x, row_id, current_dist, final_dist);
-//                          if (current_dist != dist)
-//                          {
-////                              util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(dist, cta->d_dists + tile->vertex_id[LOAD][VEC]);
-////                              util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(1, cta->d_changed + tile->vertex_id[LOAD][VEC]);
-//                            util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(dist, cta->d_dists + row_id);
-////                            util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(3, cta->d_changed + row_id);
-//                            atomicExch(cta->d_changed + row_id, 3);
-//                          }
-//                          else
-//                          {
-////                            util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(0, cta->d_changed + tile->vertex_id[LOAD][VEC]);
-////                            util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(2, cta->d_changed + row_id);
-//                            atomicExch(cta->d_changed + row_id, 2);
-//                          }
-//                            if(tile->vertex_id[LOAD][VEC] == 8191)
 
                   }
-//                        if (row_id == 1049)
-//                          printf("Gather_WARP490: bidx=%d, tidx=%d, vid=%d, current_dist=%d, dist=%d, final_dist=%d\n", blockIdx.x, threadIdx.x, row_id, current_dist, dist, final_dist);
                 }
 
               }
@@ -475,15 +372,11 @@ namespace GASengine
             template<typename Cta, typename Tile>
             static __device__ __forceinline__ void ExpandByScan(Cta *cta, Tile *tile)
             {
-              // Attempt to make further progress on this dequeued item's neighbor
-              // list if its current offset into local scratch is in range
-//                  SizeT scratch_offset = tile->fine_row_rank[LOAD][VEC] + tile->row_progress[LOAD][VEC] - tile->progress;
               VertexId neighbor_id;
               EValue new_dist;
 
               typename Program::GatherType dist = Program::INIT_VALUE;
 
-//                  printf("Gather_SCAN586: bidx=%d, tidx=%d, vidx=%d, r_progress=%d, r_lenghth=%d\n", blockIdx.x, threadIdx.x, tile->vertex_id[LOAD][VEC], tile->row_progress[LOAD][VEC],  tile->row_length[LOAD][VEC]);
               tile->row_progress[LOAD][VEC] = 0;
 
               if (tile->row_length[LOAD][VEC] > 0)
@@ -501,15 +394,10 @@ namespace GASengine
                   dist = gather_sum_functor(dist, new_dist);
 
                   tile->row_progress[LOAD][VEC]++;
-//                      scratch_offset++;
                 }
                 typename Program::gather_vertex gather_vertex_functor;
                 gather_vertex_functor(tile->vertex_id[LOAD][VEC], dist, cta->vertex_list, cta->edge_list);
-
-//                    util::io::ModifiedStore<KernelPolicy::QUEUE_WRITE_MODIFIER>::St(dist, cta->d_gather_results + tile->vertex_id[LOAD][VEC]);
-
               }
-              //otherwise it's a repeating visit to old vertex, do nothing
 
               // Next vector element
               Iterate<LOAD, VEC + 1>::ExpandByScan(cta, tile);
@@ -714,21 +602,10 @@ namespace GASengine
             __syncthreads();
           }
 
-          //
-          // Enqueue the adjacency lists of unvisited node-IDs by repeatedly
-          // gathering edges into the scratch space, and then
-          // having the entire CTA copy the scratch pool into the outgoing
-          // frontier queue.
-          //
-
           tile.progress = 0;
-//              while (tile.progress < tile.fine_count)
-          {
-            // Fill the scratch space with gather-offsets for neighbor-lists.
-            tile.ExpandByScan(this);
 
-//                __syncthreads();
-          }
+          // Fill the scratch space with gather-offsets for neighbor-lists.
+          tile.ExpandByScan(this);
         }
       }
       ;

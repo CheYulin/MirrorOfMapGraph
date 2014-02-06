@@ -1,7 +1,3 @@
-/******************************************************************************
- * atomic expansion kernel
- ******************************************************************************/
-
 #pragma once
 
 #include <b40c/util/cta_work_distribution.cuh>
@@ -238,19 +234,10 @@ namespace GASengine
             SizeT *&d_row_offsets,
             util::CtaWorkProgress &work_progress,
             SizeT &max_vertex_frontier,
-            SizeT &max_edge_frontier,
-            util::KernelRuntimeStats &kernel_stats)
+            SizeT &max_edge_frontier)
         {
-//		printf("In expand dispatch\n");
-//		__syncthreads();
-
           // Shared storage for the kernel
           __shared__ typename KernelPolicy::SmemStorage smem_storage;
-
-          if (KernelPolicy::INSTRUMENT && (threadIdx.x == 0))
-          {
-            kernel_stats.MarkStart();
-          }
 
           // Determine work decomposition
           if (threadIdx.x == 0)
@@ -302,12 +289,6 @@ namespace GASengine
               smem_storage.state.work_decomposition,
               max_edge_frontier,
               smem_storage);
-
-          if (KernelPolicy::INSTRUMENT && (threadIdx.x == 0))
-          {
-            kernel_stats.MarkStop();
-            kernel_stats.Flush();
-          }
         }
       };
 
@@ -336,11 +317,8 @@ namespace GASengine
           typename KernelPolicy::SizeT *d_row_offsets,				// CSR row-offsets array
           util::CtaWorkProgress work_progress,				// Atomic workstealing and queueing counters
           typename KernelPolicy::SizeT max_vertex_frontier, 		// Maximum number of elements we can place into the outgoing vertex frontier
-          typename KernelPolicy::SizeT max_edge_frontier, 			// Maximum number of elements we can place into the outgoing edge frontier
-          util::KernelRuntimeStats kernel_stats)				// Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
+          typename KernelPolicy::SizeT max_edge_frontier)				// Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
       {
-//	printf("In expand Kernel\n");
-//	__syncthreads();
         Dispatch<KernelPolicy, Program>::Kernel(
             iteration,
             queue_index,
@@ -356,8 +334,7 @@ namespace GASengine
             d_row_offsets,
             work_progress,
             max_vertex_frontier,
-            max_edge_frontier,
-            kernel_stats);
+            max_edge_frontier);
       }
 
     } // namespace expand_atomic

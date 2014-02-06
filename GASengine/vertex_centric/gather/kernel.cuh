@@ -1,7 +1,3 @@
-/******************************************************************************
- * atomic expansion kernel
- ******************************************************************************/
-
 #pragma once
 
 #include <b40c/util/cta_work_distribution.cuh>
@@ -171,16 +167,11 @@ namespace GASengine
         static __device__ __forceinline__ void Kernel(VertexId &queue_index, VertexId &steal_index, int &num_gpus,
             volatile int *&d_done, VertexId *&d_vertex_frontier, VertexId *&d_edge_frontier,
             VertexId *&d_column_indices, SizeT *&d_row_offsets, VertexType &vertex_list, EdgeType &edge_list, util::CtaWorkProgress &work_progress,
-            SizeT &max_vertex_frontier, SizeT &max_edge_frontier, util::KernelRuntimeStats &kernel_stats)
+            SizeT &max_vertex_frontier, SizeT &max_edge_frontier)
         {
 
           // Shared storage for the kernel
           __shared__ typename KernelPolicy::SmemStorage smem_storage;
-
-          if (KernelPolicy::INSTRUMENT && (threadIdx.x == 0))
-          {
-            kernel_stats.MarkStart();
-          }
 
           // Determine work decomposition
           if (threadIdx.x == 0)
@@ -224,12 +215,6 @@ namespace GASengine
 
           SweepPass<KernelPolicy, Program, KernelPolicy::WORK_STEALING>::Invoke(queue_index, steal_index, num_gpus, d_vertex_frontier, d_edge_frontier, d_column_indices, d_row_offsets,
               vertex_list, edge_list, work_progress, smem_storage.state.work_decomposition, max_edge_frontier, smem_storage);
-//
-          if (KernelPolicy::INSTRUMENT && (threadIdx.x == 0))
-          {
-            kernel_stats.MarkStop();
-            kernel_stats.Flush();
-          }
         }
       };
 
@@ -257,25 +242,11 @@ namespace GASengine
 //              typename KernelPolicy::SizeT *d_visit_flags, //visited flag, not used
           util::CtaWorkProgress work_progress,			// Atomic workstealing and queueing counters
           typename KernelPolicy::SizeT max_vertex_frontier, 		// Maximum number of elements we can place into the outgoing vertex frontier
-          typename KernelPolicy::SizeT max_edge_frontier, 			// Maximum number of elements we can place into the outgoing edge frontier
-          util::KernelRuntimeStats kernel_stats)				// Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
+          typename KernelPolicy::SizeT max_edge_frontier)				// Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
       {
         Dispatch<KernelPolicy, Program>::Kernel(queue_index, steal_index, num_gpus, d_done, d_vertex_frontier, d_edge_frontier, d_column_indices, d_row_offsets,
-            vertex_list, edge_list, work_progress, max_vertex_frontier, max_edge_frontier, kernel_stats);
+            vertex_list, edge_list, work_progress, max_vertex_frontier, max_edge_frontier);
       }
-
-//          template<typename KernelPolicy>
-//          __launch_bounds__ (KernelPolicy::THREADS, KernelPolicy::CTA_OCCUPANCY)
-//          __global__
-//          void reset_changed(int nodes, int* d_changed)                // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
-//          {
-//            int tidx = blockIdx.x * gridDim.x + threadIdx.x;
-//            for (int v = tidx; v < nodes; v += gridDim.x * blockDim.x)
-//            {
-//              int changed = d_changed[v];
-//              if (changed >= 2) d_changed[v] = changed - 2;
-//            }
-//          }
 
       template<typename KernelPolicy, typename Program>
       __launch_bounds__ (KernelPolicy::THREADS, KernelPolicy::CTA_OCCUPANCY)
@@ -293,18 +264,6 @@ namespace GASengine
         {
           int v = frontier[i];
           apply_functor(v, iteration, vertex_list, edge_list);
-
-//              typename KernelPolicy::EValue oldvalue = vertex_list.d_dists[v];
-//              typename KernelPolicy::EValue gathervalue = gather_list.d_dists[v];
-//              typename KernelPolicy::EValue newvalue = min(oldvalue, gathervalue);
-//
-//              if (oldvalue == newvalue)
-//            	  vertex_list.d_changed[v] = 0;
-//              else
-//            	  vertex_list.d_changed[v] = 1;
-//
-//              vertex_list.d_dists_out[v] = newvalue;
-
         }
       }
 
