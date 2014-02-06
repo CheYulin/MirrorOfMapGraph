@@ -196,7 +196,8 @@ void printUsageAndExit(char* algo_name)
   std::cout << "     -graph or -g specify a sparse matrix in Matrix Market (.mtx) format\n";
   std::cout << "     -output or -o specify file for output result\n";
   std::cout << "     -sources or -s set the starting vertices file\n";
-  std::cout << "     -c set the SSSP options from the configuration file\n";
+  std::cout << "     -targets or -t set the starting vertices file\n";
+  std::cout << "     -c sets the options from a configuration file\n";
   std::cout
       << "     -parameters (-p) set the options.  Options include the following:\n";
   Config::printOptions();
