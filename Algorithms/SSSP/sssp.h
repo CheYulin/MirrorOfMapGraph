@@ -17,6 +17,17 @@
  * such that the shortest distance from the starting vertex is marked
  * on each vertex.  Vertices that are not reachable will report a
  * label of -1.
+ *
+ * Note: This sssp implementation uses a "push" style scatter rather
+ * than a Gather + Scatter.  The push style scatter does 1/2 the work.
+ * It is implemented using a pattern where the scatter kernel first
+ * populates the frontier and a user defined array that is 1:1 with
+ * the frontier. That user defined array contains the source vertex
+ * dist + the edge weight.  Thus, both the frontier and the used
+ * defined array have one value per edge along which the algorithm has
+ * traversed from the source vertex to a target vertex.  The contract
+ * device function then combines those per-edge intermediate values
+ * using an atomicMin().  This reduces the data to per target vertex.
  */
 struct sssp
 {
