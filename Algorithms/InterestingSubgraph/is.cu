@@ -494,11 +494,27 @@ int main(int argc, char **argv)
 
   CsrProblem* csr_problem_ptr = new CsrProblem(cfg);
   CsrProblem csr_problem = *csr_problem_ptr;
+
+//  VertexId *h_vertex_ids = new VertexId[csr_graph.nodes];
+//  for (int i = 0; i < csr_graph.nodes; ++i)
+//  {
+//    h_vertex_ids[i] = i;
+//  }
+
+  double starttransfer, endtransfer;
+  double transfertime = 0.0;
+  starttransfer = omp_get_wtime();
   if (csr_problem.FromHostProblem(g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices,
       csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
-      csr_graph.column_offsets, csr_graph.node_values, num_gpus, directed))
+      csr_graph.column_offsets, num_gpus, directed))
     exit(1);
+
+  cudaDeviceSynchronize();
+  endtransfer = omp_get_wtime();
+//  printf("Transfer time for SSSP: %f ms\n", (endtransfer - starttransfer)* 1000.0);
+  transfertime += endtransfer - starttransfer;
+
 
   const bool INSTRUMENT = true;
   GASengine::EnactorVertexCentric<INSTRUMENT> vertex_centric(cfg, g_verbose);
@@ -542,11 +558,18 @@ int main(int argc, char **argv)
       g_mark_predecessor, g_with_value> CsrProblemBFS;
 
   CsrProblemBFS csr_problem_bfs(cfg);
+
+  starttransfer = omp_get_wtime();
   if (csr_problem_bfs.FromHostProblem(g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices,
       csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
-      csr_graph.column_offsets, csr_graph.node_values, num_gpus, directed))
+      csr_graph.column_offsets, num_gpus, directed))
     exit(1);
+
+  cudaDeviceSynchronize();
+  endtransfer = omp_get_wtime();
+//  printf("Transfer time for BFS: %f ms\n", (endtransfer - starttransfer)* 1000.0);
+  transfertime += endtransfer - starttransfer;
 
   int iter_num = cfg.getParameter<int>("iter_num");
 
@@ -581,8 +604,8 @@ int main(int argc, char **argv)
 
   double endIS = omp_get_wtime();
   cout << "Total elapsed time: " << (endIS - startIS) * 1000.0 << "ms" << endl;
+  cout << "GPU memory allocation and transfer time: " << transfertime * 1000.0 << "ms" << endl;
 
-//  csr_problem_bfs.ExtractResults(h_values);
 
   if (strcmp(source_file_name, "") == 0 && run_CPU)
   {

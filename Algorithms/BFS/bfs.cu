@@ -372,7 +372,7 @@ int main(int argc, char **argv)
   if (csr_problem.FromHostProblem(g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices, csr_graph.row_offsets,
       csr_graph.edge_values, csr_graph.row_indices,
-      csr_graph.column_offsets, csr_graph.node_values, num_gpus,
+      csr_graph.column_offsets, num_gpus,
       directed))
     exit(1);
 
