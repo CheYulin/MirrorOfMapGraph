@@ -214,10 +214,17 @@ appropriate device functions.
 
 MPGraph currently reads the <a
 href="http://math.nist.gov/MatrixMarket/formats.html#MMformat" > Matrix Market
-</a> exchange format for sparse matrices.  There is a header line which
-specifies the format time and the data type of the associated edge weights.
-Matrices should be either "general" (directed) or "symmetric" (undirected).
-See below for an example.
+</a> exchange format for sparse matrices.  There is a header line starting
+with <code>%%</code> that specifies the format time and the data type for the
+edge weights. Matrices should be either "general" (directed) or "symmetric"
+(undirected). After the header line is a line that specifies the number of
+rows, the number of columns, and the number of non-zeros (7, 7, 11 in the
+example below).  For MPGraph, nrows MUST equal ncols and there MUST be one
+edge for each non-zero declared by the file.  See below for an example of a
+directed graph having 7 rows, 7 columns, and 11 non-zero edges. Only integer
+weights are supported at this time, so if you have floating point values you
+need to scale them (multiple through by a constant) or edit the code - this
+will change in a future release.
 
 \verbatim
 %%MatrixMarket matrix coordinate Integer general
