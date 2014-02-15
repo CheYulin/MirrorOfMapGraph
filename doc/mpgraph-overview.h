@@ -210,6 +210,31 @@ the vertex identifiers.  You will need to initialize your array.
 MPGraph will provide you with access to your data from within the
 appropriate device functions.
 
+\subsection data_files MPGraph supported File Formats
+
+MPGraph currently reads the <a
+href="http://math.nist.gov/MatrixMarket/formats.html#MMformat" > Matrix Market
+</a> exchange format for sparse matrices.  There is a header line which
+specifies the format time and the data type of the associated edge weights.
+Matrices should be either "general" (directed) or "symmetric" (undirected).
+See below for an example.
+
+\verbatim
+%%MatrixMarket matrix coordinate Integer general
+7 7 11
+1 2 1
+1 3 4
+1 4 1
+2 5 1
+3 2 1
+3 5 1
+3 6 1
+4 6 1
+4 7 1
+5 7 1
+6 7 1
+\endverbatim
+
 \subsection write_your_own Writing your own MPGraph algorithm
 
 MPGraph is based on templates.  This means that there is no interface
@@ -220,5 +245,12 @@ function that initializes the user data structures (the vertex list
 and the edge list) and the device functions that implement the user
 code for the Gather, Apply, and Scatter primitives.  You can also
 define functions that will extract the results from the GPU.
+
+We recommend starting with the sssp implementation for graph traversal
+algorithms.  This class has been heavily documented.  It also makes use of the user data arrays that are 1:1 with the frontier. The IS class shows how to create a workflow in which multiple graph analytics are executed against a single in memory graph image.
+
+Algorithms that visit most or all vertices in each iteration might be better patterned on the PR or CC implementations.  
+
+Some algorithms (including PR) require efficient atomic operations (e.g., they are only efficient on Kepler architecture cards) in order to ensure that simultaneous discovery does not introduce duplicates into the frontier.  For page rank, duplicates in the frontier will cause  double counting and incorrect results.  The correctness of other algorithms is not effected by such duplicates.  For example, for sssp and bfs, duplicates are only heuristically reduced in order to minimize the duplicate work in the frontier.
 
 */
