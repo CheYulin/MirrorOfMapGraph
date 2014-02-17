@@ -1,5 +1,5 @@
 # The software release version.
-ver=2.0.0
+ver=0.2.0
 version=mpgraph.${ver}.tgz
 release.dir=releases
 
@@ -54,4 +54,4 @@ release: clean release.create
 release.create:
 	-mkdir ${release.dir}
 	-rm -f ${release.dir}/${version}
-	tar --exclude .svn -cvz -f ${release.dir}/${version} .
+	tar --exclude .svn --exclude releases -cvz -f ${release.dir}/${version} .
