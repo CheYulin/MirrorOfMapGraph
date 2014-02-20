@@ -722,6 +722,7 @@ namespace GASengine
         retval = (cudaError_t) 1;
       }
       std::cout << "retval: " << retval << std::endl;
+
       return retval;
     }
 

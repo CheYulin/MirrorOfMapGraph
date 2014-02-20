@@ -415,6 +415,7 @@ int main(int argc, char **argv)
 
     fclose(f);
   }
+  bfs::freeall(csr_problem.graph_slices[0]->vertex_list, csr_problem.graph_slices[0]->edge_list);
 
   return 0;
 }

@@ -97,6 +97,14 @@ struct sssp
     }
   };
 
+  static void freeall(VertexType &vertex_list, EdgeType &edge_list)
+  {
+    cudaFree(vertex_list.d_dists);
+    cudaFree(vertex_list.d_changed);
+    cudaFree(vertex_list.d_dists_out);
+    cudaFree(vertex_list.d_min_dists);
+    cudaFree(edge_list.d_weights);
+  }
   /**
    * \brief Initialize the device memory.
    *

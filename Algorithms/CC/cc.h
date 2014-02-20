@@ -77,10 +77,19 @@ struct cc
     return EXPAND_OUT_EDGES;
   }
 
+  static void freeall(VertexType &vertex_list, EdgeType &edge_list)
+  {
+    cudaFree(vertex_list.d_dists);
+    cudaFree(vertex_list.d_changed);
+    cudaFree(vertex_list.d_dists_out);
+    cudaFree(vertex_list.d_min_dists);
+  }
+
   static void Initialize(const int nodes, const int edges, int num_srcs,
-      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, int* d_edge_values,
-      VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
-      MiscType* d_frontier_values[3])
+      int* srcs, int* d_row_offsets, int* d_column_indices,
+      int* d_column_offsets, int* d_row_indices, int* d_edge_values,
+      VertexType &vertex_list, EdgeType &edge_list,
+      int* d_frontier_keys[3], MiscType* d_frontier_values[3])
   {
     vertex_list.nodes = nodes;
     vertex_list.edges = edges;
@@ -111,17 +120,15 @@ struct cc
     int memset_grid_size_max = 32 * 1024;	// 32K CTAs
     int memset_grid_size;
 
-    memset_grid_size = B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
+    memset_grid_size =
+        B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
 
     b40c::util::SequenceKernel<DataType><<<memset_grid_size,
-    memset_block_size, 0, 0>>>(vertex_list.d_dists,
-        nodes);
+    memset_block_size, 0, 0>>>(vertex_list.d_dists, nodes);
 
     // Initialize d_dists_out elements
-    cudaMemcpy(vertex_list.d_dists_out,
-        vertex_list.d_dists,
-        nodes * sizeof(DataType),
-        cudaMemcpyDeviceToDevice);
+    cudaMemcpy(vertex_list.d_dists_out, vertex_list.d_dists,
+        nodes * sizeof(DataType), cudaMemcpyDeviceToDevice);
 
     b40c::util::MemsetKernel<int><<<memset_grid_size, memset_block_size, 0,
     0>>>(vertex_list.d_changed, 1, nodes);
@@ -131,15 +138,15 @@ struct cc
         nodes);
 
     if (b40c::util::B40CPerror(
-        cudaMemcpy(d_frontier_keys[0], vertex_list.d_dists, nodes * sizeof(int),
-            cudaMemcpyDeviceToDevice),
+        cudaMemcpy(d_frontier_keys[0], vertex_list.d_dists,
+            nodes * sizeof(int), cudaMemcpyDeviceToDevice),
         "CsrProblem cudaMemcpy d_frontier_keys failed", __FILE__,
         __LINE__))
       exit(0);
 
     if (b40c::util::B40CPerror(
-        cudaMemcpy(d_frontier_keys[1], vertex_list.d_dists, nodes * sizeof(int),
-            cudaMemcpyDeviceToDevice),
+        cudaMemcpy(d_frontier_keys[1], vertex_list.d_dists,
+            nodes * sizeof(int), cudaMemcpyDeviceToDevice),
         "CsrProblem cudaMemcpy d_frontier_keys failed", __FILE__,
         __LINE__))
       exit(0);
@@ -172,7 +179,8 @@ struct cc
   {
     __device__
     void operator()(const int vertex_id, const int neighbor_id_in,
-        VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
+        VertexType &vertex_list, EdgeType &edge_list,
+        GatherType& new_value)
     {
 
     }
@@ -218,7 +226,8 @@ struct cc
   struct post_apply
   {
     __device__
-    void operator()(const int vertex_id, VertexType& vertex_list, EdgeType& edge_list)
+    void operator()(const int vertex_id, VertexType& vertex_list,
+        EdgeType& edge_list)
     {
       vertex_list.d_dists[vertex_id] = vertex_list.d_dists_out[vertex_id];
       vertex_list.d_min_dists[vertex_id] = INIT_VALUE;
@@ -238,7 +247,8 @@ struct cc
      *
      * @param vertex_list The vertices in the graph.
      */
-    bool operator()(const int vertex_id, VertexType &vertex_list, EdgeType& edge_list)
+    bool operator()(const int vertex_id, VertexType &vertex_list,
+        EdgeType& edge_list)
     {
       return vertex_list.d_changed[vertex_id];
     }
@@ -286,8 +296,9 @@ struct cc
      * has a 1:1 correspondence with the frontier array.
      */
     void operator()(const bool changed, const int iteration,
-        const int vertex_id, const int neighbor_id_in, const int edge_id,
-        VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
+        const int vertex_id, const int neighbor_id_in,
+        const int edge_id, VertexType& vertex_list, EdgeType& edge_list,
+        int& frontier, int& misc_value)
     {
       const int src_dist = vertex_list.d_dists[vertex_id];
       const int dst_dist = vertex_list.d_dists[neighbor_id_in];
@@ -341,7 +352,8 @@ struct cc
 
   static void extractResult(VertexType& vertex_list, DataType* h_output)
   {
-    cudaMemcpy(h_output, vertex_list.d_dists, sizeof(DataType) * vertex_list.nodes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_output, vertex_list.d_dists,
+        sizeof(DataType) * vertex_list.nodes, cudaMemcpyDeviceToHost);
   }
 
 //  /**

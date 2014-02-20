@@ -314,5 +314,6 @@ int main(int argc, char **argv)
   int num_comp = (int) (new_end - dist_ptr);
   printf("Number of components is: %d\n", num_comp);
 
+  cc::freeall(csr_problem.graph_slices[0]->vertex_list, csr_problem.graph_slices[0]->edge_list);
   return 0;
 }
