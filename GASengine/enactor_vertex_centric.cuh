@@ -762,8 +762,8 @@ namespace GASengine
         typedef vertex_centric::gather::KernelPolicy<Program,
             typename CsrProblem::ProblemType, 200, // CUDA_ARCH
             INSTRUMENT, // INSTRUMENT
-            4, // CTA_OCCUPANCY
-            7, // LOG_THREADS
+            1, // CTA_OCCUPANCY
+            9, // LOG_THREADS
             0, // LOG_LOAD_VEC_SIZE
             0, // LOG_LOADS_PER_TILE
             5, // LOG_RAKING_THREADS

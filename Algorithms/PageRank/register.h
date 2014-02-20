@@ -1,5 +1,5 @@
 #include <config.h>
-#include <limits>
+#include <limits.h>
 
 //register the parameters from command line or configuration file
 inline void registerParameters() {
@@ -9,7 +9,7 @@ inline void registerParameters() {
 //  Config::registerParameter<int>("origin","The origin (0 or 1) for the starting vertices (default 1)", 1); //vertex indices origin
   Config::registerParameter<int>("directed","The graph is directed (default 1)", 1); //whether the graph is directed or not
   Config::registerParameter<int>("device","The device to use (default 0)", 0); // the device number
-  Config::registerParameter<int>("iter_num","The number of iterations to perform (default 1)", 1);
+  Config::registerParameter<int>("iter_num","The number of iterations to perform (default INT_MAX)", INT_MAX);
   Config::registerParameter<double>("tol","The tolerance for correctness check (default 0.1)", 0.1);
   Config::registerParameter<int>("run_CPU","Run CPU implementation for testing (default 0)", 0);
 //  Config::registerParameter<int>("num_src","The number of starting vertices when random sources is specified (default 1)", 1); // the device number

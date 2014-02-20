@@ -278,9 +278,9 @@ int main(int argc, char **argv)
   GASengine::EnactorVertexCentric<INSTRUMENT> vertex_centric(cfg, g_verbose);
 
   cudaError_t retval = cudaSuccess;
-
+  int iter_num = cfg.getParameter<int>("iter_num");
   retval = vertex_centric.EnactIterativeSearch<CsrProblem, pagerank>(csr_problem,
-      csr_graph.row_offsets, directed, csr_graph.nodes, NULL, INT_MAX);
+      csr_graph.row_offsets, directed, csr_graph.nodes, NULL, iter_num);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
   {
