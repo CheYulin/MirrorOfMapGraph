@@ -1,0 +1,530 @@
+Detected 3 CUDA Capable device(s)
+Running on this device:
+Device 0: "Tesla K20c"
+  CUDA Driver Version / Runtime Version          5.5 / 5.5
+  CUDA Capability Major/Minor version number:    3.5
+  Total amount of global memory:                 4800 MBytes (5032706048 bytes)
+Running on host: zhisong-homeoffice
+Reading from /home/zhisong/workspace/GraphDatasets/kron_g500-logn20.mtx:
+  Parsing MARKET COO format  (1048576 nodes, 44620272 directed edges)... Done parsing (16s).
+  Converting 1048576 vertices, 89240544 directed edges (unordered tuples) to CSR format... Done converting (10s).
+Using source file: /home/zhisong/workspace/GraphDatasets/starting_vertices/kron_g500-logn20.rand_indices!
+number of srcs used: 100
+GPU 0 column_indices: 89240544 elements (1427848704 bytes)
+GPU 0 row_offsets: 1048577 elements (4194308 bytes)
+CPU to GPU memory transfer time: 230.237491 ms
+num_srcs=100, src=532696, iter_num=10000
+Starting vertex: 532696 
+Kernel time took: 61.5918 ms
+Wall time took: 61.5989 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=32540, iter_num=10000
+Starting vertex: 558131 
+Kernel time took: 52.1103 ms
+Wall time took: 52.1162 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=3, iter_num=10000
+Starting vertex: 81873 
+Kernel time took: 49.4 ms
+Wall time took: 49.4069 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 831184 
+Kernel time took: 59.1532 ms
+Wall time took: 59.1603 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 709975 
+Kernel time took: 59.4723 ms
+Wall time took: 59.4792 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=1048576, iter_num=10000
+Starting vertex: 818520 
+Kernel time took: 57.018 ms
+Wall time took: 57.024 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=1113854570, iter_num=10000
+Starting vertex: 65264 
+Kernel time took: 49.8078 ms
+Wall time took: 49.8137 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=-1, iter_num=10000
+Starting vertex: 1045209 
+Kernel time took: 60.6806 ms
+Wall time took: 60.6876 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 714293 
+Kernel time took: 58.9342 ms
+Wall time took: 58.9399 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 756866 
+Kernel time took: 51.3683 ms
+Wall time took: 51.3757 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=776140442, iter_num=10000
+Starting vertex: 904366 
+Kernel time took: 57.1309 ms
+Wall time took: 57.1365 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=32540, iter_num=10000
+Starting vertex: 817051 
+Kernel time took: 49.5591 ms
+Wall time took: 49.566 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=4715760, iter_num=10000
+Starting vertex: 694027 
+Kernel time took: 59.4459 ms
+Wall time took: 59.4527 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 7
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 424060 
+Kernel time took: 57.1433 ms
+Wall time took: 57.1492 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=1819501908, iter_num=10000
+Starting vertex: 910545 
+Kernel time took: 49.888 ms
+Wall time took: 49.8955 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=843784289, iter_num=10000
+Starting vertex: 492928 
+Kernel time took: 48.59 ms
+Wall time took: 48.5978 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=25392, iter_num=10000
+Starting vertex: 114082 
+Kernel time took: 48.5873 ms
+Wall time took: 48.5944 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 456993 
+Kernel time took: 53.2451 ms
+Wall time took: 53.2512 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 1018219 
+Kernel time took: 51.9505 ms
+Wall time took: 51.9577 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 952614 
+Kernel time took: 51.3505 ms
+Wall time took: 51.3577 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 792716 
+Kernel time took: 59.0576 ms
+Wall time took: 59.0647 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 139866 
+Kernel time took: 48.6244 ms
+Wall time took: 48.6317 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 800859 
+Kernel time took: 51.8028 ms
+Wall time took: 51.8102 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 21353 
+Kernel time took: 60.5675 ms
+Wall time took: 60.5739 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 313869 
+Kernel time took: 49.2603 ms
+Wall time took: 49.2669 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 1034819 
+Kernel time took: 50.8108 ms
+Wall time took: 50.8176 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 549532 
+Kernel time took: 59.868 ms
+Wall time took: 59.8756 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 643174 
+Kernel time took: 49.314 ms
+Wall time took: 49.32 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 530701 
+Kernel time took: 50.1953 ms
+Wall time took: 50.2025 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 465175 
+Kernel time took: 49.4693 ms
+Wall time took: 49.4766 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 467537 
+Kernel time took: 50.8695 ms
+Wall time took: 50.8756 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 892017 
+Kernel time took: 68.0065 ms
+Wall time took: 68.0139 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 983434 
+Kernel time took: 55.657 ms
+Wall time took: 55.6641 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 649231 
+Kernel time took: 49.6977 ms
+Wall time took: 49.7046 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 7
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 465179 
+Kernel time took: 54.8655 ms
+Wall time took: 54.8714 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 781905 
+Kernel time took: 58.3347 ms
+Wall time took: 58.3405 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 886994 
+Kernel time took: 50.4542 ms
+Wall time took: 50.4597 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 1046983 
+Kernel time took: 49.751 ms
+Wall time took: 49.7576 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 856585 
+Kernel time took: 66.6476 ms
+Wall time took: 66.6545 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 171849 
+Kernel time took: 49.8135 ms
+Wall time took: 49.8209 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 580924 
+Kernel time took: 51.8649 ms
+Wall time took: 51.872 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 87163 
+Kernel time took: 58.1684 ms
+Wall time took: 58.1751 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 162254 
+Kernel time took: 49.2503 ms
+Wall time took: 49.2584 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 1034731 
+Kernel time took: 52.6059 ms
+Wall time took: 52.6136 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 685183 
+Kernel time took: 54.2622 ms
+Wall time took: 54.2694 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 918415 
+Kernel time took: 51.9676 ms
+Wall time took: 51.9747 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 1011383 
+Kernel time took: 48.9159 ms
+Wall time took: 48.9217 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 845026 
+Kernel time took: 49.7278 ms
+Wall time took: 49.7346 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 560750 
+Kernel time took: 48.2047 ms
+Wall time took: 48.2121 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 244685 
+Kernel time took: 50.1396 ms
+Wall time took: 50.1467 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 357344 
+Kernel time took: 56.948 ms
+Wall time took: 56.9553 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 556150 
+Kernel time took: 48.8333 ms
+Wall time took: 48.8406 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 335969 
+Kernel time took: 49.7222 ms
+Wall time took: 49.7289 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 966038 
+Kernel time took: 49.0709 ms
+Wall time took: 49.0783 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 782900 
+Kernel time took: 65.4534 ms
+Wall time took: 65.4603 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 950095 
+Kernel time took: 47.9131 ms
+Wall time took: 47.9204 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 489517 
+Kernel time took: 50.7937 ms
+Wall time took: 50.8001 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 626048 
+Kernel time took: 50.4975 ms
+Wall time took: 50.5042 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 7
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 1005255 
+Kernel time took: 50.3864 ms
+Wall time took: 50.3926 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 98196 
+Kernel time took: 49.8647 ms
+Wall time took: 49.8716 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 865798 
+Kernel time took: 51.3028 ms
+Wall time took: 51.31 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 220207 
+Kernel time took: 56.1816 ms
+Wall time took: 56.1889 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 331137 
+Kernel time took: 48.5238 ms
+Wall time took: 48.5308 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+Starting vertex: 357542 
+Kernel time took: 59.5971 ms
+Wall time took: 59.6032 ms
+Contract time took: 0 ms
+Gather time took: 0 ms
+Expand time took: 0 ms
+Total iteration: 6
+num_srcs=100, src=0, iter_num=10000
+[./bfs.h, 67] cudaMalloc VertexType::d_labels failed (CUDA error 2: out of memory)
+[./bfs.h, 74] CsrProblem cudaMemcpy d_labels failed (CUDA error 11: invalid argument)

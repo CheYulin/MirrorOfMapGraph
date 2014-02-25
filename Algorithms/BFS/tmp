@@ -1,0 +1,79 @@
+nvcc -c -o BFS.o bfs.cu -O3 -lineinfo -Xcompiler -fopenmp  -I. -I../../ -I../../../../moderngpu2/include -L../../../../moderngpu2 -gencode=arch=compute_20,code=\"sm_20,compute_20\"  -gencode=arch=compute_35,code=\"sm_35,compute_35\"  
+../../util.cuh(82): error: no operator "+" matches these operands
+            operand types are: thrust::device_vector<int, thrust::device_malloc_allocator<int>> + size_t
+          detected during:
+            instantiation of "void sort_by_row_and_column(size_t, size_t, Array1, Array2, Array3, Array4) [with Array1=thrust::device_ptr<int>, Array2=thrust::device_ptr<int>, Array3=thrust::device_ptr<int>, Array4=thrust::device_ptr<int>]" 
+../../GASengine/csr_problem.cuh(514): here
+            instantiation of "cudaError_t GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::FromHostProblem(__nv_bool, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::EValue *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, int, int) [with _Program=bfs, _VertexId=int, _SizeT=int, _EValue=int, MARK_PREDECESSORS=false, WITH_VALUE=true]" 
+bfs.cu(371): here
+
+../../util.cuh(82): error: no instance of constructor "thrust::device_vector<T, Alloc>::device_vector [with T=int, Alloc=thrust::device_malloc_allocator<int>]" matches the argument list
+            argument types are: (thrust::device_vector<int, thrust::device_malloc_allocator<int>>, <error-type>)
+          detected during:
+            instantiation of "void sort_by_row_and_column(size_t, size_t, Array1, Array2, Array3, Array4) [with Array1=thrust::device_ptr<int>, Array2=thrust::device_ptr<int>, Array3=thrust::device_ptr<int>, Array4=thrust::device_ptr<int>]" 
+../../GASengine/csr_problem.cuh(514): here
+            instantiation of "cudaError_t GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::FromHostProblem(__nv_bool, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::EValue *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, int, int) [with _Program=bfs, _VertexId=int, _SizeT=int, _EValue=int, MARK_PREDECESSORS=false, WITH_VALUE=true]" 
+bfs.cu(371): here
+
+../../util.cuh(89): error: no operator "+" matches these operands
+            operand types are: thrust::device_vector<int, thrust::device_malloc_allocator<int>> + size_t
+          detected during:
+            instantiation of "void sort_by_row_and_column(size_t, size_t, Array1, Array2, Array3, Array4) [with Array1=thrust::device_ptr<int>, Array2=thrust::device_ptr<int>, Array3=thrust::device_ptr<int>, Array4=thrust::device_ptr<int>]" 
+../../GASengine/csr_problem.cuh(514): here
+            instantiation of "cudaError_t GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::FromHostProblem(__nv_bool, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::EValue *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, int, int) [with _Program=bfs, _VertexId=int, _SizeT=int, _EValue=int, MARK_PREDECESSORS=false, WITH_VALUE=true]" 
+bfs.cu(371): here
+
+../../util.cuh(89): error: no instance of overloaded function "thrust::copy" matches the argument list
+            argument types are: (thrust::device_vector<int, thrust::device_malloc_allocator<int>>, <error-type>, thrust::detail::normal_iterator<thrust::device_ptr<int>>)
+          detected during:
+            instantiation of "void sort_by_row_and_column(size_t, size_t, Array1, Array2, Array3, Array4) [with Array1=thrust::device_ptr<int>, Array2=thrust::device_ptr<int>, Array3=thrust::device_ptr<int>, Array4=thrust::device_ptr<int>]" 
+../../GASengine/csr_problem.cuh(514): here
+            instantiation of "cudaError_t GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::FromHostProblem(__nv_bool, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::EValue *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, int, int) [with _Program=bfs, _VertexId=int, _SizeT=int, _EValue=int, MARK_PREDECESSORS=false, WITH_VALUE=true]" 
+bfs.cu(371): here
+
+/usr/include/c++/4.6/bits/stl_iterator_base_types.h(166): error: class "thrust::device_vector<int, thrust::device_malloc_allocator<int>>" has no member "iterator_category"
+          detected during:
+            instantiation of class "std::iterator_traits<_Iterator> [with _Iterator=thrust::device_vector<int, thrust::device_malloc_allocator<int>>]" 
+/usr/local/cuda-5.5/bin/..//include/thrust/iterator/iterator_traits.h(44): here
+            instantiation of class "thrust::iterator_traits<T> [with T=thrust::device_vector<int, thrust::device_malloc_allocator<int>>]" 
+/usr/local/cuda-5.5/bin/..//include/thrust/iterator/detail/iterator_traits.inl(60): here
+            instantiation of class "thrust::iterator_system<Iterator> [with Iterator=thrust::device_vector<int, thrust::device_malloc_allocator<int>>]" 
+/usr/local/cuda-5.5/bin/..//include/thrust/detail/gather.inl(95): here
+            instantiation of "OutputIterator thrust::gather(InputIterator, InputIterator, RandomAccessIterator, OutputIterator) [with InputIterator=thrust::device_ptr<int>, RandomAccessIterator=thrust::detail::normal_iterator<thrust::device_ptr<int>>, OutputIterator=thrust::device_vector<int, thrust::device_malloc_allocator<int>>]" 
+../../util.cuh(90): here
+            instantiation of "void sort_by_row_and_column(size_t, size_t, Array1, Array2, Array3, Array4) [with Array1=thrust::device_ptr<int>, Array2=thrust::device_ptr<int>, Array3=thrust::device_ptr<int>, Array4=thrust::device_ptr<int>]" 
+../../GASengine/csr_problem.cuh(514): here
+            instantiation of "cudaError_t GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::FromHostProblem(__nv_bool, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::EValue *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, int, int) [with _Program=bfs, _VertexId=int, _SizeT=int, _EValue=int, MARK_PREDECESSORS=false, WITH_VALUE=true]" 
+bfs.cu(371): here
+
+/usr/local/cuda-5.5/bin/..//include/thrust/detail/gather.inl(99): error: incomplete type is not allowed
+          detected during:
+            instantiation of "OutputIterator thrust::gather(InputIterator, InputIterator, RandomAccessIterator, OutputIterator) [with InputIterator=thrust::device_ptr<int>, RandomAccessIterator=thrust::detail::normal_iterator<thrust::device_ptr<int>>, OutputIterator=thrust::device_vector<int, thrust::device_malloc_allocator<int>>]" 
+../../util.cuh(90): here
+            instantiation of "void sort_by_row_and_column(size_t, size_t, Array1, Array2, Array3, Array4) [with Array1=thrust::device_ptr<int>, Array2=thrust::device_ptr<int>, Array3=thrust::device_ptr<int>, Array4=thrust::device_ptr<int>]" 
+../../GASengine/csr_problem.cuh(514): here
+            instantiation of "cudaError_t GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::FromHostProblem(__nv_bool, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::EValue *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, int, int) [with _Program=bfs, _VertexId=int, _SizeT=int, _EValue=int, MARK_PREDECESSORS=false, WITH_VALUE=true]" 
+bfs.cu(371): here
+
+/usr/local/cuda-5.5/bin/..//include/thrust/detail/gather.inl(101): error: no instance of overloaded function "select_system" matches the argument list
+            argument types are: (System1, System2, <error-type>)
+          detected during:
+            instantiation of "OutputIterator thrust::gather(InputIterator, InputIterator, RandomAccessIterator, OutputIterator) [with InputIterator=thrust::device_ptr<int>, RandomAccessIterator=thrust::detail::normal_iterator<thrust::device_ptr<int>>, OutputIterator=thrust::device_vector<int, thrust::device_malloc_allocator<int>>]" 
+../../util.cuh(90): here
+            instantiation of "void sort_by_row_and_column(size_t, size_t, Array1, Array2, Array3, Array4) [with Array1=thrust::device_ptr<int>, Array2=thrust::device_ptr<int>, Array3=thrust::device_ptr<int>, Array4=thrust::device_ptr<int>]" 
+../../GASengine/csr_problem.cuh(514): here
+            instantiation of "cudaError_t GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::FromHostProblem(__nv_bool, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::EValue *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, int, int) [with _Program=bfs, _VertexId=int, _SizeT=int, _EValue=int, MARK_PREDECESSORS=false, WITH_VALUE=true]" 
+bfs.cu(371): here
+
+/usr/local/cuda-5.5/bin/..//include/thrust/detail/gather.inl(101): error: no instance of overloaded function "thrust::gather" matches the argument list
+            argument types are: (<error-type>, thrust::device_ptr<int>, thrust::device_ptr<int>, thrust::detail::normal_iterator<thrust::device_ptr<int>>, thrust::device_vector<int, thrust::device_malloc_allocator<int>>)
+          detected during:
+            instantiation of "OutputIterator thrust::gather(InputIterator, InputIterator, RandomAccessIterator, OutputIterator) [with InputIterator=thrust::device_ptr<int>, RandomAccessIterator=thrust::detail::normal_iterator<thrust::device_ptr<int>>, OutputIterator=thrust::device_vector<int, thrust::device_malloc_allocator<int>>]" 
+../../util.cuh(90): here
+            instantiation of "void sort_by_row_and_column(size_t, size_t, Array1, Array2, Array3, Array4) [with Array1=thrust::device_ptr<int>, Array2=thrust::device_ptr<int>, Array3=thrust::device_ptr<int>, Array4=thrust::device_ptr<int>]" 
+../../GASengine/csr_problem.cuh(514): here
+            instantiation of "cudaError_t GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::FromHostProblem(__nv_bool, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::EValue *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::VertexId *, GASengine::CsrProblem<_Program, _VertexId, _SizeT, _EValue, MARK_PREDECESSORS, WITH_VALUE>::SizeT *, int, int) [with _Program=bfs, _VertexId=int, _SizeT=int, _EValue=int, MARK_PREDECESSORS=false, WITH_VALUE=true]" 
+bfs.cu(371): here
+
+8 errors detected in the compilation of "/tmp/tmpxft_00007aea_00000000-9_bfs.compute_35.cpp1.ii".
+make: *** [BFS.o] Error 2
