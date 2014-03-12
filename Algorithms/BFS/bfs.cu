@@ -282,6 +282,7 @@ int main(int argc, char **argv)
   int* srcs = NULL;
   int origin = cfg.getParameter<int>("origin");
   int iter_num = cfg.getParameter<int>("iter_num");
+  int threshold = cfg.getParameter<int>("threshold");
 
   const int max_src_num = 1000;
 
@@ -387,7 +388,7 @@ int main(int argc, char **argv)
     cudaError_t retval = cudaSuccess;
 
     retval = vertex_centric.EnactIterativeSearch(csr_problem,
-        csr_graph.row_offsets, directed, 1, tmpsrcs, iter_num);
+        csr_graph.row_offsets, directed, 1, tmpsrcs, iter_num, threshold);
 
     if (retval && (retval != cudaErrorInvalidDeviceFunction))
     {

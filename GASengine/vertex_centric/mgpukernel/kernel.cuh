@@ -173,7 +173,7 @@ namespace GASengine
       }
 
       template<typename Program, typename Int, int NT>
-      __global__ void kGatherMap(
+      __global__ void kernel_gather_mgpu(
           Int nActiveVertices,
           const Int *activeVertices,
           const int numBlocks,
@@ -372,6 +372,26 @@ namespace GASengine
           post_apply_functor(v, vertex_list, edge_list, gather_tmp);
         }
       }
+
+      template<typename InputIt, typename PredicateIt, typename OutputIt>
+      __global__
+      void kernel_copy_if(InputIt in,
+          int N,
+          PredicateIt pred,
+          int *d_map,
+          OutputIt output)
+      {
+        const int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+        for (int i = tid; i < N; i += blockDim.x * gridDim.x)
+        {
+          if (pred[i])
+          {
+            output[d_map[i]] = in[i];
+          }
+        }
+      }
+
     }      //namespace mgpukernel
   }      // namespace vertex_centric
 } // namespace GASengine

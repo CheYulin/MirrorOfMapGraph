@@ -124,6 +124,7 @@ void CPUPR(CsrGraph<VertexId, Value, SizeT> const &graph, Value* dist)
 // Recompute potential new paths to update all shortest paths
 
   double startTime = omp_get_wtime();
+  int iter_count = 0;
   while (changed)
   {
     changed = false;
@@ -143,10 +144,12 @@ void CPUPR(CsrGraph<VertexId, Value, SizeT> const &graph, Value* dist)
 
       dist[v] = sumnb;
     }
+    iter_count++;
   }
 
   double EndTime = omp_get_wtime();
 
+  std::cout << "CPU iterations: " << iter_count << std::endl;
   std::cout << "CPU time took: " << (EndTime - startTime) * 1000 << " ms"
       << std::endl;
 }
@@ -160,7 +163,7 @@ void printUsageAndExit(char* algo_name)
   std::cout << "     -output or -o specify file for output result\n";
   std::cout << "     -c set the PR options from the configuration file\n";
   std::cout
-      << "     -PR set the options.  Options include the following:\n";
+      << "     -parameters (-p) set the options.  Options include the following:\n";
   Config::printOptions();
 
   exit(0);
@@ -276,12 +279,14 @@ int main(int argc, char **argv)
     exit(1);
 
   const bool INSTRUMENT = true;
+
   GASengine::EnactorVertexCentric<CsrProblem, pagerank, INSTRUMENT> vertex_centric(cfg, g_verbose);
 
   cudaError_t retval = cudaSuccess;
 
   int iter_num = cfg.getParameter<int>("iter_num");
-  retval = vertex_centric.EnactIterativeSearch(csr_problem, csr_graph.row_offsets, directed, csr_graph.nodes, NULL, iter_num);
+  int threshold = cfg.getParameter<int>("threshold");
+  retval = vertex_centric.EnactIterativeSearch(csr_problem, csr_graph.row_offsets, directed, csr_graph.nodes, NULL, iter_num, threshold);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
   {

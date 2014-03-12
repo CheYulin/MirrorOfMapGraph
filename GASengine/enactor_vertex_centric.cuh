@@ -39,7 +39,6 @@
 #include <thrust/device_ptr.h>
 #include <thrust/copy.h>
 #include <thrust/sort.h>
-#include <scatter_if_mgpu.h>
 
 using namespace b40c;
 
@@ -588,7 +587,7 @@ namespace GASengine
       int NV = launch.x * launch.y;
       int numBlocks = MGPU_DIV_UP(move_count + num_active, NV);
 
-      MGPU_MEM(int) partitionsDevice = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper>(
+      MGPU_MEM(int)partitionsDevice = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper>(
           mgpu::counting_iterator<int>(0), move_count, edge_count_scan,
           num_active, NV, 0, mgpu::less<int>(), *m_mgpuContext);
 
@@ -608,6 +607,36 @@ namespace GASengine
           misc_values);
 
       MGPU_SYNC_CHECK("KernelIntervalMove");
+    }
+
+    template<typename PredIt, typename OutputIt>
+    void copy_if_mgpu(int num,
+        PredIt pred,
+        OutputIt output,
+        int *d_total,
+        mgpu::ContextPtr mgpuContext)
+    {
+
+      MGPU_MEM(int)d_map = mgpuContext->Malloc<int>(num);
+
+      mgpu::Scan<mgpu::MgpuScanTypeExc>(pred
+          , num
+          , 0
+          , mgpu::plus<int>()
+          , d_total
+          , (int *)NULL
+          , d_map->get()
+          , *mgpuContext);
+
+      int threads = 256;
+      int blocks = min((num + threads - 1) / threads, 256);
+
+      mgpu::counting_iterator<int> input(0);
+
+      vertex_centric::mgpukernel::kernel_copy_if<<<blocks, threads>>>(input, num,
+          pred,
+          d_map->get(),
+          output);
     }
 
     void scatterActivate(typename CsrProblem::GraphSlice *graph_slice, int &selector, const int frontier_selector)
@@ -683,9 +712,9 @@ namespace GASengine
       else
       {
         if (util::B40CPerror(cudaMemcpy(&d_edge_frontier_size[frontier_selector], &zero, sizeof(SizeT), cudaMemcpyHostToDevice),
-            "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
-            __LINE__))
-          exit(1);
+                "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
+                __LINE__))
+        exit(1);
 
         IntervalGather(edge_frontier_size,
             ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
@@ -695,9 +724,7 @@ namespace GASengine
             ActivateOutputIterator(graph_slice->d_active_flags),
             *m_mgpuContext);
 
-        //convert m_activeFlags to new active compact list in m_active
-        //set m_nActive to the number of active vertices
-        scatter_if_inputloc_twophase(graph_slice->nodes,
+        copy_if_mgpu(graph_slice->nodes,
             graph_slice->d_active_flags,
             graph_slice->frontier_queues.d_keys[selector],
             &d_frontier_size[frontier_selector],
@@ -867,7 +894,7 @@ namespace GASengine
 //      printf("n_active_edges = %d\n", n_active_edges);
 
       const int nThreadsPerBlock = 128;
-      MGPU_MEM(int) partitions = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper>
+      MGPU_MEM(int)partitions = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper>
       (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
           nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
 
@@ -877,8 +904,8 @@ namespace GASengine
 
       if (directed == 0)
       {
-        vertex_centric::mgpukernel::kGatherMap<Program, VertexId,
-            nThreadsPerBlock><<<nBlocks, nThreadsPerBlock>>>(
+        vertex_centric::mgpukernel::kernel_gather_mgpu<Program, VertexId,
+        nThreadsPerBlock><<<nBlocks, nThreadsPerBlock>>>(
             frontier_size,
             graph_slice->frontier_queues.d_keys[selector ^ 1],
             nBlocks,
@@ -897,7 +924,7 @@ namespace GASengine
       {
         if (Program::gatherOverEdges() == GATHER_IN_EDGES)
         {
-          vertex_centric::mgpukernel::kGatherMap<Program, VertexId,
+          vertex_centric::mgpukernel::kernel_gather_mgpu<Program, VertexId,
           nThreadsPerBlock><<<nBlocks, nThreadsPerBlock>>>(
               frontier_size,
               graph_slice->frontier_queues.d_keys[selector ^ 1],
@@ -926,7 +953,7 @@ namespace GASengine
 
       if (frontier_size == graph_slice->nodes && !preComputed)
       {
-        mgpu::ReduceByKeyPreprocess < GatherType > (n_active_edges
+        mgpu::ReduceByKeyPreprocess<GatherType>(n_active_edges
             , m_gatherDstsTmp
             , (VertexId *) NULL
             , mgpu::equal_to<VertexId>()
@@ -945,7 +972,7 @@ namespace GASengine
             , Program::INIT_VALUE
             , ThrustReduceWrapper()
             , ReduceOutputIterator(m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
-                , *m_mgpuContext);
+            , *m_mgpuContext);
       }
       else
       {
@@ -957,7 +984,7 @@ namespace GASengine
             , mgpu::equal_to<VertexId>()
             , (VertexId *) NULL
             , ReduceOutputIterator(m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
-                , NULL
+            , NULL
             , NULL
             , *m_mgpuContext);
       }
@@ -1032,7 +1059,7 @@ namespace GASengine
         if (directed == 0)
         {
           vertex_centric::expand_atomic::Kernel<ExpandPolicy,
-              Program><<<expand_grid_size,
+          Program><<<expand_grid_size,
           ExpandPolicy::THREADS>>>(iteration[0],
               queue_index,              // queue counter index
               queue_index,// steal counter index
@@ -1339,7 +1366,7 @@ namespace GASengine
     typename ContractPolicy>
     cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
         typename CsrProblem::SizeT* h_row_offsets,
-        int directed, int num_srcs, int* srcs, int iter_num)
+        int directed, int num_srcs, int* srcs, int iter_num, int threshold)
     {
       typedef typename CsrProblem::SizeT SizeT;
       typedef typename CsrProblem::VertexId VertexId;
@@ -1353,7 +1380,6 @@ namespace GASengine
       DEBUG = cfg.getParameter<int>("verbose");
       m_mgpuContext = mgpu::CreateCudaDevice(cfg.getParameter<int>("device"));
       cudaError_t retval = cudaSuccess;
-      const int RATIO = 10;
 
       // Determine grid size(s)
       int expand_occupancy = ExpandPolicy::CTA_OCCUPANCY;
@@ -1524,7 +1550,7 @@ namespace GASengine
         //Gather stage
         //
         if(Program::gatherOverEdges() != NO_GATHER_EDGES)
-          gather_mgpu(graph_slice, selector, directed);
+        gather_mgpu(graph_slice, selector, directed);
 
         if (DEBUG)
         {
@@ -1694,8 +1720,8 @@ namespace GASengine
         // Expansion
         //
 
-        if (frontier_size > graph_slice->nodes / RATIO)
-//        if (frontier_size > 3)
+//        if (frontier_size > graph_slice->nodes / RATIO)
+        if (frontier_size > threshold)
         {
           scatterActivate(graph_slice, selector, frontier_selector);
         }
@@ -1790,8 +1816,8 @@ namespace GASengine
 //                __LINE__))
 //        break;
 
-        if (frontier_size <= graph_slice->nodes / RATIO || Program::allow_duplicates)
-//        if(old_frontier_size <= 3 || Program::allow_duplicates)
+//        if (frontier_size <= graph_slice->nodes / RATIO || Program::allow_duplicates)
+        if(frontier_size <= threshold || Program::allow_duplicates)
         {
           if (DEBUG)
           {
@@ -1910,7 +1936,7 @@ namespace GASengine
 
     cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
         typename CsrProblem::SizeT* h_row_offsets,
-        int directed, int num_srcs, int* srcs, int iter_num)
+        int directed, int num_srcs, int* srcs, int iter_num, int threshold)
     {
       typedef typename CsrProblem::VertexId VertexId;
       typedef typename CsrProblem::SizeT SizeT;
@@ -1955,11 +1981,11 @@ namespace GASengine
         util::io::st::NONE,// QUEUE_WRITE_MODIFIER,
         false,// WORK_STEALING
         -1,// END_BITMASK_CULL 0 to never perform bitmask filtering, -1 to always perform bitmask filtering
-        8> // LOG_SCHEDULE_GRANULARITY
+        8>// LOG_SCHEDULE_GRANULARITY
         ContractPolicy;
 
         return EnactIterativeSearch<ExpandPolicy, ContractPolicy>(
-            csr_problem, h_row_offsets, directed, num_srcs, srcs, iter_num);
+            csr_problem, h_row_offsets, directed, num_srcs, srcs, iter_num, threshold);
       }
 
       printf("Not yet tuned for this architecture\n");

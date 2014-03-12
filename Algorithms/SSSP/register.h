@@ -14,4 +14,5 @@ inline void registerParameters() {
   Config::registerParameter<int>("num_src","The number of starting vertices when random sources is specified (default 1)", 1); // the device number
   Config::registerParameter<int>("with_value","Whether to load edge values from market file (default 1)", 1); // the device number
   Config::registerParameter<double>("max_queue_sizing","The frontier queue size is this value times the number of vertices in the graph (default 1.5)", 1.5); //frontier queue size
+  Config::registerParameter<int>("threshold","When frontier size is larger than threshold, two-phase strategy is used otherwise dynamic scheduling it used (default 10000)", 10000);
 }

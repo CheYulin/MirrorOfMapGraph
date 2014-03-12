@@ -173,7 +173,7 @@ void printUsageAndExit(char* algo_name)
   std::cout << "     -output or -o specify file for output result\n";
   std::cout << "     -c set the SSSP options from the configuration file\n";
   std::cout
-      << "     -CC set the options.  Options include the following:\n";
+      << "     -parameters (-p) set the options.  Options include the following:\n";
   Config::printOptions();
 
   exit(0);
@@ -279,9 +279,10 @@ int main(int argc, char **argv)
 
   cudaError_t retval = cudaSuccess;
   int iter_num = cfg.getParameter<int>("iter_num");
+  int threshold = cfg.getParameter<int>("threshold");
 
   retval = vertex_centric.EnactIterativeSearch(csr_problem,
-      csr_graph.row_offsets, false, csr_graph.nodes, NULL, iter_num);
+      csr_graph.row_offsets, false, csr_graph.nodes, NULL, iter_num, threshold);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
   {
