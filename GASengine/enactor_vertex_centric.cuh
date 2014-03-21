@@ -318,6 +318,17 @@ namespace GASengine
             break;
           printf("queue_length after contraction: %lld\n",
               (long long) queue_length);
+//
+//          printf("Frontier size after contract: %d\n", queue_length);
+//          VertexId* test_vid = new VertexId[queue_length];
+//          cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], queue_length * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//          printf("Frontier after contract: ");
+//          for (int i = 0; i < queue_length; ++i)
+//          {
+//            printf("%d, ", test_vid[i]);
+//          }
+//          printf("\n");
+//          delete[] test_vid;
         }
 
         // Throttle
@@ -464,6 +475,16 @@ namespace GASengine
         cudaEventQuery(throttle_event); // give host memory mapped visibility to GPU updates
         if (DEBUG)
         {
+//          printf("gather value: \n");
+//          float* test_vid = new float[graph_slice->nodes];
+//          cudaMemcpy(test_vid, graph_slice->vertex_list.d_min_dists, graph_slice->nodes * sizeof(float), cudaMemcpyDeviceToHost);
+////          printf("Frontier after expand: ");
+//          for (int i = 0; i < graph_slice->nodes; ++i)
+//          {
+//            printf("%f, ", test_vid[i]);
+//          }
+//          printf("\n");
+//          delete[] test_vid;
           cudaDeviceSynchronize();
           endgather = omp_get_wtime();
           elapsedgather += endgather - startgather;
@@ -683,6 +704,17 @@ namespace GASengine
           total_queued += queue_length;
           printf("queue_length after expansion: %lld\n",
               (long long) queue_length);
+
+//          printf("Frontier size after expand: %d\n", queue_length);
+//          VertexId* test_vid = new VertexId[queue_length];
+//          cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], queue_length * sizeof(VertexId), cudaMemcpyDeviceToHost);
+//          printf("Frontier after expand: ");
+//          for (int i = 0; i < queue_length; ++i)
+//          {
+//            printf("%d, ", test_vid[i]);
+//          }
+//          printf("\n");
+//          delete[] test_vid;
         }
 
         // Check if done

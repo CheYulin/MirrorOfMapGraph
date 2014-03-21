@@ -517,6 +517,7 @@ struct sssp
         frontier = -1;
       misc_value = src_dist + edge_value; // source dist + edge weight
 //      misc_value = src_dist + 1;
+//      printf("vertex_id=%d, neighbor_id=%d, src_dist=%d, dst_dist=%d, edge_value=%d, frontier=%d, misc_value=%d\n", vertex_id, neighbor_id_in, src_dist, dst_dist, edge_value, frontier, misc_value);
     }
   };
 
