@@ -1,5 +1,5 @@
 # The software release version.
-ver=0.2.0
+ver=0.3.0
 version=mpgraph.${ver}.tgz
 release.dir=releases
 
