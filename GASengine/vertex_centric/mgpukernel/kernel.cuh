@@ -34,6 +34,7 @@ namespace GASengine
           typename Program::VertexId* edge_frontier,
           typename Program::VertexType vertex_list,
           typename Program::EdgeType edge_list,
+          typename Program::VertexId* d_edgeCSC_indices,
           typename Program::VertexId* misc_values)
       {
         __shared__ int indices_shared[NT * (VT + 1)];
@@ -41,7 +42,14 @@ namespace GASengine
         int block = blockIdx.x;
 
         if (blockIdx.x == 0 && threadIdx.x == 0)
+        {
+//          for(int i=0; i<num_active; i++)
+//          {
+//            printf("%d\n", vertex_list.d_dists[i]);
+//          }
           d_edge_frontier_size[frontier_selector ^ 1] = 0;
+//          d_edge_frontier_size[frontier_selector] += move_count;
+        }
 
         // Load balance the move IDs (counting_iterator) over the scan of the
         // interval sizes.
@@ -129,8 +137,13 @@ namespace GASengine
             typename Program::VertexId vertex_id = active_vertices[iActive[i]];
             typename Program::VertexId edge_id = gather[i];
             typename Program::VertexId neighbor = indices[edge_id];
+            int read_edge_id;
+            if(d_edgeCSC_indices)
+              read_edge_id = d_edgeCSC_indices[edge_id];
+            else
+              read_edge_id = edge_id;
 //            printf("blockIdx.x=%d, threadIdx.x=%d, vertex_id=%d, edge_id=%d, neighbor=%d\n", blockIdx.x, threadIdx.x, vertex_id, edge_id, neighbor);
-            expand_edge_functor(true, 0, vertex_id, neighbor, edge_id, vertex_list, edge_list,
+            expand_edge_functor(true, 0, vertex_id, neighbor, read_edge_id, vertex_list, edge_list,
                 data[i],
                 local_misc_values[i]);
           }
@@ -184,6 +197,7 @@ namespace GASengine
           const Int *srcs,
           typename Program::VertexType vertex_list,
           typename Program::EdgeType edge_list,
+          typename Program::VertexId* d_edgeCSC_indices,
           Int *dsts,
           typename Program::GatherType* output)
       {
@@ -255,7 +269,10 @@ namespace GASengine
             iEdge += soff;
             Int src = srcs[iEdge];
             typename Program::gather_edge gather_edge_functor;
-            gather_edge_functor(dst, src, vertex_list, edge_list, result);
+            if(d_edgeCSC_indices)
+              gather_edge_functor(dst, d_edgeCSC_indices[iEdge], src, vertex_list, edge_list, result);
+            else
+              gather_edge_functor(dst, iEdge, src, vertex_list, edge_list, result);
 
           }
           else

@@ -48,7 +48,7 @@ namespace GASengine
 
         //CTA reduction
         template<typename T>
-        static __device__       __forceinline__ T CTAReduce(T* partial)
+        static __device__         __forceinline__ T CTAReduce(T* partial)
         {
           for (size_t s = KernelPolicy::THREADS / 2; s > 0; s >>= 1)
           {
@@ -60,7 +60,7 @@ namespace GASengine
 
         //Warp reduction
         template<typename T>
-        static __device__       __forceinline__ T WarpReduce(T* partial, size_t warp_id)
+        static __device__         __forceinline__ T WarpReduce(T* partial, size_t warp_id)
         {
           for (size_t s = B40C_LOG_WARP_THREADS_BFS(KernelPolicy::CUDA_ARCH) / 2; s > 0; s >>= 1)
           {
@@ -102,9 +102,11 @@ namespace GASengine
         SizeT *d_row_offsets;				// CSR row-offsets array
         VertexType vertex_list;
         EdgeType edge_list;
+        VertexId *d_edgeCSC_indices;
         char* d_changed;
         SizeT* deviceMappedValueEdge;
         int selector;
+        int previous_frontier_size;
 
         // Work progress
         VertexId queue_index;				// Current frontier queue counter index
@@ -276,9 +278,14 @@ namespace GASengine
                   // Gather
 //                      util::io::ModifiedLoad<KernelPolicy::COLUMN_READ_MODIFIER>::Ld(neighbor_id, cta->d_column_indices + coop_offset + threadIdx.x);
                   neighbor_id_tmp = cta->d_column_indices[col_idx];
+                  int edge_id;
+                  if (cta->d_edgeCSC_indices)
+                    edge_id = cta->d_edgeCSC_indices[col_idx];
+                  else
+                    edge_id = col_idx;
 
                   typename Program::expand_edge expand_edge_functor;
-                  expand_edge_functor(changed, cta->iteration, row_id, neighbor_id_tmp, col_idx, cta->vertex_list, cta->edge_list,
+                  expand_edge_functor(changed, cta->iteration, row_id, neighbor_id_tmp, edge_id, cta->vertex_list, cta->edge_list,
                       cta->d_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank],
                       cta->d_predecessor_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank]);
 
@@ -346,8 +353,13 @@ namespace GASengine
                     SizeT col_idx = coop_offset + lane_id;
                     neighbor_id_tmp = cta->d_column_indices[col_idx];
 
+                    int edge_id;
+                    if (cta->d_edgeCSC_indices)
+                      edge_id = cta->d_edgeCSC_indices[col_idx];
+                    else
+                      edge_id = col_idx;
                     typename Program::expand_edge expand_edge_functor;
-                    expand_edge_functor(changed, cta->iteration, row_id, neighbor_id_tmp, col_idx, cta->vertex_list, cta->edge_list,
+                    expand_edge_functor(changed, cta->iteration, row_id, neighbor_id_tmp, edge_id, cta->vertex_list, cta->edge_list,
                         cta->d_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank],
                         cta->d_predecessor_out[cta->smem_storage.state.coarse_enqueue_offset + coop_rank]);
 
@@ -552,16 +564,18 @@ namespace GASengine
         /**
          * Constructor
          */
-        __device__ __forceinline__ Cta(int iteration, VertexId queue_index, int num_gpus, int selector, int *deviceMappedValueEdge, SmemStorage &smem_storage,
-            VertexId *d_in, VertexId *d_out, VertexId *d_predecessor_out, VertexType &vertex_list, EdgeType &edge_list, char* d_changed, VertexId *d_column_indices,
+        __device__ __forceinline__ Cta(int iteration, VertexId queue_index, int num_gpus, int selector, int previous_frontier_size, int *deviceMappedValueEdge, SmemStorage &smem_storage,
+            VertexId *d_in, VertexId *d_out, VertexId *d_predecessor_out, VertexType &vertex_list, EdgeType &edge_list, VertexId *d_edgeCSC_indices, char* d_changed, VertexId *d_column_indices,
             SizeT *d_row_offsets, util::CtaWorkProgress &work_progress, SizeT max_edge_frontier) :
             iteration(iteration),
-                queue_index(queue_index), num_gpus(num_gpus), selector(selector), deviceMappedValueEdge(deviceMappedValueEdge), smem_storage(smem_storage), raking_soa_details(
+                queue_index(queue_index), num_gpus(num_gpus), selector(selector), previous_frontier_size(previous_frontier_size), deviceMappedValueEdge(deviceMappedValueEdge), smem_storage(
+                    smem_storage), raking_soa_details(
                     typename RakingSoaDetails::GridStorageSoa(smem_storage.coarse_raking_elements, smem_storage.fine_raking_elements),
                     typename RakingSoaDetails::WarpscanSoa(smem_storage.state.coarse_warpscan, smem_storage.state.fine_warpscan),
                     TileTuple(0, 0)),
                 d_in(d_in), d_out(d_out), d_predecessor_out(
-                    d_predecessor_out), vertex_list(vertex_list), edge_list(edge_list), d_changed(d_changed), d_column_indices(d_column_indices), d_row_offsets(d_row_offsets), work_progress(work_progress), max_edge_frontier(
+                    d_predecessor_out), vertex_list(vertex_list), edge_list(edge_list), d_edgeCSC_indices(d_edgeCSC_indices), d_changed(d_changed), d_column_indices(d_column_indices), d_row_offsets(
+                    d_row_offsets), work_progress(work_progress), max_edge_frontier(
                     max_edge_frontier)
         {
           if (threadIdx.x == 0)
@@ -605,11 +619,11 @@ namespace GASengine
             SizeT enqueue_amt = coarse_count + tile.fine_count;
             SizeT enqueue_offset = util::AtomicInt<SizeT>::Add(&deviceMappedValueEdge[selector], enqueue_amt);
 //            if(blockIdx.x == 0)
-//              printf("Expand: blockIdx.x=%d, enqueue_offset=%d, enqueue_amt=%d, deviceMappedValueEdge=%d\n", blockIdx.x, enqueue_offset, enqueue_amt, *deviceMappedValueEdge);
+//              printf("Expand: blockIdx.x=%d, enqueue_offset=%d, enqueue_amt=%d, deviceMappedValueEdge[selector]=%d\n", blockIdx.x, enqueue_offset, enqueue_amt, deviceMappedValueEdge[selector]);
 //            SizeT enqueue_offset = work_progress.Enqueue(enqueue_amt, queue_index + 1);
 
-            smem_storage.state.coarse_enqueue_offset = enqueue_offset;
-            smem_storage.state.fine_enqueue_offset = enqueue_offset + coarse_count;
+            smem_storage.state.coarse_enqueue_offset = enqueue_offset - previous_frontier_size;
+            smem_storage.state.fine_enqueue_offset = enqueue_offset - previous_frontier_size + coarse_count;
 
             // Check for queue overflow due to redundant expansion
             if (enqueue_offset + enqueue_amt >= max_edge_frontier)
@@ -680,8 +694,14 @@ namespace GASengine
               neighbor_id_tmp = d_column_indices[col_idx];
 //                  printf("row_id=%d, changed=%d, neighbor_id_tmp=%d\n", row_id, changed, neighbor_id_tmp);
 
+              int edge_id;
+              if (d_edgeCSC_indices)
+                edge_id = d_edgeCSC_indices[col_idx];
+              else
+                edge_id = col_idx;
+
               typename Program::expand_edge expand_edge_functor;
-              expand_edge_functor(changed, iteration, row_id, neighbor_id_tmp, col_idx, vertex_list, edge_list,
+              expand_edge_functor(changed, iteration, row_id, neighbor_id_tmp, edge_id, vertex_list, edge_list,
                   d_out[smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset],
                   d_predecessor_out[smem_storage.state.fine_enqueue_offset + tile.progress + scratch_offset]);
             }

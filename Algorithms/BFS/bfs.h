@@ -46,7 +46,7 @@ struct bfs
     }
   };
 
-  static void Initialize(const int nodes, const int edges, int num_srcs,
+  static void Initialize(const int directed, const int nodes, const int edges, int num_srcs,
       int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, int* d_edge_values,
       VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
       MiscType* d_frontier_values[3])
@@ -165,7 +165,7 @@ struct bfs
   struct gather_edge
   {
     __device__
-    void operator()(const int vertex_id, const int neighbor_id_in,
+    void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
         VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
     {
 
@@ -208,6 +208,7 @@ struct bfs
         VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
     {
 //      misc_value = vertex_id;
+//      printf("Expand: vertex_id=%d, neighbor_id_in = %d\n", vertex_id, neighbor_id_in);
       frontier = neighbor_id_in;
     }
   };

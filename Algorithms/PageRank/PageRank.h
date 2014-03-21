@@ -12,6 +12,8 @@
 #include <thrust/adjacent_difference.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
+#include <thrust/transform.h>
+#include <thrust/functional.h>
 
 struct pagerank
 {
@@ -32,31 +34,31 @@ struct pagerank
 //    int* d_changed; // 1 iff dists_out was changed in apply.
     DataType* d_dists; // the actual distance computed by post_apply
     int* d_num_out_edge;
-//    int* d_visited_flag;
+    //    int* d_visited_flag;
 
     VertexType() :
         d_dists(NULL),
-        d_num_out_edge(NULL),
-        nodes(0), edges(0)
+            d_num_out_edge(NULL),
+            nodes(0), edges(0)
     {
     }
   };
 
   struct EdgeType
-   {
-     int nodes; // #of nodes.
-     int edges; // #of edges.
+  {
+    int nodes; // #of nodes.
+    int edges; // #of edges.
 
-     EdgeType() :
-          nodes(0), edges(0)
-     {
-     }
-   };
+    EdgeType() :
+        nodes(0), edges(0)
+    {
+    }
+  };
 
-  static void Initialize(const int nodes, const int edges, int num_srcs,
-        int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, DataType* d_edge_values,
-        VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
-        MiscType* d_frontier_values[3])
+  static void Initialize(const int directed, const int nodes, const int edges, int num_srcs,
+      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, DataType* d_edge_values,
+      VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
+      MiscType* d_frontier_values[3])
   {
     vertex_list.nodes = nodes;
     vertex_list.edges = edges;
@@ -96,7 +98,7 @@ struct pagerank
     memset_grid_size = B40C_MIN(memset_grid_size_max, (nodes + memset_block_size - 1) / memset_block_size);
 
     b40c::util::MemsetKernel<DataType><<<memset_grid_size, memset_block_size, 0,
-        0>>>(vertex_list.d_dists, 0.15, nodes);
+    0>>>(vertex_list.d_dists, 0.15, nodes);
 
 //    // Initialize d_dists_out elements
 //    cudaMemcpy(vertex_list.d_dists_out,
@@ -111,7 +113,7 @@ struct pagerank
 //        0>>>(vertex_list.d_visited_flag, 0, nodes);
 
     b40c::util::SequenceKernel<int><<<memset_grid_size,
-        memset_block_size, 0, 0>>>(d_frontier_keys[0],
+    memset_block_size, 0, 0>>>(d_frontier_keys[0],
         nodes);
 
     if (b40c::util::B40CPerror(
@@ -124,15 +126,45 @@ struct pagerank
     //compute d_num_out_edges
     b40c::util::B40CPerror(
         cudaMalloc((void**) &vertex_list.d_num_out_edge,
-            (nodes+1) * sizeof(int)),
+            (nodes + 1) * sizeof(int)),
         "cudaMalloc d_num_out_edges failed", __FILE__, __LINE__);
 
     thrust::device_ptr<int> d_row_offsets_ptr(d_row_offsets);
     thrust::device_ptr<int> d_num_out_edge_ptr(vertex_list.d_num_out_edge);
 
+    thrust::device_vector<int> d_num_out_edge_tmp(nodes + 1);
+
     thrust::adjacent_difference(thrust::device, d_row_offsets_ptr, d_row_offsets_ptr + nodes + 1, d_num_out_edge_ptr);
     vertex_list.d_num_out_edge++;
 
+    if (directed == 0)
+    {
+      thrust::device_ptr<int> d_column_offsets_ptr(d_column_offsets);
+      thrust::adjacent_difference(thrust::device, d_column_offsets_ptr, d_column_offsets_ptr + nodes + 1, d_num_out_edge_tmp.begin());
+
+      thrust::transform(d_num_out_edge_tmp.begin() + 1, d_num_out_edge_tmp.end(), d_num_out_edge_ptr + 1, d_num_out_edge_ptr + 1, thrust::plus<int>());
+    }
+//    int *tmp = new int[nodes];
+//    cudaMemcpy(tmp, vertex_list.d_num_out_edge, nodes * sizeof(int),
+//        cudaMemcpyDeviceToHost);
+//    printf("d_num_out_edge: ");
+//    for (int i = 0; i < nodes; i++)
+//    {
+//      printf("%d, ", tmp[i]);
+//    }
+//    printf("\n");
+//    delete[] tmp;
+//
+//    tmp = new int[nodes + 1];
+//    cudaMemcpy(tmp, d_column_offsets, (nodes + 1) * sizeof(int),
+//        cudaMemcpyDeviceToHost);
+//    printf("d_column_offsets: ");
+//    for (int i = 0; i < nodes + 1; i++)
+//    {
+//      printf("%d, ", tmp[i]);
+//    }
+//    printf("\n");
+//    delete[] tmp;
   }
 
   static SrcVertex srcVertex()
@@ -179,8 +211,8 @@ struct pagerank
   struct gather_edge
   {
     __device__
-    void operator()(const int vertex_id, const int neighbor_id_in,
-            VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
+    void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
+        VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
     {
       DataType nb_dist = vertex_list.d_dists[neighbor_id_in];
       new_value = nb_dist / (DataType) vertex_list.d_num_out_edge[neighbor_id_in];
@@ -193,8 +225,7 @@ struct pagerank
    */
   struct gather_sum
   {
-    __device__ GatherType operator()(const GatherType &left,
-        const GatherType &right)
+    __device__ GatherType operator()(const GatherType &left, const GatherType &right)
     {
       return left + right;
     }
@@ -223,7 +254,7 @@ struct pagerank
         changed = 1;
       }
 //      if(vertex_id < 100)
-//        printf("vertex_id=%d, oldvalue=%f, gathervalue=%f, newvalue=%f\n", vertex_id, oldvalue, gathervalue, newvalue);
+//      printf("vertex_id=%d, oldvalue=%f, gathervalue=%f, newvalue=%f, changed=%d\n", vertex_id, oldvalue, gathervalue, newvalue, changed);
 
       vertex_list.d_dists[vertex_id] = newvalue;
     }

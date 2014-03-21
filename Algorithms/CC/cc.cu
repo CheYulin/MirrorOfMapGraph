@@ -250,9 +250,10 @@ int main(int argc, char **argv)
   printf("Running on host: %s\n", hostname);
 
   cudaInit(cfg.getParameter<int>("device"));
+  bool directed = false;
 
   if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
-      true) != 0)
+      false) != 0)
     return 1;
 
   VertexId* reference_dists;
@@ -267,10 +268,11 @@ int main(int argc, char **argv)
   typedef GASengine::CsrProblem<cc, VertexId, SizeT, Value, g_mark_predecessor, g_with_value> CsrProblem;
   CsrProblem csr_problem(cfg);
 
+
   if (csr_problem.FromHostProblem(g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices,
       csr_graph.row_offsets, csr_graph.edge_values, csr_graph.row_indices,
-      csr_graph.column_offsets, num_gpus, false))
+      csr_graph.column_offsets, num_gpus, directed))
     exit(1);
 
   const bool INSTRUMENT = true;
@@ -282,7 +284,7 @@ int main(int argc, char **argv)
   int threshold = cfg.getParameter<int>("threshold");
 
   retval = vertex_centric.EnactIterativeSearch(csr_problem,
-      csr_graph.row_offsets, false, csr_graph.nodes, NULL, iter_num, threshold);
+      csr_graph.row_offsets, directed, csr_graph.nodes, NULL, iter_num, threshold);
 
   if (retval && (retval != cudaErrorInvalidDeviceFunction))
   {

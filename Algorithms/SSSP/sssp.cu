@@ -279,7 +279,7 @@ int main(int argc, char **argv)
   int* srcs = NULL;
 
   if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
-      !directed) != 0)
+      false) != 0)
     return 1;
 
   const int max_src_num = 1000;

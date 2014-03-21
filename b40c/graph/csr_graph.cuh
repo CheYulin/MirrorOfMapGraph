@@ -82,6 +82,12 @@ namespace b40c
 
         std::stable_sort(coo, coo + coo_edges, DimacsTupleCompare<Tuple>);
 
+//        printf("After sort:\n");
+//        for (int i = 0; i < coo_edges; i++)
+//        {
+//          printf("%d %d %d\n", coo[i].row, coo[i].col, coo[i].val);
+//        }
+
         VertexId prev_row = -1;
         for (SizeT edge = 0; edge < edges; edge++)
         {
@@ -111,6 +117,12 @@ namespace b40c
           row_offsets[row] = edges;
         }
 
+//        printf("After CSR:\n");
+//        for (int i = 0; i < coo_edges; i++)
+//        {
+//          printf("%d\n", edge_values[i]);
+//        }
+
         if (!undirected)
         {
           // Sort COO by col
@@ -130,13 +142,13 @@ namespace b40c
             prev_col = current_col;
 
             row_indices[edge] = coo[edge].row;
-            if (LOAD_VALUES)
-            {
-              edge_values[edge] = coo[edge].val;
-//            coo[edge].Val(edge_values[edge]);
-            }
-            else
-              edge_values[edge] = 1;
+//            if (LOAD_VALUES)
+//            {
+//              edge_values[edge] = coo[edge].val;
+////            coo[edge].Val(edge_values[edge]);
+//            }
+//            else
+//              edge_values[edge] = 1;
           }
 
           // Fill out any trailing edgeless nodes (and the end-of-list element)

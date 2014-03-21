@@ -183,12 +183,12 @@ namespace GASengine
           util::B40CPerror(cudaFree(d_row_offsets),
               "GpuSlice cudaFree d_row_offsets failed", __FILE__,
               __LINE__);
-        if (directed == 1)
+//        if (directed == 1)
           if (d_row_indices)
             util::B40CPerror(cudaFree(d_row_indices),
                 "GpuSlice cudaFree d_row_indices failed", __FILE__,
                 __LINE__);
-        if (directed == 1)
+//        if (directed == 1)
           if (d_column_offsets)
             util::B40CPerror(cudaFree(d_column_offsets),
                 "GpuSlice cudaFree d_column_offsets failed",
@@ -414,7 +414,7 @@ namespace GASengine
               __LINE__))
             break;
 
-          if (directed)
+//          if (directed)
           {
             if (retval = util::B40CPerror(
                 cudaMalloc((void**) &graph_slices[0]->d_row_indices,
@@ -505,7 +505,7 @@ namespace GASengine
           double endtransfer = omp_get_wtime();
           printf("CPU to GPU memory transfer time: %f ms\n", (endtransfer - starttransfer) * 1000.0);
 
-          if (directed)
+//          if (directed)
           {
             thrust::device_ptr<SizeT> d_row_offsets_ptr = thrust::device_pointer_cast(graph_slices[0]->d_row_offsets);
             thrust::device_ptr<VertexId> d_row_indices_ptr = thrust::device_pointer_cast(graph_slices[0]->d_row_indices);
@@ -516,6 +516,13 @@ namespace GASengine
 
             offsets_to_indices(graph_slices[0]->nodes + 1, graph_slices[0]->edges, d_row_offsets_ptr, d_row_indices_ptr);
             sort_by_column(graph_slices[0]->edges, graph_slices[0]->nodes + 1, d_column_indices_ptr, d_row_indices_ptr, d_column_offsets_ptr, d_edgeCSC_indices_ptr);
+
+//            printf("edge values:\n");
+//            for(int i=0; i<graph_slices[0]->edges; i++)
+//            {
+//              std::cout << d_edge_values_ptr[i] << " ";
+//            }
+//            printf("\n");
 
 //            printf("CSC matrix:\n");
 //            for (int i = 0; i < graph_slices[0]->nodes; i++)

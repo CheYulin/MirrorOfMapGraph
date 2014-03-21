@@ -274,7 +274,7 @@ int main(int argc, char **argv)
   int directed = cfg.getParameter<int>("directed");
 
   if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
-      !directed) != 0)
+      false) != 0)
     exit(1);
 
 //  csr_graph.DisplayGraph();

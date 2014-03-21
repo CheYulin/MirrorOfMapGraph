@@ -240,9 +240,15 @@ MGPU_HOST void ReduceByKeyPreprocess(int count, KeysIt keys_global,
 
 template<typename KeysIt, typename InputIt, typename DestIt,
 	typename KeyType, typename ValType, typename Op, typename Comp>
-MGPU_HOST void ReduceByKey(KeysIt keys_global, InputIt data_global, int count,
-	ValType identity, Op op, Comp comp, KeyType* keysDest_global, 
-	DestIt dest_global, int* count_host, int* count_global, 
+MGPU_HOST void ReduceByKey(KeysIt keys_global,
+    InputIt data_global,
+    int count,
+	ValType identity,
+	Op op, Comp comp,
+	KeyType* keysDest_global,
+	DestIt dest_global,
+	int* count_host,
+	int* count_global,
 	CudaContext& context) {
 		
 	std::auto_ptr<ReduceByKeyPreprocessData> data;

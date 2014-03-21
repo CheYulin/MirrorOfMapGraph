@@ -123,7 +123,7 @@ int ReadMarketStream(
 			coo[edges_read].row = ll_row - 1;	// zero-based array
 			coo[edges_read].col = ll_col - 1;	// zero-based array
 			coo[edges_read].val = (Value)edge_value;
-//            fprintf(outputgraphfile, "%lld %lld 1\n", ll_row+1, ll_col+1);
+//            printf("%lld %lld %lld\n", ll_row-1, ll_col-1, coo[edges_read].val);
 
 			edges_read++;
 

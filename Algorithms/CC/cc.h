@@ -75,7 +75,7 @@ struct cc
     return EXPAND_OUT_EDGES;
   }
 
-  static void Initialize(const int nodes, const int edges, int num_srcs,
+  static void Initialize(const int directed, const int nodes, const int edges, int num_srcs,
       int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, int* d_edge_values,
       VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
       MiscType* d_frontier_values[3])
@@ -151,7 +151,7 @@ struct cc
   struct gather_edge
   {
     __device__
-    void operator()(const int vertex_id, const int neighbor_id_in,
+    void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
         VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
     {
 
@@ -191,9 +191,9 @@ struct cc
       else
       {
         if (oldvalue == newvalue)
-          changed = 0;
+        changed = 0;
         else
-          changed = 1;
+        changed = 1;
       }
       vertex_list.d_dists_out[vertex_id] = newvalue;
 //      printf("Apply: oldvalue=%d, newvalue=%d, gathervalue=%d\n", oldvalue, newvalue, gathervalue);
@@ -278,10 +278,11 @@ struct cc
       const int src_dist = vertex_list.d_dists[vertex_id];
       const int dst_dist = vertex_list.d_dists[neighbor_id_in];
       if ((changed || iteration == 0) && dst_dist > src_dist)
-      frontier = neighbor_id_in;
+        frontier = neighbor_id_in;
       else
-      frontier = -1;
-      misc_value = src_dist; // source dist + edge weight
+        frontier = -1;
+      misc_value = src_dist;
+//      printf("vertex_id=%d, neighbor_id=%d, src_dist=%d, dst_dist=%d, edge_id = %d, frontier=%d, misc_value=%d\n", vertex_id, neighbor_id_in, src_dist, dst_dist, edge_id, frontier, misc_value);
     }
   };
 

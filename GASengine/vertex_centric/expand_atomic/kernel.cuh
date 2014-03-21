@@ -32,12 +32,14 @@ namespace GASengine
             typename KernelPolicy::VertexId &steal_index,
             int &num_gpus,
             int &selector,
+            int &previous_frontier_size,
             int *&deviceMappedValueEdge,
             typename KernelPolicy::VertexId *&d_vertex_frontier,
             typename KernelPolicy::VertexId *&d_edge_frontier,
             typename KernelPolicy::VertexId *&d_predecessor,
             typename Program::VertexType &vertex_list,
             typename Program::EdgeType &edge_list,
+            typename KernelPolicy::VertexId *&d_edgeCSC_indices,
             char *&d_changed,
             typename KernelPolicy::VertexId *&d_column_indices,
             typename KernelPolicy::SizeT *&d_row_offsets,
@@ -66,6 +68,7 @@ namespace GASengine
               queue_index,
               num_gpus,
               selector,
+              previous_frontier_size,
               deviceMappedValueEdge,
               smem_storage,
               d_vertex_frontier,
@@ -73,6 +76,7 @@ namespace GASengine
               d_predecessor,
               vertex_list,
               edge_list,
+              d_edgeCSC_indices,
               d_changed,
               d_column_indices,
               d_row_offsets,
@@ -235,6 +239,7 @@ namespace GASengine
             VertexId &steal_index,
             int &num_gpus,
             int &selector,
+            int &previous_frontier_size,
             int *&d_frontier_size,
             int *&d_edge_frontier_size,
             volatile int *&d_done,
@@ -243,6 +248,7 @@ namespace GASengine
             VertexId *&d_predecessor,
             VertexType &vertex_list,
             EdgeType &edge_list,
+            VertexId *&d_edgeCSC_indices,
             char *&d_changed,
             VertexId *&d_column_indices,
             SizeT *&d_row_offsets,
@@ -300,12 +306,14 @@ namespace GASengine
                 steal_index,
                 num_gpus,
                 selector,
+                previous_frontier_size,
                 d_edge_frontier_size,
                 d_vertex_frontier,
                 d_edge_frontier,
                 d_predecessor,
                 vertex_list,
                 edge_list,
+                d_edgeCSC_indices,
                 d_changed,
                 d_column_indices,
                 d_row_offsets,
@@ -332,6 +340,7 @@ namespace GASengine
           typename KernelPolicy::VertexId steal_index,				// Current workstealing counter index
           int num_gpus,					// Number of GPUs
           int selector,
+          int previous_frontier_size,
           int* d_frontier_size,
           int* d_edge_frontier_size,
           volatile int *d_done,					// Flag to set when we detect incoming edge frontier is empty
@@ -340,6 +349,7 @@ namespace GASengine
           typename KernelPolicy::VertexId *d_predecessor,				// Outgoing predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
           typename Program::VertexType vertex_list, //
           typename Program::EdgeType edge_list, //
+          typename KernelPolicy::VertexId *d_edgeCSC_indices,
           char* d_changed,
           typename KernelPolicy::VertexId *d_column_indices,			// CSR column-indices array
           typename KernelPolicy::SizeT *d_row_offsets,				// CSR row-offsets array
@@ -356,6 +366,7 @@ namespace GASengine
             steal_index,
             num_gpus,
             selector,
+            previous_frontier_size,
             d_frontier_size,
             d_edge_frontier_size,
             d_done,
@@ -364,6 +375,7 @@ namespace GASengine
             d_predecessor,
             vertex_list,
             edge_list,
+            d_edgeCSC_indices,
             d_changed,
             d_column_indices,
             d_row_offsets,
