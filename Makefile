@@ -7,7 +7,7 @@ release.dir=releases
 # wildcards.
 
 #SUBDIRS = Algorithms/InterestingSubgraph Algorithms/BFS Algorithms/CC Algorithms/SSSP Algorithms/PageRank
-SUBDIRS = Algorithms/BFS Algorithms/CC Algorithms/SSSP Algorithms/PageRank
+SUBDIRS = moderngpu2/src Algorithms/BFS Algorithms/CC Algorithms/SSSP Algorithms/PageRank
 
 # Setup mock targets. There will be one per subdirectory. Note the
 # ".all" or ".clean" extension. This will trigger the parameterized
