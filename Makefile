@@ -1,6 +1,12 @@
+# The software release version.
+ver=0.3.0
+version=mpgraph.${ver}.tgz
+release.dir=releases
+
 # The list of directories to operate on.  Could also be defined using
 # wildcards.
 
+#SUBDIRS = Algorithms/InterestingSubgraph Algorithms/BFS Algorithms/CC Algorithms/SSSP Algorithms/PageRank
 SUBDIRS = Algorithms/BFS Algorithms/CC Algorithms/SSSP Algorithms/PageRank
 
 # Setup mock targets. There will be one per subdirectory. Note the
@@ -17,6 +23,11 @@ CLEAN = $(foreach DIR,$(SUBDIRS),$(DIR).clean)
 all: $(ALL) doc.all
 
 clean: $(CLEAN) doc.clean
+
+realclean: clean realclean.create
+
+realclean.create:
+	rm -rf ${release.dir}
 
 # Parameterized implementation of the mock targets, invoked by
 # top-level targets for each subdirectory.
@@ -38,3 +49,10 @@ doc: doc.create
 
 doc.create:
 	$(MAKE) -C doc
+
+release: clean release.create
+
+release.create:
+	-mkdir ${release.dir}
+	-rm -f ${release.dir}/${version}
+	tar --exclude .svn --exclude releases -cvz -f ${release.dir}/${version} .
