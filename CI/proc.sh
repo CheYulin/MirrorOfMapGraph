@@ -1,5 +1,5 @@
 #!/bin/bash
-# Directory containing the mpgraph executables.
+# Directory containing the mapgraph executables.
 BIN_DIR=../Algorithms
 # Directory containing the graph datasets to be processed.
 DATA_DIR=/data/xdata/GraphDatasets

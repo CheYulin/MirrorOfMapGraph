@@ -1,6 +1,6 @@
 # The software release version.
-ver=0.3.0
-version=mpgraph.${ver}.tgz
+ver=0.3.1
+version=mapgraph.${ver}.tgz
 release.dir=releases
 
 # The list of directories to operate on.  Could also be defined using

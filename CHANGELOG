@@ -1,11 +1,15 @@
-- MPGraph (0.3)
+- MapGraph (0.3.1)
+
+  This is a minor release. MPGraph is now called MapGraph.
+
+- MapGraph (0.3)
 
   This release adds an alternative kernel strategy that provides better
   load balancing and a 5x - 10x increase in throughput for graph algorithms
   having multiple iterations with large frontiers.  This performance gain 
   can be easily observed with algorithms such as CC and PR.
 
-- MPGraph (0.2) 
+- MapGraph (0.2) 
   
   This release replaces the initial thrust-based implementation
   entirely. The new implementation uses and extends the dynamic
