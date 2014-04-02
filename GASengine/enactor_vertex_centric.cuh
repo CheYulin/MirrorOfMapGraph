@@ -2299,7 +2299,7 @@ namespace GASengine
 
           vertex_centric::expand_atomic_flag::Kernel<ExpandPolicy, Program><<<expand_grid_size, ExpandPolicy::THREADS>>>(
               iteration[0],
-              queue_index,              // queue counter index
+              queue_index,// queue counter index
               queue_index,// steal counter index
               1,// number of GPUs
               frontier_selector,
@@ -3049,14 +3049,17 @@ namespace GASengine
           frontier_selector ^= 1;
 //          queue_index++;
 
-//          if (retval = util::B40CPerror(cudaMemcpy(&frontier_size, &d_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
-//                  "CsrProblem cudaMemcpy frontier_size failed", __FILE__,
-//                  __LINE__))
-//          return retval;
-
           if (DEBUG)
           {
+
+            if (retval = util::B40CPerror(cudaMemcpy(&frontier_size, &d_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
+                    "CsrProblem cudaMemcpy frontier_size failed", __FILE__,
+                    __LINE__))
+            return retval;
+//            thrust::sort(graph_slice->frontier_queues.d_keys[selector^1], graph_slice->frontier_queues.d_keys[selector^1] + frontier_size);
+
 //            printf("Frontier size after contract: %d\n", frontier_size);
+
 //            VertexId* test_vid = new VertexId[frontier_size];
 //            cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector^1], frontier_size * sizeof(VertexId), cudaMemcpyDeviceToHost);
 //            printf("Frontier after contract: ");
@@ -3068,13 +3071,6 @@ namespace GASengine
 //            delete[] test_vid;
           }
 
-          if (DEBUG
-              && (retval = util::B40CPerror(
-                      cudaThreadSynchronize(),
-                      "contract_atomic::Kernel failed ", __FILE__,
-                      __LINE__)))
-          break;
-
           // Check if done
           if (done[0] == 0)
           break;
@@ -3084,6 +3080,50 @@ namespace GASengine
                 __LINE__))
         return retval;
 
+        //convert compacted frontier to bitmap
+        if(frontier_size > 0)
+        {
+          int nthreads = 256;
+          int nblocks = (frontier_size + nthreads - 1) / nthreads;
+          vertex_centric::mgpukernel::frontier2flag<Program><<<nblocks, nthreads>>>(frontier_size, graph_slice->nodes, graph_slice->frontier_queues.d_keys[selector^1], graph_slice->d_visit_flags);
+          SYNC_CHECK();
+          int byte_size = (graph_slice->nodes + 8 -1) / 8;
+          nblocks = (byte_size + nthreads - 1) / nthreads;
+          vertex_centric::mgpukernel::flag2bitmap<Program><<<nblocks, nthreads>>>(graph_slice->nodes, byte_size, graph_slice->d_visit_flags, graph_slice->d_bitmap_vertfrontier);
+          SYNC_CHECK();
+
+          if (DEBUG)
+          {
+
+//            int bitmap_cout = 0;
+//            int byte_size = (graph_slice->nodes + 8 - 1) / 8;
+//            char* test_vid = new char[byte_size];
+//            cudaMemcpy(test_vid, graph_slice->d_bitmap_vertfrontier, byte_size, cudaMemcpyDeviceToHost);
+//            printf("bitmap after contract: ");
+//            for (int i = 0; i < byte_size; ++i)
+//            {
+//              for(int j=0; j<8; j++)
+//              {
+//                if(test_vid[i] & (1 << j))
+//                {
+//                  printf("%d, ", i*8 + j);
+//                  bitmap_cout++;
+//                }
+//              }
+//            }
+//            printf("\n");
+//            printf("bitmap_cout=%d\n", bitmap_cout);
+//            delete[] test_vid;
+          }
+
+//          if (retval = util::B40CPerror(cudaMemset(graph_slice->d_bitmap_vertfrontier, 0, (graph_slice->nodes + 8 - 1) / 8),
+//                  "Memset d_bitmap_vertfrontier failed", __FILE__, __LINE__))
+//          return retval;
+
+          if (retval = util::B40CPerror(cudaMemset(graph_slice->d_visit_flags, 0, graph_slice->nodes * sizeof(char)),
+                  "Memset d_visit_flags failed", __FILE__, __LINE__))
+          return retval;
+        }
         iteration[0]++;
       }
 
@@ -3170,7 +3210,7 @@ namespace GASengine
         util::io::st::NONE,// QUEUE_WRITE_MODIFIER,
         false,// WORK_STEALING
         -1,// END_BITMASK_CULL 0 to never perform bitmask filtering, -1 to always perform bitmask filtering
-        8>// LOG_SCHEDULE_GRANULARITY
+        8> // LOG_SCHEDULE_GRANULARITY
         ContractPolicy;
 
         return EnactIterativeSearch<ExpandPolicy, ContractPolicy>(

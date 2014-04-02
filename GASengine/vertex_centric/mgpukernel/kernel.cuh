@@ -138,7 +138,7 @@ namespace GASengine
             typename Program::VertexId edge_id = gather[i];
             typename Program::VertexId neighbor = indices[edge_id];
             int read_edge_id;
-            if(d_edgeCSC_indices)
+            if (d_edgeCSC_indices)
               read_edge_id = d_edgeCSC_indices[edge_id];
             else
               read_edge_id = edge_id;
@@ -181,6 +181,46 @@ namespace GASengine
           //                vertex_list.d_changed[v] = 1;
           //
           //              vertex_list.d_dists_out[v] = newvalue;
+
+        }
+      }
+
+      template<typename Program>
+      __global__ void frontier2flag(int frontier_size, int nodes, typename Program::VertexId* frontier, char* flags)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
+      {
+        int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+
+        for (int i = tidx; i < frontier_size; i += gridDim.x * blockDim.x)
+        {
+          typename Program::VertexId v = frontier[i];
+          flags[v] = 1;
+        }
+      }
+
+      template<typename Program>
+      __global__ void flag2bitmap(int nodes, int byte_size, char* flags, char* bitmap)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
+      {
+        int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+
+        for (int i = tidx; i < byte_size; i += gridDim.x * blockDim.x)
+        {
+          bitmap[i] = 0;
+          for (int j = 0; j < 8; j++)
+          {
+            int v = i * 8 + j;
+            if (v < nodes)
+            {
+              char f = flags[v];
+              if (f == 1)
+              {
+                int byte_offset = i;
+                char mask_byte = 1 << j;
+
+                bitmap[byte_offset] |= mask_byte;
+//                printf("v=%d, byte_offset=%d, mask_byte=%d, bitmap[byte_offset]=%d\n", v, byte_offset, mask_byte, bitmap[byte_offset]);
+              }
+            }
+          }
 
         }
       }
@@ -269,7 +309,7 @@ namespace GASengine
             iEdge += soff;
             Int src = srcs[iEdge];
             typename Program::gather_edge gather_edge_functor;
-            if(d_edgeCSC_indices)
+            if (d_edgeCSC_indices)
               gather_edge_functor(dst, d_edgeCSC_indices[iEdge], src, vertex_list, edge_list, result);
             else
               gather_edge_functor(dst, iEdge, src, vertex_list, edge_list, result);
