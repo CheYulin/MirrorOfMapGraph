@@ -126,12 +126,14 @@ namespace GASengine
       int* d_edgeCountScan;
       int* d_active_flags;
       char* d_changed;
+      char* d_bitmap_edgefrontier;
+      char* d_bitmap_vertfrontier;
 
       VertexType vertex_list;
       EdgeType edge_list;
       // Best-effort mask for keeping track of which vertices we've seen so far
       VisitedMask *d_visited_mask;
-      SizeT *d_visit_flags; // Track if same vertex is being expanded inside the same frontier-queue
+      char *d_visit_flags; // Track if same vertex is being expanded inside the same frontier-queue
 
       // Frontier queues.  Keys track work, values optionally track predecessors.  Only
       // multi-gpu uses triple buffers (single-GPU only uses ping-pong buffers).
@@ -155,7 +157,7 @@ namespace GASengine
       GraphSlice(int gpu, int directed, cudaStream_t stream) :
           gpu(gpu), directed(directed), d_column_indices(
               NULL), d_row_offsets(NULL), d_edge_values(NULL), d_preds(NULL), d_visited_mask(
-              NULL), d_filter_mask(NULL), d_visit_flags(NULL), d_changed(d_changed), nodes(
+              NULL), d_filter_mask(NULL), d_visit_flags(NULL), d_changed(NULL), d_bitmap_edgefrontier(NULL), d_bitmap_vertfrontier(NULL), nodes(
               0), edges(0), stream(stream)
       {
         // Initialize triple-buffer frontier queue lengths
@@ -184,15 +186,15 @@ namespace GASengine
               "GpuSlice cudaFree d_row_offsets failed", __FILE__,
               __LINE__);
 //        if (directed == 1)
-          if (d_row_indices)
-            util::B40CPerror(cudaFree(d_row_indices),
-                "GpuSlice cudaFree d_row_indices failed", __FILE__,
-                __LINE__);
+        if (d_row_indices)
+          util::B40CPerror(cudaFree(d_row_indices),
+              "GpuSlice cudaFree d_row_indices failed", __FILE__,
+              __LINE__);
 //        if (directed == 1)
-          if (d_column_offsets)
-            util::B40CPerror(cudaFree(d_column_offsets),
-                "GpuSlice cudaFree d_column_offsets failed",
-                __FILE__, __LINE__);
+        if (d_column_offsets)
+          util::B40CPerror(cudaFree(d_column_offsets),
+              "GpuSlice cudaFree d_column_offsets failed",
+              __FILE__, __LINE__);
         if (d_edgeCountScan)
           util::B40CPerror(cudaFree(d_edgeCountScan),
               "GpuSlice cudaFree d_edgeCountScan", __FILE__,
@@ -208,6 +210,14 @@ namespace GASengine
         if (d_changed)
           util::B40CPerror(cudaFree(d_changed),
               "GpuSlice cudaFree d_changed", __FILE__, __LINE__);
+
+        if (d_bitmap_edgefrontier)
+          util::B40CPerror(cudaFree(d_bitmap_edgefrontier),
+              "GpuSlice cudaFree bitmap_edgefrontier", __FILE__, __LINE__);
+
+        if (d_bitmap_vertfrontier)
+          util::B40CPerror(cudaFree(d_bitmap_vertfrontier),
+              "GpuSlice cudaFree bitmap_vertfrontier", __FILE__, __LINE__);
 
         if (d_visited_mask)
           util::B40CPerror(cudaFree(d_visited_mask),
@@ -463,6 +473,27 @@ namespace GASengine
             break;
 
           if (retval = util::B40CPerror(
+              cudaMalloc((void**) &graph_slices[0]->d_visit_flags,
+                  (graph_slices[0]->nodes) * sizeof(char)),
+              "CsrProblem cudaMalloc d_visit_flags failed",
+              __FILE__, __LINE__))
+            break;
+
+          if (retval = util::B40CPerror(
+              cudaMalloc((void**) &graph_slices[0]->d_bitmap_edgefrontier,
+                  (graph_slices[0]->nodes + 8 - 1) / 8),
+              "CsrProblem cudaMalloc d_bitmap_edgefrontier failed",
+              __FILE__, __LINE__))
+            break;
+
+          if (retval = util::B40CPerror(
+              cudaMalloc((void**) &graph_slices[0]->d_bitmap_vertfrontier,
+                  (graph_slices[0]->nodes + 8 - 1) / 8),
+              "CsrProblem cudaMalloc d_bitmap_vertfrontier failed",
+              __FILE__, __LINE__))
+            break;
+
+          if (retval = util::B40CPerror(
               cudaMalloc((void**) &graph_slices[0]->d_edge_values,
                   graph_slices[0]->edges * sizeof(VertexId)),
               "CsrProblem cudaMalloc d_edge_values failed", __FILE__,
@@ -556,6 +587,18 @@ namespace GASengine
 
           if (retval = util::B40CPerror(cudaThreadSynchronize(),
               "MemsetKernel d_changed failed", __FILE__, __LINE__))
+            return retval;
+
+          if (retval = util::B40CPerror(cudaMemset(graph_slices[0]->d_bitmap_edgefrontier, 0, (graph_slices[0]->nodes + 8 - 1) / 8),
+              "Memset d_bitmap_edgefrontier failed", __FILE__, __LINE__))
+            return retval;
+
+          if (retval = util::B40CPerror(cudaMemset(graph_slices[0]->d_bitmap_vertfrontier, 0, (graph_slices[0]->nodes + 8 - 1) / 8),
+              "Memset d_bitmap_vertfrontier failed", __FILE__, __LINE__))
+            return retval;
+
+          if (retval = util::B40CPerror(cudaMemset(graph_slices[0]->d_visit_flags, 0, graph_slices[0]->nodes * sizeof(char)),
+              "Memset d_visit_flags failed", __FILE__, __LINE__))
             return retval;
 
         }
