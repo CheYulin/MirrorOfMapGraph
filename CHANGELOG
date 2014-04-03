@@ -1,3 +1,8 @@
+- MapGraph (0.3.2)
+
+  This is a minor release. It replaces some copy that was accidentally
+  included in the MapGraph 0.3 distribution.
+
 - MapGraph (0.3.1)
 
   This is a minor release. MPGraph is now called MapGraph.
