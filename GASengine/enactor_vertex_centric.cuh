@@ -32,6 +32,7 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/functional.h>
+#include <thrust/iterator/permutation_iterator.h>
 
 #include <vector>
 #include <iterator>
@@ -302,268 +303,128 @@ namespace GASengine
                                   0.0;
     }
 
-//	template<typename ContractPolicy, typename SizeT, typename CsrProblem,
-//			typename Program>
-//	void contract(bool DEBUG, SizeT frontier_size, int src, int selector, int queue_index,
-//			int contract_grid_size,
-//			typename CsrProblem::GraphSlice *graph_slice,
-//			double &elapsedcontract) {
-//		double startcontract, endcontract;
-//		if (DEBUG)
-//			startcontract = omp_get_wtime();
-//
-//		// Contraction
-//		//
-//		//
-//		vertex_centric::contract_atomic::Kernel<ContractPolicy, Program><<<
-//				contract_grid_size, ContractPolicy::THREADS>>>(
-//				src,
-//				iteration[0],
-//				graph_slice->init_num_elements, // initial num_elements, for BFS it is 1
-//				queue_index, // queue counter index
-//				queue_index, // steal counter index
-//				1, // number of GPUs
-//				d_done,
-//				graph_slice->frontier_queues.d_keys[selector ^ 1], // filtered edge frontier in
-//				graph_slice->frontier_queues.d_keys[selector], // vertex frontier out
-//				graph_slice->frontier_queues.d_values[selector ^ 1], // predecessor in
-//				graph_slice->vertex_list, graph_slice->edge_list,
-//				graph_slice->d_labels, // source distance out
-//				graph_slice->d_preds, // prtedecessor out
-//				graph_slice->d_sigmas, graph_slice->d_dists,
-//				graph_slice->d_changed, graph_slice->d_visited_mask,
-//				this->work_progress,
-//				graph_slice->frontier_elements[selector ^ 1], // max filtered edge frontier vertices
-//				graph_slice->frontier_elements[selector], // max vertex frontier vertices
-//				this->contract_kernel_stats);
-//
-//		cudaError_t retval;
-//		if ((retval = util::B40CPerror(cudaThreadSynchronize(),
-//				"contract_atomic::Kernel failed ", __FILE__, __LINE__)))
-//			exit(1);
-//
-//		cudaEventQuery(throttle_event); // give host memory mapped visibility to GPU updates
-//
-//		if (DEBUG) {
-//			cudaDeviceSynchronize();
-//			endcontract = omp_get_wtime();
-//			elapsedcontract = endcontract - startcontract;
-//		}
-//
-//		queue_index++;
-//		selector ^= 1;
-//
-//		//        if (retval = work_progress.GetQueueLength(queue_index,
-//		//                queue_length))
-//		//        exit(1);
-//		//        frontier_size = queue_length;
-//		printf("DEBUG=%d\n", DEBUG);
-//		if (DEBUG) {
-//			int queue_length;
-//			if (retval = work_progress.GetQueueLength(queue_index,
-//					queue_length))
-//				printf("queue_length after contraction: %lld\n",
-//						(long long) queue_length);
-//
-//			//                  VertexId* test_vid = new VertexId[queue_length];
-//			//                  cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], queue_length * sizeof(VertexId), cudaMemcpyDeviceToHost);
-//			//                  printf("Frontier after contraction: ");
-//			//                  for (int i = 0; i < queue_length; ++i)
-//			//                  {
-//			//                    printf("%d, ", test_vid[i]);
-//			//                  }
-//			//                  printf("\n");
-//			//                  delete[] test_vid;
-//
-//			//                EValue *test_vid2 = new EValue[graph_slice->nodes];
-//			//                cudaMemcpy(test_vid2, graph_slice->vertex_list.d_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
-//			//                printf("d_dists after contract: ");
-//			//                for (int i = 0; i < graph_slice->nodes; ++i)
-//			//                {
-//			//                  printf("%d, ", test_vid2[i]);
-//			//                }
-//			//                printf("\n");
-//			//                delete[] test_vid2;
-//
-//			//                test_vid2 = new EValue[graph_slice->nodes];
-//			//                cudaMemcpy(test_vid2, graph_slice->vertex_list.d_min_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
-//			//                printf("d_min_dists after contract: ");
-//			//                for (int i = 0; i < graph_slice->nodes; ++i)
-//			//                {
-//			//                  printf("%d, ", test_vid2[i]);
-//			//                }
-//			//                printf("\n");
-//			//                delete[] test_vid2;
-//		}
-//
-//		// Throttle
-//		if (iteration[0] & 1) {
-//			if (retval =
-//					util::B40CPerror(cudaEventRecord(throttle_event),
-//							"EnactorVertexCentric cudaEventRecord throttle_event failed",
-//							__FILE__, __LINE__))
-//				exit(1);
-//		} else {
-//			if (retval =
-//					util::B40CPerror(cudaEventSynchronize(throttle_event),
-//							"EnactorVertexCentric cudaEventSynchronize throttle_event failed",
-//							__FILE__, __LINE__))
-//				exit(1);
-//		};
-//
-//	}
-
     struct DegreeIterator: public std::iterator<std::input_iterator_tag, VertexId>
     {
-      VertexId *m_offsets;
-      VertexId *m_active;
-
-      __host__ __device__ DegreeIterator(int *offsets, int *active) :
-          m_offsets(offsets), m_active(active)
-      {
-      }
-      ;
+      VertexId *offsets;
+      VertexId *active_vertices;
 
       __device__
-      int operator[](int i) const
+      int operator[](VertexId i) const
           {
-        VertexId active = m_active[i];
-        return max(m_offsets[active + 1] - m_offsets[active], 1);
+        VertexId vertex_id = active_vertices[i];
+        int degree = offsets[vertex_id + 1] - offsets[vertex_id];
+        return degree == 0 ? 1 : degree;
       }
 
       __device__ DegreeIterator operator +(int i) const
           {
-        return DegreeIterator(m_offsets, m_active + i);
+        return DegreeIterator(offsets, active_vertices + i);
       }
+
+      __device__ __host__ DegreeIterator(VertexId *offsets, VertexId *active_vertices) :
+          offsets(offsets), active_vertices(active_vertices)
+      {
+      };
     };
 
-    struct ReduceFunctor: std::binary_function<GatherType, GatherType, GatherType>
+    struct ReduceFunctor: public std::binary_function<GatherType, GatherType, GatherType>
     {
-      __device__ GatherType operator()(const GatherType &left, const GatherType &right)
+      __device__ GatherType operator()(GatherType left, GatherType right)
       {
         typename Program::gather_sum gather_sum_functor;
         return gather_sum_functor(left, right);
       }
     };
 
-    struct PredicatedDegreeIterator: public std::iterator<std::input_iterator_tag, VertexId>
+    struct ChangedDegreeIterator: public std::iterator<std::input_iterator_tag, VertexId>
     {
-      VertexId *m_offsets;
-      VertexId *m_active;
+      VertexId *offsets;
+      VertexId *active_vertices;
+      char *changed;
       typename Program::VertexType &m_vertex_list;
       typename Program::EdgeType &m_edge_list;
-      char *m_predicates;
-
-      __host__ __device__
-      PredicatedDegreeIterator(VertexId *offsets, VertexId *active, char * predicates, typename Program::VertexType &vertex_list, typename Program::EdgeType &edge_list) :
-          m_offsets(offsets), m_active(active), m_predicates(predicates), m_vertex_list(vertex_list), m_edge_list(edge_list)
-      {
-      }
-      ;
 
       __device__
       VertexId operator[](VertexId i) const
           {
-        VertexId active = m_active[i];
+        VertexId vertex_id = active_vertices[i];
         typename Program::expand_vertex expand_vertex_functor;
-        bool changed = expand_vertex_functor(active, m_predicates[active], m_vertex_list, m_edge_list);
-        return changed ? m_offsets[active + 1] - m_offsets[active] : 0;
+        bool changedv = expand_vertex_functor(vertex_id, changed[vertex_id], m_vertex_list, m_edge_list);
+        return changedv ? offsets[vertex_id + 1] - offsets[vertex_id] : 0;
       }
 
       __device__
-      PredicatedDegreeIterator operator +(VertexId i) const
+      ChangedDegreeIterator operator +(VertexId i) const
           {
-        return PredicatedDegreeIterator(m_offsets, m_active + i, m_predicates, m_vertex_list, m_edge_list);
+        return ChangedDegreeIterator(offsets, active_vertices + i, changed, m_vertex_list, m_edge_list);
       }
+
+      __device__ __host__
+      ChangedDegreeIterator(VertexId *offsets, VertexId *active_vertices, char * changed, typename Program::VertexType &vertex_list, typename Program::EdgeType &edge_list) :
+          offsets(offsets), active_vertices(active_vertices), changed(changed), m_vertex_list(vertex_list), m_edge_list(edge_list)
+      {
+      };
     };
 
-    struct ActivateGatherIterator: public std::iterator<std::input_iterator_tag, VertexId>
+    struct ScatterIterator: public std::iterator<std::input_iterator_tag, VertexId>
     {
-      VertexId *m_offsets;
-      VertexId *m_active;
-
-      __host__ __device__
-      ActivateGatherIterator(VertexId* offsets, VertexId* active)
-      :
-          m_offsets(offsets)
-              , m_active(active)
-      {
-      }
-      ;
+      int* frontier_flags;
 
       __device__
-      VertexId operator [](VertexId i)
-      {
-        return m_offsets[m_active[i]];
-      }
-
-      __device__
-      ActivateGatherIterator operator +(VertexId i) const
-          {
-        return ActivateGatherIterator(m_offsets, m_active + i);
-      }
-    };
-
-    struct ActivateOutputIterator
-    {
-      int* m_flags;
-
-      __host__ __device__
-      ActivateOutputIterator(int* flags) :
-          m_flags(flags)
-      {
-      }
-
-      __device__
-      ActivateOutputIterator& operator[](VertexId i)
+      ScatterIterator& operator[](VertexId i)
       {
         return *this;
       }
 
       __device__
-      void operator =(VertexId dst)
+      void operator =(VertexId vertex_id)
       {
-        m_flags[dst] = 1;
+        frontier_flags[vertex_id] = 1;
       }
 
       __device__
-      ActivateOutputIterator operator +(VertexId i)
+      ScatterIterator operator +(VertexId i)
       {
-        return ActivateOutputIterator(m_flags);
+        return ScatterIterator(frontier_flags);
+      }
+
+      __device__ __host__
+      ScatterIterator(int *frontier_flags) :
+          frontier_flags(frontier_flags)
+      {
       }
     };
 
     struct ReduceOutputIterator: public std::iterator<std::input_iterator_tag, VertexId>
     {
-      GatherType *m_gather;
-      VertexId *m_active;
-
-      __host__ __device__
-      ReduceOutputIterator(GatherType *gatherTmp, VertexId *active) :
-          m_gather(gatherTmp), m_active(active)
-      {
-      }
-      ;
+      GatherType *gather;
+      VertexId *active_vertices;
 
       __device__
       GatherType& operator[](VertexId i) const
           {
-        VertexId active = m_active[i];
-        return m_gather[active];
+        VertexId active = active_vertices[i];
+        return gather[active];
       }
 
       __device__
       ReduceOutputIterator operator +(VertexId i) const
           {
-        return ReduceOutputIterator(m_gather, m_active + i);
+        return ReduceOutputIterator(gather, active_vertices + i);
       }
 
       __device__
       ReduceOutputIterator& operator +=(const VertexId i)
       {
-        m_active += i;
+        active_vertices += i;
         return *this;
       }
+
+      __device__ __host__
+      ReduceOutputIterator(GatherType *gather, VertexId *active_vertices) :
+          gather(gather), active_vertices(active_vertices)
+      {
+      };
     };
 
     void scatter_mgpu(int frontier_selector,
@@ -680,8 +541,8 @@ namespace GASengine
         if(directed == 0)
         {
           //          printf("Expand_mgpu:Dup:All\n");
-          PredicatedDegreeIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-          mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
+          ChangedDegreeIterator peIter(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+          mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter
               , frontier_size
               , 0
               , mgpu::plus<VertexId>()
@@ -720,8 +581,8 @@ namespace GASengine
 
           int edge_frontier_size1 = edge_frontier_size;
 
-          PredicatedDegreeIterator ecIterator2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-          mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator2
+          ChangedDegreeIterator peIter2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+          mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter2
               , frontier_size
               , 0
               , mgpu::plus<VertexId>()
@@ -796,8 +657,8 @@ namespace GASengine
         {
           if(Program::expandOverEdges() == EXPAND_OUT_EDGES)
           {
-            PredicatedDegreeIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-            mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
+            ChangedDegreeIterator peIter(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+            mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter
                 , frontier_size
                 , 0
                 , mgpu::plus<VertexId>()
@@ -836,8 +697,8 @@ namespace GASengine
           }
           else if(Program::expandOverEdges() == EXPAND_IN_EDGES)
           {
-            PredicatedDegreeIterator ecIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-            mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
+            ChangedDegreeIterator peIter(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+            mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter
                 , frontier_size
                 , 0
                 , mgpu::plus<VertexId>()
@@ -878,8 +739,8 @@ namespace GASengine
           else if(Program::expandOverEdges() == EXPAND_ALL_EDGES)
           {
 //          printf("Expand_mgpu:Dup:All\n");
-            PredicatedDegreeIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-            mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
+            ChangedDegreeIterator peIter(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+            mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter
                 , frontier_size
                 , 0
                 , mgpu::plus<VertexId>()
@@ -918,8 +779,8 @@ namespace GASengine
 
             int edge_frontier_size1 = edge_frontier_size;
 
-            PredicatedDegreeIterator ecIterator2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-            mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator2
+            ChangedDegreeIterator peIter2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+            mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter2
                 , frontier_size
                 , 0
                 , mgpu::plus<VertexId>()
@@ -1022,8 +883,8 @@ namespace GASengine
 //          printf("\n");
 //          delete[] test_vid;
 
-          PredicatedDegreeIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-          mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
+          ChangedDegreeIterator peIter(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+          mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter
               , frontier_size
               , 0
               , mgpu::plus<VertexId>()
@@ -1035,12 +896,20 @@ namespace GASengine
 //          printf("edge_frontier_size1=%d\n", edge_frontier_size);
 
           IntervalGather(edge_frontier_size,
-              ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+              thrust::make_permutation_iterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
               graph_slice->d_edgeCountScan,
               frontier_size,
               graph_slice->d_column_indices,
-              ActivateOutputIterator(graph_slice->d_active_flags),
+              ScatterIterator(graph_slice->d_active_flags),
               *m_mgpuContext);
+
+//          IntervalGather(edge_frontier_size,
+//              ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+//              graph_slice->d_edgeCountScan,
+//              frontier_size,
+//              graph_slice->d_column_indices,
+//              ScatterIterator(graph_slice->d_active_flags),
+//              *m_mgpuContext);
 
 //          test_vid = new int[graph_slice->nodes];
 //          cudaMemcpy(test_vid, graph_slice->d_active_flags, graph_slice->nodes * sizeof(int), cudaMemcpyDeviceToHost);
@@ -1052,8 +921,8 @@ namespace GASengine
 //          printf("\n");
 //          delete[] test_vid;
 
-          PredicatedDegreeIterator ecIterator2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-          mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator2
+          ChangedDegreeIterator peIter2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+          mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter2
               , frontier_size
               , 0
               , mgpu::plus<VertexId>()
@@ -1063,14 +932,21 @@ namespace GASengine
               , *m_mgpuContext);
 
 //          printf("edge_frontier_size2=%d\n", edge_frontier_size);
-
           IntervalGather(edge_frontier_size,
-              ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+              thrust::make_permutation_iterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
               graph_slice->d_edgeCountScan,
               frontier_size,
               graph_slice->d_row_indices,
-              ActivateOutputIterator(graph_slice->d_active_flags),
+              ScatterIterator(graph_slice->d_active_flags),
               *m_mgpuContext);
+
+//          IntervalGather(edge_frontier_size,
+//              ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+//              graph_slice->d_edgeCountScan,
+//              frontier_size,
+//              graph_slice->d_row_indices,
+//              ScatterIterator(graph_slice->d_active_flags),
+//              *m_mgpuContext);
 
 //          test_vid = new int[graph_slice->nodes];
 //          cudaMemcpy(test_vid, graph_slice->d_active_flags, graph_slice->nodes * sizeof(int), cudaMemcpyDeviceToHost);
@@ -1099,8 +975,8 @@ namespace GASengine
         {
           if(Program::expandOverEdges() == EXPAND_OUT_EDGES)
           {
-            PredicatedDegreeIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-            mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
+            ChangedDegreeIterator peIter(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+            mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter
                 , frontier_size
                 , 0
                 , mgpu::plus<VertexId>()
@@ -1129,12 +1005,20 @@ namespace GASengine
             exit(1);
 
             IntervalGather(edge_frontier_size,
-                ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+                thrust::make_permutation_iterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
                 graph_slice->d_edgeCountScan,
                 frontier_size,
                 graph_slice->d_column_indices,
-                ActivateOutputIterator(graph_slice->d_active_flags),
+                ScatterIterator(graph_slice->d_active_flags),
                 *m_mgpuContext);
+
+//            IntervalGather(edge_frontier_size,
+//                ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+//                graph_slice->d_edgeCountScan,
+//                frontier_size,
+//                graph_slice->d_column_indices,
+//                ScatterIterator(graph_slice->d_active_flags),
+//                *m_mgpuContext);
 
             copy_if_mgpu(graph_slice->nodes,
                 graph_slice->d_active_flags,
@@ -1144,8 +1028,8 @@ namespace GASengine
           }
           else if(Program::expandOverEdges() == EXPAND_IN_EDGES)
           {
-            PredicatedDegreeIterator ecIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-            mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
+            ChangedDegreeIterator peIter(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+            mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter
                 , frontier_size
                 , 0
                 , mgpu::plus<VertexId>()
@@ -1174,12 +1058,20 @@ namespace GASengine
             exit(1);
 
             IntervalGather(edge_frontier_size,
-                ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+                thrust::make_permutation_iterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
                 graph_slice->d_edgeCountScan,
                 frontier_size,
                 graph_slice->d_row_indices,
-                ActivateOutputIterator(graph_slice->d_active_flags),
+                ScatterIterator(graph_slice->d_active_flags),
                 *m_mgpuContext);
+
+//            IntervalGather(edge_frontier_size,
+//                ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+//                graph_slice->d_edgeCountScan,
+//                frontier_size,
+//                graph_slice->d_row_indices,
+//                ScatterIterator(graph_slice->d_active_flags),
+//                *m_mgpuContext);
 
             copy_if_mgpu(graph_slice->nodes,
                 graph_slice->d_active_flags,
@@ -1191,8 +1083,8 @@ namespace GASengine
           else if(Program::expandOverEdges() == EXPAND_ALL_EDGES)
           {
 
-            PredicatedDegreeIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-            mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
+            ChangedDegreeIterator peIter(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+            mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter
                 , frontier_size
                 , 0
                 , mgpu::plus<VertexId>()
@@ -1202,11 +1094,12 @@ namespace GASengine
                 , *m_mgpuContext);
 
             IntervalGather(edge_frontier_size,
-                ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+//                ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+                thrust::make_permutation_iterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
                 graph_slice->d_edgeCountScan,
                 frontier_size,
                 graph_slice->d_column_indices,
-                ActivateOutputIterator(graph_slice->d_active_flags),
+                ScatterIterator(graph_slice->d_active_flags),
                 *m_mgpuContext);
 //
 //          int* test_vid = new int[graph_slice->nodes];
@@ -1219,8 +1112,8 @@ namespace GASengine
 //          printf("\n");
 //          delete[] test_vid;
 
-            PredicatedDegreeIterator ecIterator2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
-            mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator2
+            ChangedDegreeIterator peIter2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
+            mgpu::Scan<mgpu::MgpuScanTypeExc, ChangedDegreeIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(peIter2
                 , frontier_size
                 , 0
                 , mgpu::plus<VertexId>()
@@ -1230,11 +1123,12 @@ namespace GASengine
                 , *m_mgpuContext);
 
             IntervalGather(edge_frontier_size,
-                ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+//                ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+                thrust::make_permutation_iterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
                 graph_slice->d_edgeCountScan,
                 frontier_size,
                 graph_slice->d_row_indices,
-                ActivateOutputIterator(graph_slice->d_active_flags),
+                ScatterIterator(graph_slice->d_active_flags),
                 *m_mgpuContext);
 
 //          test_vid = new int[graph_slice->nodes];
@@ -1374,10 +1268,10 @@ namespace GASengine
 //      if(0)
       {
         //          printf("Gather all edges --- gather in!\n");
-        DegreeIterator ecIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]);
+        DegreeIterator dIter(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]);
 
         mgpu::Scan<mgpu::MgpuScanTypeExc, DegreeIterator, int, mgpu::plus<int>, int*>(
-            ecIterator,
+            dIter,
             frontier_size,
             0,
             mgpu::plus<int>(),
