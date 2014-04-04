@@ -346,10 +346,11 @@ int main(int argc, char **argv)
     char* graph_file = NULL;
     CsrGraph<VertexId, Value, SizeT> csr_graph(g_stream_from_host);
     char source_file_name[100] = "";
+    bool graph_random = false;
 //  int device = 0;
 //  double max_queue_sizing = 1.3;
     Config cfg;
-
+    int numVertices=1000, numEdges=10000;
     for (int i = 1; i < argc; i++)
     {
       if (strncmp(argv[i], "-help", 100) == 0) // print the usage information
@@ -387,29 +388,49 @@ int main(int argc, char **argv)
         i++;
         cfg.parseFile(argv[i]);
       }
+	else if (strncmp(argv[i], "-v", 100) == 0)
+	{
+		i++;
+		numVertices=atoi(argv[i]);
+	}
+	else if (strncmp(argv[i], "-v", 100) == 0)
+	{
+		i++;
+		numEdges=atoi(argv[i]);
+	}
     }
 
     if (graph_file == NULL)
     {
-      printUsageAndExit(argv[0]);
-      exit(1);
+	//Generate random graph
+		graph_random = true;
+//      printUsageAndExit(argv[0]);
+//      exit(1);
     }
 
     bool cudaEnabled = cudaInit(cfg.getParameter<int>("device"));
     if (!cudaEnabled)
       return 0;
-
+/*
     char hostname[1024];
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
 
     printf("Running on host: %s\n", hostname);
-
+*/
     int directed = cfg.getParameter<int>("directed");
 
-    if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph, false)
-        != 0)
-      exit(1);
+      if(graph_random ==false)
+        {
+                if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph, false) != 0)
+                exit(1);
+        }
+        else
+        {
+        //build graph randomly
+                if (builder::BuildRandomGraph<g_with_value>(numVertices, numEdges, csr_graph, false) != 0)
+                exit(1);
+        }
 
 //  csr_graph.DisplayGraph();
     int num_srcs = 0;
