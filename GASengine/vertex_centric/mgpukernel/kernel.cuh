@@ -185,46 +185,6 @@ namespace GASengine
         }
       }
 
-      template<typename Program>
-      __global__ void frontier2flag(int frontier_size, int nodes, typename Program::VertexId* frontier, char* flags)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
-      {
-        int tidx = blockIdx.x * blockDim.x + threadIdx.x;
-
-        for (int i = tidx; i < frontier_size; i += gridDim.x * blockDim.x)
-        {
-          typename Program::VertexId v = frontier[i];
-          flags[v] = 1;
-        }
-      }
-
-      template<typename Program>
-      __global__ void flag2bitmap(int nodes, int byte_size, char* flags, char* bitmap)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
-      {
-        int tidx = blockIdx.x * blockDim.x + threadIdx.x;
-
-        for (int i = tidx; i < byte_size; i += gridDim.x * blockDim.x)
-        {
-          bitmap[i] = 0;
-          for (int j = 0; j < 8; j++)
-          {
-            int v = i * 8 + j;
-            if (v < nodes)
-            {
-              char f = flags[v];
-              if (f == 1)
-              {
-                int byte_offset = i;
-                char mask_byte = 1 << j;
-
-                bitmap[byte_offset] |= mask_byte;
-//                printf("v=%d, byte_offset=%d, mask_byte=%d, bitmap[byte_offset]=%d\n", v, byte_offset, mask_byte, bitmap[byte_offset]);
-              }
-            }
-          }
-
-        }
-      }
-
       template<typename Program, typename Int, int NT>
       __global__ void kernel_gather_mgpu(
           Int nActiveVertices,
