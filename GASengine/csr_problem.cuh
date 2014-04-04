@@ -105,6 +105,9 @@ namespace GASengine
     {
       // GPU index
       int gpu;
+      int MPI_rank;
+      int pi;
+      int pj;
 
       // Standard CSR device storage arrays
       VertexId *d_column_indices;
@@ -128,6 +131,8 @@ namespace GASengine
       char* d_changed;
       char* d_bitmap_edgefrontier;
       char* d_bitmap_vertfrontier;
+      char* d_assigned;
+      char* d_prefix;
 
       VertexType vertex_list;
       EdgeType edge_list;
@@ -154,10 +159,10 @@ namespace GASengine
       /**
        * Constructor
        */
-      GraphSlice(int gpu, int directed, cudaStream_t stream) :
-          gpu(gpu), directed(directed), d_column_indices(
+      GraphSlice(int gpu, int pi, int pj, int directed, cudaStream_t stream) :
+          gpu(gpu), pi(pi), pj(pj), directed(directed), d_column_indices(
               NULL), d_row_offsets(NULL), d_edge_values(NULL), d_preds(NULL), d_visited_mask(
-              NULL), d_filter_mask(NULL), d_visit_flags(NULL), d_changed(NULL), d_bitmap_edgefrontier(NULL), d_bitmap_vertfrontier(NULL), nodes(
+              NULL), d_filter_mask(NULL), d_visit_flags(NULL), d_changed(NULL), d_bitmap_edgefrontier(NULL), d_bitmap_vertfrontier(NULL), d_prefix(NULL), d_assigned(NULL), nodes(
               0), edges(0), stream(stream)
       {
         // Initialize triple-buffer frontier queue lengths
@@ -391,7 +396,7 @@ namespace GASengine
               "CsrProblem cudaGetDevice failed", __FILE__, __LINE__))
             break;
 //              printf("Running on device %d\n", device);
-          graph_slices.push_back(new GraphSlice(gpu, directed, 0));
+          graph_slices.push_back(new GraphSlice(gpu, 0, 0, directed, 0));
           graph_slices[0]->nodes = nodes;
           graph_slices[0]->edges = edges;
 

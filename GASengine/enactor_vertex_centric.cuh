@@ -15,6 +15,7 @@
 #include <GASengine/problem_type.cuh>
 #include <GASengine/csr_problem.cuh>
 #include <GASengine/enactor_base.cuh>
+#include <MPI/kernel.cuh>
 
 //#include <GASengine/vertex_centric/gather/kernel.cuh>
 //#include <GASengine/vertex_centric/gather/kernel_policy.cuh>
@@ -3085,11 +3086,11 @@ namespace GASengine
         {
           int nthreads = 256;
           int nblocks = (frontier_size + nthreads - 1) / nthreads;
-          vertex_centric::mgpukernel::frontier2flag<Program><<<nblocks, nthreads>>>(frontier_size, graph_slice->nodes, graph_slice->frontier_queues.d_keys[selector^1], graph_slice->d_visit_flags);
+          MPI::mpikernel::frontier2flag<Program><<<nblocks, nthreads>>>(frontier_size, graph_slice->nodes, graph_slice->frontier_queues.d_keys[selector^1], graph_slice->d_visit_flags);
           SYNC_CHECK();
           int byte_size = (graph_slice->nodes + 8 -1) / 8;
           nblocks = (byte_size + nthreads - 1) / nthreads;
-          vertex_centric::mgpukernel::flag2bitmap<Program><<<nblocks, nthreads>>>(graph_slice->nodes, byte_size, graph_slice->d_visit_flags, graph_slice->d_bitmap_vertfrontier);
+          MPI::mpikernel::flag2bitmap<Program><<<nblocks, nthreads>>>(graph_slice->nodes, byte_size, graph_slice->d_visit_flags, graph_slice->d_bitmap_vertfrontier);
           SYNC_CHECK();
 
           if (DEBUG)
