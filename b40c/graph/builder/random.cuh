@@ -84,7 +84,7 @@ int BuildRandomGraph(
 	fflush(stdout);
 	
 	// Convert sorted COO to CSR
-	csr_graph.template FromCoo<LOAD_VALUES>(coo, nodes, directed_edges);
+	csr_graph.template FromCoo<LOAD_VALUES>(coo, nodes, directed_edges,undirected);
 	free(coo);
 
 	return 0;
