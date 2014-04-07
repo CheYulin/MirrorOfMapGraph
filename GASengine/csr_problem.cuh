@@ -375,9 +375,11 @@ namespace GASengine
         VertexId *h_row_indices,
         SizeT *h_column_offsets,
         int num_gpus,
-        int directed)
+        int directed,
+        int device_id, 
+        int rank_id)
     {
-      int device = cfg.getParameter<int>("device");
+      int device = device_id; //cfg.getParameter<int>("device");
       cudaError_t retval = cudaSuccess;
       this->nodes = nodes;
       this->edges = edges;

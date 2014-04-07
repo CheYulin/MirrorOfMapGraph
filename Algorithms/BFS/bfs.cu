@@ -433,8 +433,8 @@ int main(int argc, char **argv)
       num_srcs = cfg.getParameter<int>("num_src");
       srcs = new int[num_srcs];
       printf("Using %d random starting vertices!\n", num_srcs);
-      srand (time(NULL));int
-      count = 0;
+      srand (time(NULL));
+      int count = 0;
       while (count < num_srcs)
       {
         int tmp_src = rand() % csr_graph.nodes;
@@ -509,7 +509,7 @@ int main(int argc, char **argv)
   if (csr_problem.FromHostProblem(g_stream_from_host, csr_graph.nodes,
       csr_graph.edges, csr_graph.column_indices, csr_graph.row_offsets,
       csr_graph.edge_values, csr_graph.row_indices,
-      csr_graph.column_offsets, num_gpus, directed))
+      csr_graph.column_offsets, num_gpus, directed, device_id, rank_id))
     exit(1);
 
   const bool INSTRUMENT = true;

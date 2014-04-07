@@ -65,6 +65,20 @@ namespace MPI
         c[i] = (~tmpb) & tmpa;
       }
     }
+    
+    //c = union(a, b)
+    __global__ void bitunion(int n, char* a, const char* b, char* c)
+    {
+      int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+
+      for (int i = tidx; i < n; i += gridDim.x * blockDim.x)
+      {
+        char tmpa = a[i];
+        char tmpb = b[i];
+        c[i] = tmpb | tmpa;
+      }
+      
+    }
 
   }
 }
