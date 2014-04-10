@@ -36,8 +36,11 @@ void propogate(char* out, char* assigned, char* prefix )
 	//wave propogation, in sequential from top to bottom of the column
 	{
 	unsigned int mesg_size = n/(sizeof(char)*p);
-	int myid = pi*p+pj;
+	int p2 = sqrt(p);	
+        int myid = pi*p2+pj;
+
 	//int lastid = pi*p+p-1;
+
 	MPI_Request request[2];
 	MPI_Status  status[2];
 	//if first one in the column, initiate the wave propogation
@@ -48,7 +51,7 @@ void propogate(char* out, char* assigned, char* prefix )
 //			MPI_Irecv(out,mesg_size,MPI_CHAR,lastid,pi,MPI_COMM_WORLD,request[0]);
 		}
 	//else if not the last one, receive bitmap from top, process and send to next one	
-	else if(pj != p-1)
+	else if(pj != p2-1)
 		{
 			MPI_Irecv(prefix,mesg_size,MPI_CHAR,myid-1,pi,MPI_COMM_WORLD,&request[0] );
 			mpikernel::bitsubstract<<<512,512>>>(n, out, prefix, assigned);	
@@ -61,14 +64,15 @@ void propogate(char* out, char* assigned, char* prefix )
 	//else receive from the previous and then broadcast to the broadcast group 
 	else 
 		{
-      MPI_Irecv(prefix,mesg_size,MPI_CHAR,myid-1,pi,MPI_COMM_WORLD,&request[0] );
-      mpikernel::bitsubstract<<<512,512>>>(n, out, prefix, assigned);
+	         MPI_Irecv(prefix,mesg_size,MPI_CHAR,myid-1,pi,MPI_COMM_WORLD,&request[0] );
+     		 mpikernel::bitsubstract<<<512,512>>>(n, out, prefix, assigned);
 			cudaDeviceSynchronize();
 			mpikernel::bitunion<<<512,512>>>(n,out ,prefix, out);         
 			cudaDeviceSynchronize();
 												          
 //			MPI_Bcast();
 		}
+
 	}
 
 };
