@@ -198,14 +198,14 @@ void printUsageAndExit(char *algo_name)
 #define BUFSIZE 256
 #define TAG 0
 
-void MPI_init(int argc, char** argv, int &device_id, int& myid)
+void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
 {
   int devCount;
   char idstr[256];
   char idstr2[256];
   char buff[BUFSIZE];
   int i;
-  int numprocs, rank, namelen;
+  int rank, namelen;
   char processor_name[MPI_MAX_PROCESSOR_NAME];
 //  freopen("/dev/null", "w", stderr); /* Hide errors from nodes with no CUDA cards */
   MPI_Status stat;
@@ -324,7 +324,8 @@ int main(int argc, char **argv)
 
   int device_id;
   int rank_id;
-  MPI_init(argc, argv, device_id, rank_id);
+  int np;
+  MPI_init(argc, argv, device_id, rank_id, np);
   bool graph_random = false;
 
   const char* outFileName = 0;
@@ -344,7 +345,7 @@ int main(int argc, char **argv)
 //  int device = 0;
 //  double max_queue_sizing = 1.3;
   Config cfg;
-  int numVertices = 1000, numEdges = 10000;
+  int numVertices = 10, numEdges = 100;
   for (int i = 1; i < argc; i++)
   {
     if (strncmp(argv[i], "-help", 100) == 0) // print the usage information
@@ -514,8 +515,7 @@ int main(int argc, char **argv)
 
   const bool INSTRUMENT = true;
 
-  GASengine::EnactorVertexCentric<CsrProblem, bfs, INSTRUMENT> vertex_centric(
-      cfg, g_verbose);
+  GASengine::EnactorVertexCentric<CsrProblem, bfs, INSTRUMENT> vertex_centric(cfg, g_verbose);
 
   for (int i = 0; i < num_srcs; i++)
   {
@@ -528,7 +528,7 @@ int main(int argc, char **argv)
 
     retval = vertex_centric.EnactIterativeSearch(csr_problem,
         csr_graph.row_offsets, directed, 1, tmpsrcs, iter_num,
-        threshold);
+        threshold, np, device_id, rank_id);
 
     if (retval && (retval != cudaErrorInvalidDeviceFunction))
     {

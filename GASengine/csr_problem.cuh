@@ -65,7 +65,7 @@ namespace GASengine
   /**
    * CSR storage management structure for BFS problems.
    */
-  template<typename _Program, typename _VertexId, typename _SizeT,
+  template<typename Program, typename _VertexId, typename _SizeT,
       typename _EValue, bool MARK_PREDECESSORS, // Whether to mark predecessors (vs. mark distance from source)
       bool WITH_VALUE>
 // Whether to include edge/ndoe value computation with BFS
@@ -75,7 +75,7 @@ namespace GASengine
     // Typedefs and constants
     //---------------------------------------------------------------------
 
-    typedef ProblemType<_Program, // vertex type
+    typedef ProblemType<Program, // vertex type
         _VertexId,				// VertexId
         _SizeT,					// SizeT
         _EValue,				// Edge Value
@@ -85,11 +85,12 @@ namespace GASengine
         WITH_VALUE>             // WITH_VALUE
     ProblemType;
 
-    typedef typename ProblemType::Program::VertexType VertexType;
-    typedef typename ProblemType::Program::EdgeType EdgeType;
-    typedef typename ProblemType::Program::MiscType MiscType;
-    typedef typename ProblemType::VertexId VertexId;
-    typedef typename ProblemType::SizeT SizeT;
+    typedef typename Program::VertexType VertexType;
+    typedef typename Program::EdgeType EdgeType;
+    typedef typename Program::MiscType MiscType;
+    typedef typename Program::GatherType GatherType;
+    typedef typename Program::VertexId VertexId;
+    typedef typename Program::SizeT SizeT;
     typedef typename ProblemType::VisitedMask VisitedMask;
     typedef typename ProblemType::ValidFlag ValidFlag;
     typedef typename ProblemType::Program::DataType EValue;
@@ -130,9 +131,17 @@ namespace GASengine
       int* d_active_flags;
       char* d_changed;
       char* d_bitmap_edgefrontier;
-      char* d_bitmap_vertfrontier;
-      char* d_assigned;
-      char* d_prefix;
+      char* d_bitmap_out;
+      char* d_bitmap_prefix;
+      char* d_bitmap_assigned;
+      char* d_bitmap_in;
+      char* d_bitmap_visited;
+
+      GatherType *m_gatherMapTmp;
+      GatherType *m_gatherTmp;
+      GatherType *m_gatherTmp1;
+      GatherType *m_gatherTmp2;
+      VertexId *m_gatherDstsTmp;
 
       VertexType vertex_list;
       EdgeType edge_list;
@@ -162,8 +171,9 @@ namespace GASengine
       GraphSlice(int gpu, int pi, int pj, int directed, cudaStream_t stream) :
           gpu(gpu), pi(pi), pj(pj), directed(directed), d_column_indices(
               NULL), d_row_offsets(NULL), d_edge_values(NULL), d_preds(NULL), d_visited_mask(
-              NULL), d_filter_mask(NULL), d_visit_flags(NULL), d_changed(NULL), d_bitmap_edgefrontier(NULL), d_bitmap_vertfrontier(NULL), d_prefix(NULL), d_assigned(NULL), nodes(
-              0), edges(0), stream(stream)
+              NULL), d_filter_mask(NULL), d_visit_flags(NULL), d_changed(NULL),
+              d_bitmap_edgefrontier(NULL), d_bitmap_out(NULL), d_bitmap_prefix(NULL), d_bitmap_assigned(NULL), d_bitmap_in(NULL), d_bitmap_visited(NULL),
+              nodes(0), edges(0), stream(stream)
       {
         // Initialize triple-buffer frontier queue lengths
         for (int i = 0; i < 3; i++)
@@ -181,6 +191,16 @@ namespace GASengine
         // Set device
         util::B40CPerror(cudaSetDevice(gpu),
             "GpuSlice cudaSetDevice failed", __FILE__, __LINE__);
+
+        cudaFree (m_gatherMapTmp);
+        cudaFree(m_gatherTmp);
+        if ((Program::gatherOverEdges() == GATHER_ALL_EDGES || directed == 0) && Program::gatherOverEdges() == NO_GATHER_EDGES)
+        {
+          cudaFree(m_gatherTmp1);
+          cudaFree(m_gatherTmp2);
+        }
+
+        cudaFree(m_gatherDstsTmp);
 
         if (d_column_indices)
           util::B40CPerror(cudaFree(d_column_indices),
@@ -220,9 +240,25 @@ namespace GASengine
           util::B40CPerror(cudaFree(d_bitmap_edgefrontier),
               "GpuSlice cudaFree bitmap_edgefrontier", __FILE__, __LINE__);
 
-        if (d_bitmap_vertfrontier)
-          util::B40CPerror(cudaFree(d_bitmap_vertfrontier),
-              "GpuSlice cudaFree bitmap_vertfrontier", __FILE__, __LINE__);
+        if (d_bitmap_out)
+          util::B40CPerror(cudaFree(d_bitmap_out),
+              "GpuSlice cudaFree d_bitmap_out", __FILE__, __LINE__);
+
+        if (d_bitmap_prefix)
+          util::B40CPerror(cudaFree(d_bitmap_prefix),
+              "GpuSlice cudaFree d_bitmap_prefix", __FILE__, __LINE__);
+
+        if (d_bitmap_assigned)
+          util::B40CPerror(cudaFree(d_bitmap_assigned),
+              "GpuSlice cudaFree d_bitmap_assigned", __FILE__, __LINE__);
+
+        if (d_bitmap_in)
+          util::B40CPerror(cudaFree(d_bitmap_in),
+              "GpuSlice cudaFree d_bitmap_in", __FILE__, __LINE__);
+
+        if (d_bitmap_visited)
+          util::B40CPerror(cudaFree(d_bitmap_visited),
+              "GpuSlice cudaFree d_bitmap_visited", __FILE__, __LINE__);
 
         if (d_visited_mask)
           util::B40CPerror(cudaFree(d_visited_mask),
@@ -348,7 +384,7 @@ namespace GASengine
               "CsrProblem cudaSetDevice failed", __FILE__, __LINE__))
             break;
 
-          _Program::extractResult(graph_slices[0]->vertex_list, h_values);
+          Program::extractResult(graph_slices[0]->vertex_list, h_values);
 
         }
         else
@@ -376,7 +412,7 @@ namespace GASengine
         SizeT *h_column_offsets,
         int num_gpus,
         int directed,
-        int device_id, 
+        int device_id,
         int rank_id)
     {
       int device = device_id; //cfg.getParameter<int>("device");
@@ -401,6 +437,30 @@ namespace GASengine
           graph_slices.push_back(new GraphSlice(gpu, 0, 0, directed, 0));
           graph_slices[0]->nodes = nodes;
           graph_slices[0]->edges = edges;
+
+          cudaMalloc((void**) &graph_slices[0]->m_gatherMapTmp, (graph_slices[0]->edges + graph_slices[0]->nodes) * sizeof(GatherType));
+          cudaMalloc((void**) &graph_slices[0]->m_gatherTmp, graph_slices[0]->nodes * sizeof(GatherType));
+          if ((Program::gatherOverEdges() == GATHER_ALL_EDGES || directed == 0) && Program::gatherOverEdges() != NO_GATHER_EDGES)
+          {
+            cudaMalloc((void**) &graph_slices[0]->m_gatherTmp1, graph_slices[0]->nodes * sizeof(GatherType));
+            //        cudaMemset(m_gatherTmp1, 0, graph_slice->nodes * sizeof(GatherType) );
+            cudaMalloc((void**) &graph_slices[0]->m_gatherTmp2, graph_slices[0]->nodes * sizeof(GatherType));
+          }
+          cudaMalloc((void**) &graph_slices[0]->m_gatherDstsTmp, (graph_slices[0]->edges + graph_slices[0]->nodes) * sizeof(VertexId));
+
+          //      thrust::device_vector<int> d_vertex_ids = thrust::device_vector<int>(graph_slice->nodes);
+          //      thrust::sequence(d_vertex_ids.begin(), d_vertex_ids.end());
+          int memset_block_size = 256;
+          int memset_grid_size_max = 32 * 1024;              // 32K CTAs
+          int memset_grid_size;
+
+          memset_grid_size = B40C_MIN(memset_grid_size_max, (graph_slices[0]->nodes + memset_block_size - 1) / memset_block_size);
+
+          //init m_gatherTmp, necessary for CC!!!
+          util::MemsetKernel<GatherType><<<memset_grid_size,
+          memset_block_size, 0, graph_slices[0]->stream>>>(
+              graph_slices[0]->m_gatherTmp, Program::INIT_VALUE,
+              graph_slices[0]->nodes);
 
           //
           //Device mem allocations
@@ -494,9 +554,37 @@ namespace GASengine
             break;
 
           if (retval = util::B40CPerror(
-              cudaMalloc((void**) &graph_slices[0]->d_bitmap_vertfrontier,
+              cudaMalloc((void**) &graph_slices[0]->d_bitmap_out,
                   (graph_slices[0]->nodes + 8 - 1) / 8),
-              "CsrProblem cudaMalloc d_bitmap_vertfrontier failed",
+              "CsrProblem cudaMalloc d_bitmap_out failed",
+              __FILE__, __LINE__))
+            break;
+
+          if (retval = util::B40CPerror(
+              cudaMalloc((void**) &graph_slices[0]->d_bitmap_prefix,
+                  (graph_slices[0]->nodes + 8 - 1) / 8),
+              "CsrProblem cudaMalloc d_bitmap_prefix failed",
+              __FILE__, __LINE__))
+            break;
+
+          if (retval = util::B40CPerror(
+              cudaMalloc((void**) &graph_slices[0]->d_bitmap_assigned,
+                  (graph_slices[0]->nodes + 8 - 1) / 8),
+              "CsrProblem cudaMalloc d_bitmap_assigned failed",
+              __FILE__, __LINE__))
+            break;
+
+          if (retval = util::B40CPerror(
+              cudaMalloc((void**) &graph_slices[0]->d_bitmap_in,
+                  (graph_slices[0]->nodes + 8 - 1) / 8),
+              "CsrProblem cudaMalloc d_bitmap_in failed",
+              __FILE__, __LINE__))
+            break;
+
+          if (retval = util::B40CPerror(
+              cudaMalloc((void**) &graph_slices[0]->d_bitmap_visited,
+                  (graph_slices[0]->nodes + 8 - 1) / 8),
+              "CsrProblem cudaMalloc d_bitmap_visited failed",
               __FILE__, __LINE__))
             break;
 
@@ -572,12 +660,7 @@ namespace GASengine
 //            }
           }
 
-          int memset_block_size = 256;
-          int memset_grid_size_max = 32 * 1024;	// 32K CTAs
-          int memset_grid_size;
-
-          memset_grid_size =
-              B40C_MIN(memset_grid_size_max, (graph_slices[0]->nodes + memset_block_size - 1) / memset_block_size);
+          memset_grid_size = B40C_MIN(memset_grid_size_max, (graph_slices[0]->nodes + memset_block_size - 1) / memset_block_size);
           util::MemsetKernel<int><<<memset_grid_size,
           memset_block_size, 0, graph_slices[0]->stream>>>(
               graph_slices[0]->d_active_flags, 0,
@@ -600,8 +683,24 @@ namespace GASengine
               "Memset d_bitmap_edgefrontier failed", __FILE__, __LINE__))
             return retval;
 
-          if (retval = util::B40CPerror(cudaMemset(graph_slices[0]->d_bitmap_vertfrontier, 0, (graph_slices[0]->nodes + 8 - 1) / 8),
-              "Memset d_bitmap_vertfrontier failed", __FILE__, __LINE__))
+          if (retval = util::B40CPerror(cudaMemset(graph_slices[0]->d_bitmap_out, 0, (graph_slices[0]->nodes + 8 - 1) / 8),
+              "Memset d_bitmap_out failed", __FILE__, __LINE__))
+            return retval;
+
+          if (retval = util::B40CPerror(cudaMemset(graph_slices[0]->d_bitmap_prefix, 0, (graph_slices[0]->nodes + 8 - 1) / 8),
+              "Memset d_bitmap_prefix failed", __FILE__, __LINE__))
+            return retval;
+
+          if (retval = util::B40CPerror(cudaMemset(graph_slices[0]->d_bitmap_assigned, 0, (graph_slices[0]->nodes + 8 - 1) / 8),
+              "Memset d_bitmap_assigned failed", __FILE__, __LINE__))
+            return retval;
+
+          if (retval = util::B40CPerror(cudaMemset(graph_slices[0]->d_bitmap_in, 0, (graph_slices[0]->nodes + 8 - 1) / 8),
+              "Memset d_bitmap_out failed", __FILE__, __LINE__))
+            return retval;
+
+          if (retval = util::B40CPerror(cudaMemset(graph_slices[0]->d_bitmap_visited, 0, (graph_slices[0]->nodes + 8 - 1) / 8),
+              "Memset d_bitmap_visited failed", __FILE__, __LINE__))
             return retval;
 
           if (retval = util::B40CPerror(cudaMemset(graph_slices[0]->d_visit_flags, 0, graph_slices[0]->nodes * sizeof(char)),

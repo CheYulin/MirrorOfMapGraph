@@ -53,6 +53,28 @@ namespace MPI
       }
     }
 
+    template<typename Program>
+    __global__ void bitmap2flag(int byte_size, char* bitmap, char* flags)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
+    {
+      int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+
+      for (int i = tidx; i < byte_size; i += gridDim.x * blockDim.x)
+      {
+        char b = bitmap[i];
+        char mask = 1;
+        for (int j = 0; j < 8; j++)
+        {
+          mask <<= j;
+          if(b & mask)
+          {
+            flags[8*i + j] = 1;
+          }
+          else
+            flags[8*i + j] = 0;
+        }
+      }
+    }
+
     //c = a - b
     __global__ void bitsubstract(int n, char* a, const char* b, char* c)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
     {
@@ -65,7 +87,7 @@ namespace MPI
         c[i] = (~tmpb) & tmpa;
       }
     }
-    
+
     //c = union(a, b)
     __global__ void bitunion(int n, char* a, const char* b, char* c)
     {
@@ -77,7 +99,7 @@ namespace MPI
         char tmpb = b[i];
         c[i] = tmpb | tmpa;
       }
-      
+
     }
 
   }

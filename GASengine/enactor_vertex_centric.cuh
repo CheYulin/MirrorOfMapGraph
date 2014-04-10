@@ -15,7 +15,6 @@
 #include <GASengine/problem_type.cuh>
 #include <GASengine/csr_problem.cuh>
 #include <GASengine/enactor_base.cuh>
-#include <MPI/kernel.cuh>
 
 //#include <GASengine/vertex_centric/gather/kernel.cuh>
 //#include <GASengine/vertex_centric/gather/kernel_policy.cuh>
@@ -40,6 +39,9 @@
 //#include <util.h>
 #include <util/mgpucontext.h>
 #include <mgpuenums.h>
+
+#include <MPI/wave.h>
+#include <MPI/kernel.cuh>
 
 using namespace b40c;
 
@@ -235,7 +237,7 @@ namespace GASengine
   public:
     int *m_hostMappedValue;
     int *m_deviceMappedValue;
-    thrust::device_vector<int> d_vertex_ids;
+    //    thrust::device_vector<int> d_vertex_ids;
     int* d_frontier_size;
     int* d_edge_frontier_size;
     int frontier_size;
@@ -246,11 +248,11 @@ namespace GASengine
     typedef typename Program::DataType DataType;
     typedef typename Program::GatherType GatherType;
 
-    GatherType *m_gatherMapTmp;
-    GatherType *m_gatherTmp;
-    GatherType *m_gatherTmp1;
-    GatherType *m_gatherTmp2;
-    VertexId *m_gatherDstsTmp;
+//    GatherType *graph_slice->m_gatherMapTmp;
+//    GatherType *graph_slice->graph_slice->m_gatherTmp;
+//    GatherType *graph_slice->graph_slice->m_gatherTmp1;
+//    GatherType *graph_slice->m_gatherTmp2;
+//    VertexId *graph_slice->m_gatherDstsTmp;
     std::auto_ptr<mgpu::ReduceByKeyPreprocessData> preprocessData;
     bool preComputed;
 
@@ -261,6 +263,15 @@ namespace GASengine
         cfg(cfg), EnactorBase(EDGE_FRONTIERS, DEBUG), iteration(NULL), d_iteration(
             NULL), total_queued(0), done(NULL), d_done(NULL), preComputed(false)
     {
+      cudaMallocHost(&m_hostMappedValue, sizeof(SizeT), cudaHostAllocMapped);
+      cudaHostGetDevicePointer(&m_deviceMappedValue, m_hostMappedValue, 0);
+      cudaMalloc((void**) &d_frontier_size, 2 * sizeof(SizeT));
+      cudaMalloc((void**) &d_edge_frontier_size, 2 * sizeof(SizeT));
+
+      if (util::B40CPerror(cudaMemset(d_edge_frontier_size, 0, 2 * sizeof(SizeT)),
+          "CsrProblem cudaMemset d_edge_frontier_size failed", __FILE__,
+          __LINE__))
+        exit(1);
     }
 
     /**
@@ -302,117 +313,6 @@ namespace GASengine
                                   double(total_runtimes) / total_lifetimes :
                                   0.0;
     }
-
-//	template<typename ContractPolicy, typename SizeT, typename CsrProblem,
-//			typename Program>
-//	void contract(bool DEBUG, SizeT frontier_size, int src, int selector, int queue_index,
-//			int contract_grid_size,
-//			typename CsrProblem::GraphSlice *graph_slice,
-//			double &elapsedcontract) {
-//		double startcontract, endcontract;
-//		if (DEBUG)
-//			startcontract = omp_get_wtime();
-//
-//		// Contraction
-//		//
-//		//
-//		vertex_centric::contract_atomic::Kernel<ContractPolicy, Program><<<
-//				contract_grid_size, ContractPolicy::THREADS>>>(
-//				src,
-//				iteration[0],
-//				graph_slice->init_num_elements, // initial num_elements, for BFS it is 1
-//				queue_index, // queue counter index
-//				queue_index, // steal counter index
-//				1, // number of GPUs
-//				d_done,
-//				graph_slice->frontier_queues.d_keys[selector ^ 1], // filtered edge frontier in
-//				graph_slice->frontier_queues.d_keys[selector], // vertex frontier out
-//				graph_slice->frontier_queues.d_values[selector ^ 1], // predecessor in
-//				graph_slice->vertex_list, graph_slice->edge_list,
-//				graph_slice->d_labels, // source distance out
-//				graph_slice->d_preds, // prtedecessor out
-//				graph_slice->d_sigmas, graph_slice->d_dists,
-//				graph_slice->d_changed, graph_slice->d_visited_mask,
-//				this->work_progress,
-//				graph_slice->frontier_elements[selector ^ 1], // max filtered edge frontier vertices
-//				graph_slice->frontier_elements[selector], // max vertex frontier vertices
-//				this->contract_kernel_stats);
-//
-//		cudaError_t retval;
-//		if ((retval = util::B40CPerror(cudaThreadSynchronize(),
-//				"contract_atomic::Kernel failed ", __FILE__, __LINE__)))
-//			exit(1);
-//
-//		cudaEventQuery(throttle_event); // give host memory mapped visibility to GPU updates
-//
-//		if (DEBUG) {
-//			cudaDeviceSynchronize();
-//			endcontract = omp_get_wtime();
-//			elapsedcontract = endcontract - startcontract;
-//		}
-//
-//		queue_index++;
-//		selector ^= 1;
-//
-//		//        if (retval = work_progress.GetQueueLength(queue_index,
-//		//                queue_length))
-//		//        exit(1);
-//		//        frontier_size = queue_length;
-//		printf("DEBUG=%d\n", DEBUG);
-//		if (DEBUG) {
-//			int queue_length;
-//			if (retval = work_progress.GetQueueLength(queue_index,
-//					queue_length))
-//				printf("queue_length after contraction: %lld\n",
-//						(long long) queue_length);
-//
-//			//                  VertexId* test_vid = new VertexId[queue_length];
-//			//                  cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector ^ 1], queue_length * sizeof(VertexId), cudaMemcpyDeviceToHost);
-//			//                  printf("Frontier after contraction: ");
-//			//                  for (int i = 0; i < queue_length; ++i)
-//			//                  {
-//			//                    printf("%d, ", test_vid[i]);
-//			//                  }
-//			//                  printf("\n");
-//			//                  delete[] test_vid;
-//
-//			//                EValue *test_vid2 = new EValue[graph_slice->nodes];
-//			//                cudaMemcpy(test_vid2, graph_slice->vertex_list.d_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
-//			//                printf("d_dists after contract: ");
-//			//                for (int i = 0; i < graph_slice->nodes; ++i)
-//			//                {
-//			//                  printf("%d, ", test_vid2[i]);
-//			//                }
-//			//                printf("\n");
-//			//                delete[] test_vid2;
-//
-//			//                test_vid2 = new EValue[graph_slice->nodes];
-//			//                cudaMemcpy(test_vid2, graph_slice->vertex_list.d_min_dists, graph_slice->nodes * sizeof(EValue), cudaMemcpyDeviceToHost);
-//			//                printf("d_min_dists after contract: ");
-//			//                for (int i = 0; i < graph_slice->nodes; ++i)
-//			//                {
-//			//                  printf("%d, ", test_vid2[i]);
-//			//                }
-//			//                printf("\n");
-//			//                delete[] test_vid2;
-//		}
-//
-//		// Throttle
-//		if (iteration[0] & 1) {
-//			if (retval =
-//					util::B40CPerror(cudaEventRecord(throttle_event),
-//							"EnactorVertexCentric cudaEventRecord throttle_event failed",
-//							__FILE__, __LINE__))
-//				exit(1);
-//		} else {
-//			if (retval =
-//					util::B40CPerror(cudaEventSynchronize(throttle_event),
-//							"EnactorVertexCentric cudaEventSynchronize throttle_event failed",
-//							__FILE__, __LINE__))
-//				exit(1);
-//		};
-//
-//	}
 
     struct EdgeCountIterator: public std::iterator<std::input_iterator_tag, int>
     {
@@ -1341,7 +1241,7 @@ namespace GASengine
           iteration[0],
           frontier_size,
           graph_slice->frontier_queues.d_keys[selector ^ 1],
-          m_gatherTmp,
+          graph_slice->m_gatherTmp,
           graph_slice->vertex_list,
           graph_slice->edge_list,
           graph_slice->d_changed);
@@ -1417,16 +1317,16 @@ namespace GASengine
             graph_slice->vertex_list,
             graph_slice->edge_list,
             NULL,
-            m_gatherDstsTmp,
-            m_gatherMapTmp);
+            graph_slice->m_gatherDstsTmp,
+            graph_slice->m_gatherMapTmp);
 
         SYNC_CHECK();
 
 //        VertexId* test_vid3 = new VertexId[n_active_edges];
-//        cudaMemcpy(test_vid3, m_gatherDstsTmp,
+//        cudaMemcpy(test_vid3, graph_slice->m_gatherDstsTmp,
 //            n_active_edges * sizeof(VertexId),
 //            cudaMemcpyDeviceToHost);
-//        printf("m_gatherDstsTmp after gather-mgpu: ");
+//        printf("graph_slice->m_gatherDstsTmp after gather-mgpu: ");
 //        for (int i = 0; i < n_active_edges; ++i)
 //        {
 //          printf("%d, ", test_vid3[i]);
@@ -1435,10 +1335,10 @@ namespace GASengine
 //        delete[] test_vid3;
 //
 //        GatherType* test_vid2 = new GatherType[n_active_edges];
-//        cudaMemcpy(test_vid2, m_gatherMapTmp,
+//        cudaMemcpy(test_vid2, graph_slice->m_gatherMapTmp,
 //            n_active_edges * sizeof(GatherType),
 //            cudaMemcpyDeviceToHost);
-//        printf("m_gatherMapTmp after gather-mgpu: ");
+//        printf("graph_slice->m_gatherMapTmp after gather-mgpu: ");
 //        for (int i = 0; i < n_active_edges; ++i)
 //        {
 //          printf("%f, ", test_vid2[i]);
@@ -1446,14 +1346,14 @@ namespace GASengine
 //        printf("\n");
 //        delete[] test_vid2;
 
-        mgpu::ReduceByKey(m_gatherDstsTmp
-            , m_gatherMapTmp
+        mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
+            , graph_slice->m_gatherMapTmp
             , n_active_edges
             , Program::INIT_VALUE
             , ReduceFunctor()
             , mgpu::equal_to<VertexId>()
             , (VertexId *) NULL
-            , ReduceOutputIterator(m_gatherTmp1, graph_slice->frontier_queues.d_keys[selector ^ 1])
+            , ReduceOutputIterator(graph_slice->m_gatherTmp1, graph_slice->frontier_queues.d_keys[selector ^ 1])
             , NULL
             , NULL
             , *m_mgpuContext);
@@ -1461,10 +1361,10 @@ namespace GASengine
         SYNC_CHECK();
 
         //          GatherType* test_vid1 = new GatherType[graph_slice->nodes];
-        //          cudaMemcpy(test_vid1, m_gatherTmp1,
+        //          cudaMemcpy(test_vid1, graph_slice->m_gatherTmp1,
         //              graph_slice->nodes * sizeof(GatherType),
         //              cudaMemcpyDeviceToHost);
-        //          printf("m_gatherTmp after gather-mgpu: ");
+        //          printf("graph_slice->graph_slice->m_gatherTmp after gather-mgpu: ");
         //          for (int i = 0; i < graph_slice->nodes; ++i)
         //          {
         //            printf("%f, ", test_vid1[i]);
@@ -1516,16 +1416,16 @@ namespace GASengine
             graph_slice->vertex_list,
             graph_slice->edge_list,
             graph_slice->d_edgeCSC_indices,
-            m_gatherDstsTmp,
-            m_gatherMapTmp);
+            graph_slice->m_gatherDstsTmp,
+            graph_slice->m_gatherMapTmp);
 
         SYNC_CHECK();
 
         //          test_vid3 = new VertexId[n_active_edges];
-        //          cudaMemcpy(test_vid3, m_gatherDstsTmp,
+        //          cudaMemcpy(test_vid3, graph_slice->m_gatherDstsTmp,
         //              n_active_edges * sizeof(VertexId),
         //              cudaMemcpyDeviceToHost);
-        //          printf("m_gatherDstsTmp after gather-mgpu: ");
+        //          printf("graph_slice->m_gatherDstsTmp after gather-mgpu: ");
         //          for (int i = 0; i < n_active_edges; ++i)
         //          {
         //            printf("%d, ", test_vid3[i]);
@@ -1534,10 +1434,10 @@ namespace GASengine
         //          delete[] test_vid3;
         //
         //          test_vid2 = new GatherType[n_active_edges];
-        //          cudaMemcpy(test_vid2, m_gatherMapTmp,
+        //          cudaMemcpy(test_vid2, graph_slice->m_gatherMapTmp,
         //              n_active_edges * sizeof(GatherType),
         //              cudaMemcpyDeviceToHost);
-        //          printf("m_gatherMapTmp after gather-mgpu: ");
+        //          printf("graph_slice->m_gatherMapTmp after gather-mgpu: ");
         //          for (int i = 0; i < n_active_edges; ++i)
         //          {
         //            printf("%f, ", test_vid2[i]);
@@ -1545,14 +1445,14 @@ namespace GASengine
         //          printf("\n");
         //          delete[] test_vid2;
 
-        mgpu::ReduceByKey(m_gatherDstsTmp
-            , m_gatherMapTmp
+        mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
+            , graph_slice->m_gatherMapTmp
             , n_active_edges
             , Program::INIT_VALUE
             , ReduceFunctor()
             , mgpu::equal_to<VertexId>()
             , (VertexId *) NULL
-            , ReduceOutputIterator(m_gatherTmp2, graph_slice->frontier_queues.d_keys[selector ^ 1])
+            , ReduceOutputIterator(graph_slice->m_gatherTmp2, graph_slice->frontier_queues.d_keys[selector ^ 1])
             , NULL
             , NULL
             , *m_mgpuContext);
@@ -1560,10 +1460,10 @@ namespace GASengine
         SYNC_CHECK();
 
         //          test_vid1 = new GatherType[graph_slice->nodes];
-        //          cudaMemcpy(test_vid1, m_gatherTmp2,
+        //          cudaMemcpy(test_vid1, graph_slice->m_gatherTmp2,
         //              graph_slice->nodes * sizeof(GatherType),
         //              cudaMemcpyDeviceToHost);
-        //          printf("m_gatherTmp after gather-mgpu: ");
+        //          printf("graph_slice->graph_slice->m_gatherTmp after gather-mgpu: ");
         //          for (int i = 0; i < graph_slice->nodes; ++i)
         //          {
         //            printf("%f, ", test_vid1[i]);
@@ -1571,9 +1471,9 @@ namespace GASengine
         //          printf("\n");
         //          delete[] test_vid1;
 
-        thrust::device_ptr<GatherType> m_gatherTmp1_ptr = thrust::device_pointer_cast(m_gatherTmp1);
-        thrust::device_ptr<GatherType> m_gatherTmp2_ptr = thrust::device_pointer_cast(m_gatherTmp2);
-        thrust::device_ptr<GatherType> m_gatherTmp_ptr = thrust::device_pointer_cast(m_gatherTmp);
+        thrust::device_ptr<GatherType> m_gatherTmp1_ptr = thrust::device_pointer_cast(graph_slice->m_gatherTmp1);
+        thrust::device_ptr<GatherType> m_gatherTmp2_ptr = thrust::device_pointer_cast(graph_slice->m_gatherTmp2);
+        thrust::device_ptr<GatherType> m_gatherTmp_ptr = thrust::device_pointer_cast(graph_slice->m_gatherTmp);
         typename Program::gather_sum gather_sum_functor;
         thrust::transform(m_gatherTmp1_ptr,
             m_gatherTmp1_ptr + graph_slice->nodes,
@@ -1582,10 +1482,10 @@ namespace GASengine
             gather_sum_functor);
 
         //          test_vid1 = new GatherType[graph_slice->nodes];
-        //          cudaMemcpy(test_vid1, m_gatherTmp,
+        //          cudaMemcpy(test_vid1, graph_slice->graph_slice->m_gatherTmp,
         //              graph_slice->nodes * sizeof(GatherType),
         //              cudaMemcpyDeviceToHost);
-        //          printf("final m_gatherTmp after gather-mgpu: ");
+        //          printf("final graph_slice->graph_slice->m_gatherTmp after gather-mgpu: ");
         //          for (int i = 0; i < graph_slice->nodes; ++i)
         //          {
         //            printf("%f, ", test_vid1[i]);
@@ -1634,17 +1534,17 @@ namespace GASengine
 //            graph_slice->vertex_list,
 //            graph_slice->edge_list,
 //            NULL,
-//            m_gatherDstsTmp,
-//            m_gatherMapTmp);
+//            graph_slice->m_gatherDstsTmp,
+//            graph_slice->m_gatherMapTmp);
 //
-//        mgpu::ReduceByKey(m_gatherDstsTmp
-//            , m_gatherMapTmp
+//        mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
+//            , graph_slice->m_gatherMapTmp
 //            , n_active_edges
 //            , Program::INIT_VALUE
 //            , ReduceFunctor()
 //            , mgpu::equal_to<VertexId>()
 //            , (VertexId *) NULL
-//            , ReduceOutputIterator(m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
+//            , ReduceOutputIterator(graph_slice->graph_slice->m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
 //            , NULL
 //            , NULL
 //            , *m_mgpuContext);
@@ -1696,26 +1596,26 @@ namespace GASengine
               graph_slice->vertex_list,
               graph_slice->edge_list,
               NULL,
-              m_gatherDstsTmp,
-              m_gatherMapTmp);
+              graph_slice->m_gatherDstsTmp,
+              graph_slice->m_gatherMapTmp);
 
-          mgpu::ReduceByKey(m_gatherDstsTmp
-              , m_gatherMapTmp
+          mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
+              , graph_slice->m_gatherMapTmp
               , n_active_edges
               , Program::INIT_VALUE
               , ReduceFunctor()
               , mgpu::equal_to<VertexId>()
               , (VertexId *) NULL
-              , ReduceOutputIterator(m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
+              , ReduceOutputIterator(graph_slice->m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
               , NULL
               , NULL
               , *m_mgpuContext);
 
 //          GatherType* test_vid2 = new GatherType[graph_slice->nodes];
-//          cudaMemcpy(test_vid2, m_gatherTmp,
+//          cudaMemcpy(test_vid2, graph_slice->graph_slice->m_gatherTmp,
 //              graph_slice->nodes * sizeof(GatherType),
 //              cudaMemcpyDeviceToHost);
-//          printf("m_gatherTmp after gather-mgpu: ");
+//          printf("graph_slice->graph_slice->m_gatherTmp after gather-mgpu: ");
 //          for (int i = 0; i < graph_slice->nodes; ++i)
 //          {
 //            printf("%f, ", test_vid2[i]);
@@ -1767,17 +1667,17 @@ namespace GASengine
               graph_slice->vertex_list,
               graph_slice->edge_list,
               graph_slice->d_edgeCSC_indices,
-              m_gatherDstsTmp,
-              m_gatherMapTmp);
+              graph_slice->m_gatherDstsTmp,
+              graph_slice->m_gatherMapTmp);
 
-          mgpu::ReduceByKey(m_gatherDstsTmp
-              , m_gatherMapTmp
+          mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
+              , graph_slice->m_gatherMapTmp
               , n_active_edges
               , Program::INIT_VALUE
               , ReduceFunctor()
               , mgpu::equal_to<VertexId>()
               , (VertexId *) NULL
-              , ReduceOutputIterator(m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
+              , ReduceOutputIterator(graph_slice->m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
               , NULL
               , NULL
               , *m_mgpuContext);
@@ -1826,14 +1726,14 @@ namespace GASengine
               graph_slice->vertex_list,
               graph_slice->edge_list,
               NULL,
-              m_gatherDstsTmp,
-              m_gatherMapTmp);
+              graph_slice->m_gatherDstsTmp,
+              graph_slice->m_gatherMapTmp);
 
 //          VertexId* test_vid3 = new VertexId[n_active_edges];
-//          cudaMemcpy(test_vid3, m_gatherDstsTmp,
+//          cudaMemcpy(test_vid3, graph_slice->m_gatherDstsTmp,
 //              n_active_edges * sizeof(VertexId),
 //              cudaMemcpyDeviceToHost);
-//          printf("m_gatherDstsTmp after gather-mgpu: ");
+//          printf("graph_slice->m_gatherDstsTmp after gather-mgpu: ");
 //          for (int i = 0; i < n_active_edges; ++i)
 //          {
 //            printf("%d, ", test_vid3[i]);
@@ -1842,10 +1742,10 @@ namespace GASengine
 //          delete[] test_vid3;
 //
 //          GatherType* test_vid2 = new GatherType[n_active_edges];
-//          cudaMemcpy(test_vid2, m_gatherMapTmp,
+//          cudaMemcpy(test_vid2, graph_slice->m_gatherMapTmp,
 //              n_active_edges * sizeof(GatherType),
 //              cudaMemcpyDeviceToHost);
-//          printf("m_gatherMapTmp after gather-mgpu: ");
+//          printf("graph_slice->m_gatherMapTmp after gather-mgpu: ");
 //          for (int i = 0; i < n_active_edges; ++i)
 //          {
 //            printf("%f, ", test_vid2[i]);
@@ -1853,23 +1753,23 @@ namespace GASengine
 //          printf("\n");
 //          delete[] test_vid2;
 
-          mgpu::ReduceByKey(m_gatherDstsTmp
-              , m_gatherMapTmp
+          mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
+              , graph_slice->m_gatherMapTmp
               , n_active_edges
               , Program::INIT_VALUE
               , ReduceFunctor()
               , mgpu::equal_to<VertexId>()
               , (VertexId *) NULL
-              , ReduceOutputIterator(m_gatherTmp1, graph_slice->frontier_queues.d_keys[selector ^ 1])
+              , ReduceOutputIterator(graph_slice->m_gatherTmp1, graph_slice->frontier_queues.d_keys[selector ^ 1])
               , NULL
               , NULL
               , *m_mgpuContext);
 
 //          GatherType* test_vid1 = new GatherType[graph_slice->nodes];
-//          cudaMemcpy(test_vid1, m_gatherTmp1,
+//          cudaMemcpy(test_vid1, graph_slice->m_gatherTmp1,
 //              graph_slice->nodes * sizeof(GatherType),
 //              cudaMemcpyDeviceToHost);
-//          printf("m_gatherTmp after gather-mgpu: ");
+//          printf("graph_slice->m_gatherTmp after gather-mgpu: ");
 //          for (int i = 0; i < graph_slice->nodes; ++i)
 //          {
 //            printf("%f, ", test_vid1[i]);
@@ -1919,14 +1819,14 @@ namespace GASengine
               graph_slice->vertex_list,
               graph_slice->edge_list,
               graph_slice->d_edgeCSC_indices,
-              m_gatherDstsTmp,
-              m_gatherMapTmp);
+              graph_slice->m_gatherDstsTmp,
+              graph_slice->m_gatherMapTmp);
 
 //          test_vid3 = new VertexId[n_active_edges];
-//          cudaMemcpy(test_vid3, m_gatherDstsTmp,
+//          cudaMemcpy(test_vid3, graph_slice->m_gatherDstsTmp,
 //              n_active_edges * sizeof(VertexId),
 //              cudaMemcpyDeviceToHost);
-//          printf("m_gatherDstsTmp after gather-mgpu: ");
+//          printf("graph_slice->m_gatherDstsTmp after gather-mgpu: ");
 //          for (int i = 0; i < n_active_edges; ++i)
 //          {
 //            printf("%d, ", test_vid3[i]);
@@ -1935,10 +1835,10 @@ namespace GASengine
 //          delete[] test_vid3;
 //
 //          test_vid2 = new GatherType[n_active_edges];
-//          cudaMemcpy(test_vid2, m_gatherMapTmp,
+//          cudaMemcpy(test_vid2, graph_slice->m_gatherMapTmp,
 //              n_active_edges * sizeof(GatherType),
 //              cudaMemcpyDeviceToHost);
-//          printf("m_gatherMapTmp after gather-mgpu: ");
+//          printf("graph_slice->m_gatherMapTmp after gather-mgpu: ");
 //          for (int i = 0; i < n_active_edges; ++i)
 //          {
 //            printf("%f, ", test_vid2[i]);
@@ -1946,23 +1846,23 @@ namespace GASengine
 //          printf("\n");
 //          delete[] test_vid2;
 
-          mgpu::ReduceByKey(m_gatherDstsTmp
-              , m_gatherMapTmp
+          mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
+              , graph_slice->m_gatherMapTmp
               , n_active_edges
               , Program::INIT_VALUE
               , ReduceFunctor()
               , mgpu::equal_to<VertexId>()
               , (VertexId *) NULL
-              , ReduceOutputIterator(m_gatherTmp2, graph_slice->frontier_queues.d_keys[selector ^ 1])
+              , ReduceOutputIterator(graph_slice->m_gatherTmp2, graph_slice->frontier_queues.d_keys[selector ^ 1])
               , NULL
               , NULL
               , *m_mgpuContext);
 
 //          test_vid1 = new GatherType[graph_slice->nodes];
-//          cudaMemcpy(test_vid1, m_gatherTmp2,
+//          cudaMemcpy(test_vid1, graph_slice->m_gatherTmp2,
 //              graph_slice->nodes * sizeof(GatherType),
 //              cudaMemcpyDeviceToHost);
-//          printf("m_gatherTmp after gather-mgpu: ");
+//          printf("graph_slice->m_gatherTmp after gather-mgpu: ");
 //          for (int i = 0; i < graph_slice->nodes; ++i)
 //          {
 //            printf("%f, ", test_vid1[i]);
@@ -1970,9 +1870,9 @@ namespace GASengine
 //          printf("\n");
 //          delete[] test_vid1;
 
-          thrust::device_ptr<GatherType> m_gatherTmp1_ptr = thrust::device_pointer_cast(m_gatherTmp1);
-          thrust::device_ptr<GatherType> m_gatherTmp2_ptr = thrust::device_pointer_cast(m_gatherTmp2);
-          thrust::device_ptr<GatherType> m_gatherTmp_ptr = thrust::device_pointer_cast(m_gatherTmp);
+          thrust::device_ptr<GatherType> m_gatherTmp1_ptr = thrust::device_pointer_cast(graph_slice->m_gatherTmp1);
+          thrust::device_ptr<GatherType> m_gatherTmp2_ptr = thrust::device_pointer_cast(graph_slice->m_gatherTmp2);
+          thrust::device_ptr<GatherType> m_gatherTmp_ptr = thrust::device_pointer_cast(graph_slice->m_gatherTmp);
           typename Program::gather_sum gather_sum_functor;
           thrust::transform(m_gatherTmp1_ptr,
               m_gatherTmp1_ptr + graph_slice->nodes,
@@ -1981,10 +1881,10 @@ namespace GASengine
               gather_sum_functor);
 
 //          test_vid1 = new GatherType[graph_slice->nodes];
-//          cudaMemcpy(test_vid1, m_gatherTmp,
+//          cudaMemcpy(test_vid1, graph_slice->m_gatherTmp,
 //              graph_slice->nodes * sizeof(GatherType),
 //              cudaMemcpyDeviceToHost);
-//          printf("final m_gatherTmp after gather-mgpu: ");
+//          printf("final graph_slice->m_gatherTmp after gather-mgpu: ");
 //          for (int i = 0; i < graph_slice->nodes; ++i)
 //          {
 //            printf("%f, ", test_vid1[i]);
@@ -2546,7 +2446,7 @@ namespace GASengine
     typename ContractPolicy>
     cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
         typename CsrProblem::SizeT* h_row_offsets,
-        int directed, int num_srcs, int* srcs, int iter_num, int threshold)
+        int directed, int num_srcs, int* srcs, int iter_num, int threshold, int expand_grid_size, int contract_grid_size, int &selector, int &frontier_selector)
     {
       typedef typename CsrProblem::SizeT SizeT;
       typedef typename CsrProblem::VertexId VertexId;
@@ -2558,92 +2458,91 @@ namespace GASengine
       csr_problem.graph_slices[0];
 
       DEBUG = cfg.getParameter<int>("verbose");
-      m_mgpuContext = mgpu::CreateCudaDevice(cfg.getParameter<int>("device"));
+
       cudaError_t retval = cudaSuccess;
 
 // Determine grid size(s)
-      int expand_occupancy = ExpandPolicy::CTA_OCCUPANCY;
-      int expand_grid_size = MaxGridSize(expand_occupancy);
-
-//      int gather_occupancy = GatherPolicy::CTA_OCCUPANCY;
-//      int gather_grid_size = MaxGridSize(gather_occupancy);
-
-      int contract_occupancy = ContractPolicy::CTA_OCCUPANCY;
-      int contract_grid_size = MaxGridSize(contract_occupancy);
-
-      cudaMallocHost(&m_hostMappedValue, sizeof(SizeT), cudaHostAllocMapped);
-      cudaHostGetDevicePointer(&m_deviceMappedValue, m_hostMappedValue, 0);
-      cudaMalloc((void**) &d_frontier_size, 2 * sizeof(SizeT));
-      cudaMalloc((void**) &d_edge_frontier_size, 2 * sizeof(SizeT));
-
-      if (retval = util::B40CPerror(cudaMemset(d_edge_frontier_size, 0, 2 * sizeof(SizeT)),
-              "CsrProblem cudaMemset d_edge_frontier_size failed", __FILE__,
-              __LINE__))
-      return retval;
-
-      int tmp[2] =
-      { num_srcs, 0};
-      if (retval = util::B40CPerror(
-              cudaMemcpy(d_frontier_size,
-                  tmp,
-                  2 * sizeof(int),
-                  cudaMemcpyHostToDevice),
-              "CsrProblem cudaMemcpy d_frontier_size failed",
-              __FILE__, __LINE__))
-      return retval;
-
-      cudaMalloc((void**) &m_gatherMapTmp, (graph_slice->edges + graph_slice->nodes) * sizeof(GatherType));
-      cudaMalloc((void**) &m_gatherTmp, graph_slice->nodes * sizeof(GatherType));
-      if ( (Program::gatherOverEdges() == GATHER_ALL_EDGES || directed == 0) && Program::gatherOverEdges() != NO_GATHER_EDGES)
-      {
-        cudaMalloc((void**) &m_gatherTmp1, graph_slice->nodes * sizeof(GatherType));
-//        cudaMemset(m_gatherTmp1, 0, graph_slice->nodes * sizeof(GatherType) );
-        cudaMalloc((void**) &m_gatherTmp2, graph_slice->nodes * sizeof(GatherType));
-      }
-      cudaMalloc((void**) &m_gatherDstsTmp, (graph_slice->edges + graph_slice->nodes) * sizeof(VertexId));
-      int* edgeCountScan;
-      cudaMalloc((void**) &edgeCountScan, graph_slice->nodes * sizeof(SizeT));
-      thrust::device_vector<int> d_vertex_ids = thrust::device_vector<int>(graph_slice->nodes);
-      thrust::sequence(d_vertex_ids.begin(), d_vertex_ids.end());
-      int memset_block_size = 256;
-      int memset_grid_size_max = 32 * 1024;              // 32K CTAs
-      int memset_grid_size;
-
-      memset_grid_size = B40C_MIN(memset_grid_size_max, (graph_slice->nodes + memset_block_size - 1) / memset_block_size);
-
-//init m_gatherTmp, necessary for CC!!!
-      util::MemsetKernel<GatherType><<<memset_grid_size,
-      memset_block_size, 0, graph_slice->stream>>>(
-          m_gatherTmp, Program::INIT_VALUE,
-          graph_slice->nodes);
+//      int expand_occupancy = ExpandPolicy::CTA_OCCUPANCY;
+//      int expand_grid_size = MaxGridSize(expand_occupancy);
 //
-//      if (retval = util::B40CPerror(cudaThreadSynchronize(),
-//              "MemsetKernel m_gatherTmp failed", __FILE__, __LINE__))
+////      int gather_occupancy = GatherPolicy::CTA_OCCUPANCY;
+////      int gather_grid_size = MaxGridSize(gather_occupancy);
+//
+//      int contract_occupancy = ContractPolicy::CTA_OCCUPANCY;
+//      int contract_grid_size = MaxGridSize(contract_occupancy);
+
+//      cudaMallocHost(&m_hostMappedValue, sizeof(SizeT), cudaHostAllocMapped);
+//      cudaHostGetDevicePointer(&m_deviceMappedValue, m_hostMappedValue, 0);
+//      cudaMalloc((void**) &d_frontier_size, 2 * sizeof(SizeT));
+//      cudaMalloc((void**) &d_edge_frontier_size, 2 * sizeof(SizeT));
+//
+//      if (retval = util::B40CPerror(cudaMemset(d_edge_frontier_size, 0, 2 * sizeof(SizeT)),
+//              "CsrProblem cudaMemset d_edge_frontier_size failed", __FILE__,
+//              __LINE__))
 //      return retval;
 
-      double max_queue_sizing = cfg.getParameter<double>("max_queue_sizing");
+//      int tmp[2] =
+//      { num_srcs, 0};
+//      if (retval = util::B40CPerror(
+//              cudaMemcpy(d_frontier_size,
+//                  tmp,
+//                  2 * sizeof(int),
+//                  cudaMemcpyHostToDevice),
+//              "CsrProblem cudaMemcpy d_frontier_size failed",
+//              __FILE__, __LINE__))
+//      return retval;
 
-// Reset data
-      if (retval = csr_problem.Reset(GetFrontierType(),
-              max_queue_sizing))
-      return retval;
+//      cudaMalloc((void**) &graph_slice->m_gatherMapTmp, (graph_slice->edges + graph_slice->nodes) * sizeof(GatherType));
+//      cudaMalloc((void**) &graph_slice->m_gatherTmp, graph_slice->nodes * sizeof(GatherType));
+//      if ( (Program::gatherOverEdges() == GATHER_ALL_EDGES || directed == 0) && Program::gatherOverEdges() != NO_GATHER_EDGES)
+//      {
+//        cudaMalloc((void**) &graph_slice->m_gatherTmp1, graph_slice->nodes * sizeof(GatherType));
+////        cudaMemset(graph_slice->m_gatherTmp1, 0, graph_slice->nodes * sizeof(GatherType) );
+//        cudaMalloc((void**) &graph_slice->m_gatherTmp2, graph_slice->nodes * sizeof(GatherType));
+//      }
+//      cudaMalloc((void**) &graph_slice->m_gatherDstsTmp, (graph_slice->edges + graph_slice->nodes) * sizeof(VertexId));
 
-      Program::Initialize(directed, graph_slice->nodes, graph_slice->edges, num_srcs,
-          srcs, graph_slice->d_row_offsets, graph_slice->d_column_indices, graph_slice->d_column_offsets, graph_slice->d_row_indices,
-          graph_slice->d_edge_values,
-          graph_slice->vertex_list, graph_slice->edge_list,
-          graph_slice->frontier_queues.d_keys,
-          graph_slice->frontier_queues.d_values);
+////      thrust::device_vector<int> d_vertex_ids = thrust::device_vector<int>(graph_slice->nodes);
+////      thrust::sequence(d_vertex_ids.begin(), d_vertex_ids.end());
+//      int memset_block_size = 256;
+//      int memset_grid_size_max = 32 * 1024;              // 32K CTAs
+//      int memset_grid_size;
+//
+//      memset_grid_size = B40C_MIN(memset_grid_size_max, (graph_slice->nodes + memset_block_size - 1) / memset_block_size);
+//
+////init graph_slice->m_gatherTmp, necessary for CC!!!
+//      util::MemsetKernel<GatherType><<<memset_grid_size,
+//      memset_block_size, 0, graph_slice->stream>>>(
+//          graph_slice->m_gatherTmp, Program::INIT_VALUE,
+//          graph_slice->nodes);
+//
+//      if (retval = util::B40CPerror(cudaThreadSynchronize(),
+//              "MemsetKernel graph_slice->m_gatherTmp failed", __FILE__, __LINE__))
+//      return retval;
 
-      if (retval = Setup(csr_problem, expand_grid_size,
-              contract_grid_size, 0))
-      return retval;
+//      double max_queue_sizing = cfg.getParameter<double>("max_queue_sizing");
 
-//          SizeT queue_length;
+//// Reset data
+//      if (retval = csr_problem.Reset(GetFrontierType(),
+//              max_queue_sizing))
+//      return retval;
+//
+//      Program::Initialize(directed, graph_slice->nodes, graph_slice->edges, num_srcs,
+//          srcs, graph_slice->d_row_offsets, graph_slice->d_column_indices, graph_slice->d_column_offsets, graph_slice->d_row_indices,
+//          graph_slice->d_edge_values,
+//          graph_slice->vertex_list, graph_slice->edge_list,
+//          graph_slice->frontier_queues.d_keys,
+//          graph_slice->frontier_queues.d_values);
+//
+//      if (retval = Setup(csr_problem, expand_grid_size,
+//              contract_grid_size, 0))
+//      return retval;
+//
+////          SizeT queue_length;
       VertexId queue_index = 0;// Work stealing/queue index
-      int selector = 0;
-      int frontier_selector = 0;
-      frontier_size = num_srcs;
+//      int selector = 0;
+//      int frontier_selector = 0;
+//      frontier_size = num_srcs;
 
       cudaEvent_t start, stop;
       cudaEventCreate(&start);
@@ -2824,7 +2723,7 @@ namespace GASengine
               graph_slice->frontier_queues.d_keys[selector ^ 1],
               graph_slice->vertex_list,
               graph_slice->edge_list,
-              m_gatherTmp,
+              graph_slice->m_gatherTmp,
               graph_slice->d_visited_mask);
 
           if (DEBUG
@@ -2865,7 +2764,7 @@ namespace GASengine
           ExpandPolicy, Program><<<nblocks,nthreads>>>(iteration[0],
               graph_slice->nodes, graph_slice->vertex_list,
               graph_slice->edge_list,
-              m_gatherTmp,
+              graph_slice->m_gatherTmp,
               graph_slice->d_visited_mask);
 
           if (DEBUG)
@@ -3028,7 +2927,7 @@ namespace GASengine
               graph_slice->frontier_queues.d_keys[selector ^ 1],// filtered edge frontier in
               graph_slice->frontier_queues.d_keys[selector],// vertex frontier out
               graph_slice->frontier_queues.d_values[0],// predecessor in
-              m_gatherTmp,
+              graph_slice->m_gatherTmp,
               graph_slice->vertex_list,
               graph_slice->edge_list,
               graph_slice->d_changed,
@@ -3090,7 +2989,7 @@ namespace GASengine
           SYNC_CHECK();
           int byte_size = (graph_slice->nodes + 8 -1) / 8;
           nblocks = (byte_size + nthreads - 1) / nthreads;
-          MPI::mpikernel::flag2bitmap<Program><<<nblocks, nthreads>>>(graph_slice->nodes, byte_size, graph_slice->d_visit_flags, graph_slice->d_bitmap_vertfrontier);
+          MPI::mpikernel::flag2bitmap<Program><<<nblocks, nthreads>>>(graph_slice->nodes, byte_size, graph_slice->d_visit_flags, graph_slice->d_bitmap_out);
           SYNC_CHECK();
 
           if (DEBUG)
@@ -3099,7 +2998,7 @@ namespace GASengine
 //            int bitmap_cout = 0;
 //            int byte_size = (graph_slice->nodes + 8 - 1) / 8;
 //            char* test_vid = new char[byte_size];
-//            cudaMemcpy(test_vid, graph_slice->d_bitmap_vertfrontier, byte_size, cudaMemcpyDeviceToHost);
+//            cudaMemcpy(test_vid, graph_slice->d_bitmap_out, byte_size, cudaMemcpyDeviceToHost);
 //            printf("bitmap after contract: ");
 //            for (int i = 0; i < byte_size; ++i)
 //            {
@@ -3117,14 +3016,15 @@ namespace GASengine
 //            delete[] test_vid;
           }
 
-//          if (retval = util::B40CPerror(cudaMemset(graph_slice->d_bitmap_vertfrontier, 0, (graph_slice->nodes + 8 - 1) / 8),
-//                  "Memset d_bitmap_vertfrontier failed", __FILE__, __LINE__))
+//          if (retval = util::B40CPerror(cudaMemset(graph_slice->d_bitmap_out, 0, (graph_slice->nodes + 8 - 1) / 8),
+//                  "Memset d_bitmap_out failed", __FILE__, __LINE__))
 //          return retval;
 
           if (retval = util::B40CPerror(cudaMemset(graph_slice->d_visit_flags, 0, graph_slice->nodes * sizeof(char)),
                   "Memset d_visit_flags failed", __FILE__, __LINE__))
           return retval;
         }
+
         iteration[0]++;
       }
 
@@ -3150,76 +3050,140 @@ namespace GASengine
       printf("Total iteration: %lld\n", (long long) iteration[0]);
 
 //          delete[] srcs;
-      cudaFree (m_gatherMapTmp);
-      cudaFree (m_gatherTmp);
-      if ( (Program::gatherOverEdges() == GATHER_ALL_EDGES || directed == 0) && Program::gatherOverEdges() == NO_GATHER_EDGES)
-      {
-        cudaFree (m_gatherTmp1);
-        cudaFree (m_gatherTmp2);
-      }
-
-      cudaFree (m_gatherDstsTmp);
-      cudaFree(edgeCountScan);
+//      cudaFree (graph_slice->m_gatherMapTmp);
+//      cudaFree (graph_slice->graph_slice->m_gatherTmp);
+//      if ( (Program::gatherOverEdges() == GATHER_ALL_EDGES || directed == 0) && Program::gatherOverEdges() == NO_GATHER_EDGES)
+//      {
+//        cudaFree (graph_slice->graph_slice->m_gatherTmp1);
+//        cudaFree (graph_slice->m_gatherTmp2);
+//      }
+//
+//      cudaFree (graph_slice->m_gatherDstsTmp);
 
       return retval;
     }
 
     cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
         typename CsrProblem::SizeT* h_row_offsets,
-        int directed, int num_srcs, int* srcs, int iter_num, int threshold)
+        int directed, int num_srcs, int* srcs, int iter_num, int threshold, int np, int device_id, int rank_id)
     {
       typedef typename CsrProblem::VertexId VertexId;
       typedef typename CsrProblem::SizeT SizeT;
 
-// GF100
-      if (this->cuda_props.device_sm_version >= 200)
-      {
+      // Expansion kernel config
+      typedef vertex_centric::expand_atomic::KernelPolicy<Program,
+      typename CsrProblem::ProblemType, 200,// CUDA_ARCH
+      INSTRUMENT,// INSTRUMENT
+      1,// CTA_OCCUPANCY
+      9,// LOG_THREADS
+      0,// LOG_LOAD_VEC_SIZE
+      0,// LOG_LOADS_PER_TILE
+      5,// LOG_RAKING_THREADS
+      util::io::ld::cg,// QUEUE_READ_MODIFIER,
+      util::io::ld::NONE,// COLUMN_READ_MODIFIER,
+      util::io::ld::NONE,// EDGE_VALUES_READ_MODIFIER,
+      util::io::ld::cg,// ROW_OFFSET_ALIGNED_READ_MODIFIER,
+      util::io::ld::NONE,// ROW_OFFSET_UNALIGNED_READ_MODIFIER,
+      util::io::st::cg,// QUEUE_WRITE_MODIFIER,
+      false,// WORK_STEALING
+      32,// WARP_GATHER_THRESHOLD
+      128 * 4,// CTA_GATHER_THRESHOLD,
+      7>// LOG_SCHEDULE_GRANULARITY
+      ExpandPolicy;
 
-        // Expansion kernel config
-        typedef vertex_centric::expand_atomic::KernelPolicy<Program,
-        typename CsrProblem::ProblemType, 200,// CUDA_ARCH
-        INSTRUMENT,// INSTRUMENT
-        1,// CTA_OCCUPANCY
-        9,// LOG_THREADS
-        0,// LOG_LOAD_VEC_SIZE
-        0,// LOG_LOADS_PER_TILE
-        5,// LOG_RAKING_THREADS
-        util::io::ld::cg,// QUEUE_READ_MODIFIER,
-        util::io::ld::NONE,// COLUMN_READ_MODIFIER,
-        util::io::ld::NONE,// EDGE_VALUES_READ_MODIFIER,
-        util::io::ld::cg,// ROW_OFFSET_ALIGNED_READ_MODIFIER,
-        util::io::ld::NONE,// ROW_OFFSET_UNALIGNED_READ_MODIFIER,
-        util::io::st::cg,// QUEUE_WRITE_MODIFIER,
-        false,// WORK_STEALING
-        32,// WARP_GATHER_THRESHOLD
-        128 * 4,// CTA_GATHER_THRESHOLD,
-        7>// LOG_SCHEDULE_GRANULARITY
-        ExpandPolicy;
+        // Contraction kernel config
+      typedef vertex_centric::contract_atomic::KernelPolicy<Program,
+      typename CsrProblem::ProblemType, 200,// CUDA_ARCH
+      INSTRUMENT,// INSTRUMENT
+      0,// SATURATION_QUIT
+      true,// DEQUEUE_PROBLEM_SIZE
+      8,// CTA_OCCUPANCY
+      7,// LOG_THREADS
+      1,// LOG_LOAD_VEC_SIZE
+      0,// LOG_LOADS_PER_TILE
+      5,// LOG_RAKING_THREADS
+      util::io::ld::NONE,// QUEUE_READ_MODIFIER,
+      util::io::st::NONE,// QUEUE_WRITE_MODIFIER,
+      false,// WORK_STEALING
+      -1,// END_BITMASK_CULL 0 to never perform bitmask filtering, -1 to always perform bitmask filtering
+      8>// LOG_SCHEDULE_GRANULARITY
+      ContractPolicy;
 
-          // Contraction kernel config
-        typedef vertex_centric::contract_atomic::KernelPolicy<Program,
-        typename CsrProblem::ProblemType, 200,// CUDA_ARCH
-        INSTRUMENT,// INSTRUMENT
-        0,// SATURATION_QUIT
-        true,// DEQUEUE_PROBLEM_SIZE
-        8,// CTA_OCCUPANCY
-        7,// LOG_THREADS
-        1,// LOG_LOAD_VEC_SIZE
-        0,// LOG_LOADS_PER_TILE
-        5,// LOG_RAKING_THREADS
-        util::io::ld::NONE,// QUEUE_READ_MODIFIER,
-        util::io::st::NONE,// QUEUE_WRITE_MODIFIER,
-        false,// WORK_STEALING
-        -1,// END_BITMASK_CULL 0 to never perform bitmask filtering, -1 to always perform bitmask filtering
-        8> // LOG_SCHEDULE_GRANULARITY
-        ContractPolicy;
+      int expand_occupancy = ExpandPolicy::CTA_OCCUPANCY;
+      int expand_grid_size = MaxGridSize(expand_occupancy);
 
-        return EnactIterativeSearch<ExpandPolicy, ContractPolicy>(
-            csr_problem, h_row_offsets, directed, num_srcs, srcs, iter_num, threshold);
-      }
+      int contract_occupancy = ContractPolicy::CTA_OCCUPANCY;
+      int contract_grid_size = MaxGridSize(contract_occupancy);
+      cudaError_t retval = cudaSuccess;
+      typename CsrProblem::GraphSlice *graph_slice = csr_problem.graph_slices[0];
 
-      printf("Not yet tuned for this architecture\n");
-      return cudaErrorInvalidDeviceFunction;
+      int tmp[2] =
+      { num_srcs, 0};
+      if (retval = util::B40CPerror(
+              cudaMemcpy(d_frontier_size,
+                  tmp,
+                  2 * sizeof(int),
+                  cudaMemcpyHostToDevice),
+              "CsrProblem cudaMemcpy d_frontier_size failed",
+              __FILE__, __LINE__))
+      return retval;
+
+      double max_queue_sizing = cfg.getParameter<double>("max_queue_sizing");
+      // Reset data
+      if (retval = csr_problem.Reset(GetFrontierType(),
+              max_queue_sizing))
+      return retval;
+
+      Program::Initialize(directed, graph_slice->nodes, graph_slice->edges, num_srcs,
+          srcs, graph_slice->d_row_offsets, graph_slice->d_column_indices, graph_slice->d_column_offsets, graph_slice->d_row_indices,
+          graph_slice->d_edge_values,
+          graph_slice->vertex_list, graph_slice->edge_list,
+          graph_slice->frontier_queues.d_keys,
+          graph_slice->frontier_queues.d_values);
+
+      if (retval = Setup(csr_problem, expand_grid_size,
+              contract_grid_size, 0))
+      return retval;
+
+      //          SizeT queue_length;
+//      VertexId queue_index = 0;// Work stealing/queue index
+      int selector = 0;
+      int frontier_selector = 0;
+      frontier_size = num_srcs;
+
+      m_mgpuContext = mgpu::CreateCudaDevice(device_id);
+
+      int p = sqrt(np);// assuming that np is squre of an int
+      int pi = rank_id / p;
+      int pj = rank_id % p;
+      wave w(pi, pj, p, graph_slice->nodes);
+      int tag=1;
+      int src_proc = pj * p + pi;
+      MPI_Status status;
+
+      int byte_size = (graph_slice->nodes + 8 - 1) / 8;
+      MPI_Recv(graph_slice->d_bitmap_in, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD, &status);
+      int nthreads = 256;
+      int nblocks = (byte_size + nthreads - 1) / nthreads;
+      MPI::mpikernel::bitmap2flag<Program><<<nblocks, nthreads>>>(byte_size, graph_slice->d_bitmap_in, graph_slice->d_visit_flags);
+      SYNC_CHECK();
+
+      copy_if_mgpu(graph_slice->nodes,
+          graph_slice->d_visit_flags,
+          graph_slice->frontier_queues.d_keys[selector],
+          &d_frontier_size[frontier_selector],
+          m_mgpuContext);
+
+      retval = EnactIterativeSearch<ExpandPolicy, ContractPolicy>(csr_problem, h_row_offsets, directed, num_srcs, srcs, iter_num, threshold,
+          expand_grid_size, contract_grid_size, selector, frontier_selector);
+
+      w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+
+
+      MPI_Send(graph_slice->d_bitmap_out, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD);
+
+      return retval;
+
     }
   }
   ;

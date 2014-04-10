@@ -1,10 +1,11 @@
 NVCC = nvcc
 MGPU_PATH = ../../moderngpu2
-NVCC_OPTS = -O3 -lineinfo -Xcompiler -fopenmp  -I. -I../../ -I$(MGPU_PATH)/include -I/usr/include/mpi -L/usr/lib/ -L$(MGPU_PATH) 
+NVCC_OPTS = -O3 -lineinfo -Xcompiler -fopenmp  -I. -I../../ -I$(MGPU_PATH)/include -I/usr/include/mpi -L/usr/lib/ -L$(MGPU_PATH)
+LD_OPTIONS =  -O3 -L/usr/lib/ -L$(MGPU_PATH)
 #NVCC_OPTS = -G -g -Xptxas -v -Xcompiler -fopenmp  -I. -I../../
 #NVCC_ARCHS = -gencode=arch=compute_20,code=sm_20
 #NVCC_ARCHS = -gencode arch=compute_35,code=sm_35
-LD_LIBS = -lgomp -lmgpu -lmpi
+LD_LIBS = -lgomp -lmgpu -lmpi -lstdc++
 
 GEN_SM35 = -gencode=arch=compute_35,code=\"sm_35,compute_35\" 
 GEN_SM30 = -gencode=arch=compute_30,code=\"sm_30,compute_30\" 
@@ -25,7 +26,7 @@ BFS.o: bfs.cu bfs.h Makefile ../../GASengine/enactor_vertex_centric.cuh
 	nvcc --compiler-bindir mpicc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS)
 
 BFS: BFS.o config.o
-	nvcc --compiler-bindir mpicc -o $@ $^ $(NVCC_OPTS) $(LD_LIBS) -lstdc++
+	nvcc --compiler-bindir mpicc -o $@ $^ $(LD_OPTIONS) $(LD_LIBS)
 	
 clean:
 	rm -f BFS *.o
