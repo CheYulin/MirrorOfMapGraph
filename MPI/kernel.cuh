@@ -76,11 +76,11 @@ namespace MPI
     }
 
     //c = a - b
-    __global__ void bitsubstract(int n, char* a, const char* b, char* c)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
+    __global__ void bitsubstract(int byte_size, char* a, const char* b, char* c)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
     {
       int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 
-      for (int i = tidx; i < n; i += gridDim.x * blockDim.x)
+      for (int i = tidx; i < byte_size; i += gridDim.x * blockDim.x)
       {
         char tmpa = a[i];
         char tmpb = b[i];
@@ -89,11 +89,11 @@ namespace MPI
     }
 
     //c = union(a, b)
-    __global__ void bitunion(int n, char* a, const char* b, char* c)
+    __global__ void bitunion(int byte_size, char* a, const char* b, char* c)
     {
       int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 
-      for (int i = tidx; i < n; i += gridDim.x * blockDim.x)
+      for (int i = tidx; i < byte_size; i += gridDim.x * blockDim.x)
       {
         char tmpa = a[i];
         char tmpb = b[i];
