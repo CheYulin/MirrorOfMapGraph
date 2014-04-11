@@ -14,8 +14,8 @@ using namespace mpikernel;
 class wave
 //frontier contraction in a 2-d partitioned graph
 {
-  int pi;	 //row
-  int pj;  //column
+	int pi;	 //row
+	int pj;  //column
 	int p;
 	int n;
 
@@ -32,45 +32,56 @@ public: wave(int l_pi,int l_pj,int l_p, int l_n)
 		n  = l_n;
 	}
 
-void propogate(char* out, char* assigned, char* prefix )
+void propogate(char* out_d, char* assigned_d, char* prefix_d )
 	//wave propogation, in sequential from top to bottom of the column
 	{
-	unsigned int mesg_size = n/(sizeof(char)*p);
 	int p2 = sqrt(p);	
-        int myid = pi*p2+pj;
-
+	unsigned int mesg_size = n/p2;
+	int myid = pi*p2+pj;
 	//int lastid = pi*p+p-1;
-
+	int numthreads = 512;
+	int numblocks = min(512,(int) ceil( n/p2) );
 	MPI_Request request[2];
 	MPI_Status  status[2];
 	//if first one in the column, initiate the wave propogation
 		if(pj == 0)
 		{
-			MPI_Isend(out,mesg_size,MPI_CHAR,myid+1,pi,MPI_COMM_WORLD,&request[1]);
+			char *out_h = (char*)malloc(mesg_size);
+			cudaMemcpy(out_h,out_d,mesg_size,cudaMemcpyDeviceToHost);
+			MPI_Isend(out_h,mesg_size,MPI_CHAR,myid+1,pi,MPI_COMM_WORLD,&request[1]);
 			MPI_Wait(&request[1],&status[1]);			
-//			MPI_Irecv(out,mesg_size,MPI_CHAR,lastid,pi,MPI_COMM_WORLD,request[0]);
+			free(out_h);
 		}
 	//else if not the last one, receive bitmap from top, process and send to next one	
 	else if(pj != p2-1)
 		{
-			MPI_Irecv(prefix,mesg_size,MPI_CHAR,myid-1,pi,MPI_COMM_WORLD,&request[0] );
-			mpikernel::bitsubstract<<<512,512>>>(n, out, prefix, assigned);	
+			char *prefix_h = (char*)malloc(mesg_size);
+			MPI_Irecv(prefix_h,mesg_size,MPI_CHAR,myid-1,pi,MPI_COMM_WORLD,&request[0] );
+			MPI_Wait(&request[0],&status[0]);			
+			cudaMemcpy(prefix_d,prefix_h,mesg_size,cudaMemcpyHostToDevice);
+			mpikernel::bitsubstract<<<numblocks,numthreads>>>(n, out_d, prefix_d, assigned_d);				
 			cudaDeviceSynchronize();
-			mpikernel::bitunion<<<512,512>>>(n,out ,prefix, out);	
+			mpikernel::bitunion<<<numblocks,numthreads>>>(n,out_d ,prefix_d, out_d);	
+			char *out_h = (char*)malloc(mesg_size);
 			cudaDeviceSynchronize();
-			MPI_Isend(out,mesg_size,MPI_CHAR,myid+1,pi,MPI_COMM_WORLD,&request[1]);
+			cudaMemcpy(out_h,out_d,mesg_size,cudaMemcpyDeviceToHost);
+			MPI_Isend(out_h,mesg_size,MPI_CHAR,myid+1,pi,MPI_COMM_WORLD,&request[1]);
+			free(prefix_h);
 			MPI_Wait(&request[1],&status[1]);			
+			free(out_h);
 		}
 	//else receive from the previous and then broadcast to the broadcast group 
 	else 
 		{
-	         MPI_Irecv(prefix,mesg_size,MPI_CHAR,myid-1,pi,MPI_COMM_WORLD,&request[0] );
-     		 mpikernel::bitsubstract<<<512,512>>>(n, out, prefix, assigned);
+			char *prefix_h = (char*)malloc(mesg_size);
+			MPI_Irecv(prefix_h,mesg_size,MPI_CHAR,myid-1,pi,MPI_COMM_WORLD,&request[0] );
+			MPI_Wait(&request[0],&status[0]);			
+			cudaMemcpy(prefix_d,prefix_h,mesg_size,cudaMemcpyHostToDevice);
+			mpikernel::bitsubstract<<<numblocks,numthreads>>>(n, out_d, prefix_d, assigned_d);
 			cudaDeviceSynchronize();
-			mpikernel::bitunion<<<512,512>>>(n,out ,prefix, out);         
-			cudaDeviceSynchronize();
-												          
-//			MPI_Bcast();
+			mpikernel::bitunion<<<numblocks,numthreads>>>(n,out_d ,prefix_d, out_d);         
+			cudaDeviceSynchronize();										          
+
 		}
 
 	}
