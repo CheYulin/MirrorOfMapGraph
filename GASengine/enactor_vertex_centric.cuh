@@ -3184,8 +3184,8 @@ namespace GASengine
         
         iteration[0]++;
 
-//        w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-
+        w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+	w.broadcast_new_frontier(graph_slice->d_bitmap_out,graph_slice->d_bitmap_in);
 
         //      MPI_Send(graph_slice->d_bitmap_out, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD);
       }

@@ -36,29 +36,27 @@ public: wave(int l_pi,int l_pj,int l_p, int l_n)
 		p  = l_p;
 		n  = l_n;
 
-		int p2 = sqrt(p);
-
 		MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
 
                 //build original ranks for the processors
 
-		int row_indices[p2], col_indices[p2+1];
-		for(int i=0;i<p2;i++)
-			row_indices[i] = pi*p2+i;
+		int row_indices[p], col_indices[p+1];
+		for(int i=0;i<p;i++)
+			row_indices[i] = pi*p+i;
 /*		for(int i=0;i<=pi-1;i++)
-			row_indices[i+p2] = i*p2+pi;
-		for(int i=pi+1;i<p2;i++)
-			row_indices[i+p2-1] = i*p2+pi;
-*/		for(int i=0;i<p2;i++)
-			col_indices[i] = i*p2+pj;
+			row_indices[i+p] = i*p+pi;
+		for(int i=pi+1;i<p;i++)
+			row_indices[i+p-1] = i*p+pi;
+*/		for(int i=0;i<p;i++)
+			col_indices[i] = i*p+pj;
 /*              for(int i=0;i<=pj-1;i++)
-			col_indices[i] = i*p2+pj;
-		for(int i=pj+1;i<p2;i++)
-			col_indices[i-1] = i*p2+pj;
-                col_indices[p2-1] = pj*p2+p2-1;
+			col_indices[i] = i*p+pj;
+		for(int i=pj+1;i<p;i++)
+			col_indices[i-1] = i*p+pj;
+                col_indices[p-1] = pj*p+p-1;
 */
-		MPI_Group_incl(orig_group, p2, row_indices, &new_row_group);
-		MPI_Group_incl(orig_group, p2, col_indices, &new_col_group);
+		MPI_Group_incl(orig_group, p, row_indices, &new_row_group);
+		MPI_Group_incl(orig_group, p, col_indices, &new_col_group);
 		MPI_Comm_create(MPI_COMM_WORLD, new_row_group, &new_row_comm);
 		MPI_Comm_create(MPI_COMM_WORLD, new_col_group, &new_col_comm);
 		MPI_Group_rank (new_row_group, &new_row_rank);
@@ -74,16 +72,17 @@ void propogate(char* out_d, char* assigned_d, char* prefix_d )
 	{
 	double starttime,endtime;
 	starttime = MPI_Wtime();
-	int p2 = sqrt(p);	
-	unsigned int mesg_size = n/(8*p2);
-	int myid = pi*p2+pj;
+	unsigned int mesg_size = n/(8*p);
+	int myid = pi*p+pj;
 	//int lastid = pi*p+p-1;
 	int numthreads = 512;
-	int byte_size = (n/p2 + 8 - 1) / 8;
+	int byte_size = (n/p + 8 - 1) / 8;
 	int numblocks = min(512,(byte_size + numthreads - 1) / numthreads);
 	
 	MPI_Request request[2];
 	MPI_Status  status[2];
+	if(p>1)
+	{
 	//if first one in the column, initiate the wave propogation
 		if(pj == 0)
 		{
@@ -95,7 +94,7 @@ void propogate(char* out_d, char* assigned_d, char* prefix_d )
 			free(out_h);
 		}
 	//else if not the last one, receive bitmap from top, process and send to next one	
-	else if(pj != p2-1)
+	else if(pj != p-1)
 		{
 			char *prefix_h = (char*)malloc(mesg_size);
 			MPI_Irecv(prefix_h,mesg_size,MPI_CHAR,myid-1,pi,MPI_COMM_WORLD,&request[0] );
@@ -128,6 +127,7 @@ void propogate(char* out_d, char* assigned_d, char* prefix_d )
 			mpikernel::bitunion<<<numblocks,numthreads>>>(mesg_size,out_d ,prefix_d, out_d);         
 			cudaDeviceSynchronize();										          
 		}
+	}
 
 	endtime = MPI_Wtime();
 	propogate_time += endtime-starttime;
@@ -137,16 +137,16 @@ void propogate(char* out_d, char* assigned_d, char* prefix_d )
 	{
 		double starttime,endtime;
 		starttime = MPI_Wtime();
-		int p2 = sqrt(p);
-	        unsigned int mesg_size = n/(8*p2);
+
+	        unsigned int mesg_size = n/(8*p);
 			
 		char *out_h = (char*)malloc(mesg_size);
 		char *in_h = (char*)malloc(mesg_size);			
 					
-		if(pj==p2-1)
+		if(pj==p-1)
 			cudaMemcpy(out_h,out_d,mesg_size,cudaMemcpyDeviceToHost);
 						
-		MPI_Bcast( out_h, mesg_size, MPI_CHAR, p2-1, new_row_comm );
+		MPI_Bcast( out_h, mesg_size, MPI_CHAR, p-1, new_row_comm );
 		cudaMemcpy(out_d,out_h,mesg_size,cudaMemcpyHostToDevice);
 
 		if(pi==pj)
