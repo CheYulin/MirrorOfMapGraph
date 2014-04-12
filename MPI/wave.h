@@ -36,11 +36,13 @@ void propogate(char* out_d, char* assigned_d, char* prefix_d )
 	//wave propogation, in sequential from top to bottom of the column
 	{
 	int p2 = sqrt(p);	
-	unsigned int mesg_size = n/p2;
+	unsigned int mesg_size = n/(8*p2);
 	int myid = pi*p2+pj;
 	//int lastid = pi*p+p-1;
 	int numthreads = 512;
-	int numblocks = min(512,(int) ceil( n/p2) );
+	int byte_size = (n/p2 + 8 - 1) / 8;
+	int numblocks = min(512,(byte_size + numthreads - 1) / numthreads);
+	
 	MPI_Request request[2];
 	MPI_Status  status[2];
 	//if first one in the column, initiate the wave propogation
@@ -48,6 +50,7 @@ void propogate(char* out_d, char* assigned_d, char* prefix_d )
 		{
 			char *out_h = (char*)malloc(mesg_size);
 			cudaMemcpy(out_h,out_d,mesg_size,cudaMemcpyDeviceToHost);
+			
 			MPI_Isend(out_h,mesg_size,MPI_CHAR,myid+1,pi,MPI_COMM_WORLD,&request[1]);
 			MPI_Wait(&request[1],&status[1]);			
 			free(out_h);
@@ -58,15 +61,19 @@ void propogate(char* out_d, char* assigned_d, char* prefix_d )
 			char *prefix_h = (char*)malloc(mesg_size);
 			MPI_Irecv(prefix_h,mesg_size,MPI_CHAR,myid-1,pi,MPI_COMM_WORLD,&request[0] );
 			MPI_Wait(&request[0],&status[0]);			
+			
+			
 			cudaMemcpy(prefix_d,prefix_h,mesg_size,cudaMemcpyHostToDevice);
-			mpikernel::bitsubstract<<<numblocks,numthreads>>>(n, out_d, prefix_d, assigned_d);				
+			mpikernel::bitsubstract<<<numblocks,numthreads>>>(mesg_size, out_d, prefix_d, assigned_d);				
 			cudaDeviceSynchronize();
-			mpikernel::bitunion<<<numblocks,numthreads>>>(n,out_d ,prefix_d, out_d);	
+			mpikernel::bitunion<<<numblocks,numthreads>>>(mesg_size,out_d ,prefix_d, out_d);	
 			char *out_h = (char*)malloc(mesg_size);
 			cudaDeviceSynchronize();
 			cudaMemcpy(out_h,out_d,mesg_size,cudaMemcpyDeviceToHost);
+			
 			MPI_Isend(out_h,mesg_size,MPI_CHAR,myid+1,pi,MPI_COMM_WORLD,&request[1]);
 			free(prefix_h);
+			
 			MPI_Wait(&request[1],&status[1]);			
 			free(out_h);
 		}
@@ -77,15 +84,76 @@ void propogate(char* out_d, char* assigned_d, char* prefix_d )
 			MPI_Irecv(prefix_h,mesg_size,MPI_CHAR,myid-1,pi,MPI_COMM_WORLD,&request[0] );
 			MPI_Wait(&request[0],&status[0]);			
 			cudaMemcpy(prefix_d,prefix_h,mesg_size,cudaMemcpyHostToDevice);
-			mpikernel::bitsubstract<<<numblocks,numthreads>>>(n, out_d, prefix_d, assigned_d);
+			mpikernel::bitsubstract<<<numblocks,numthreads>>>(mesg_size, out_d, prefix_d, assigned_d);
 			cudaDeviceSynchronize();
-			mpikernel::bitunion<<<numblocks,numthreads>>>(n,out_d ,prefix_d, out_d);         
+			mpikernel::bitunion<<<numblocks,numthreads>>>(mesg_size,out_d ,prefix_d, out_d);         
 			cudaDeviceSynchronize();										          
-
 		}
 
 	}
+	
+	void broadcast_new_frontier( char* out_d, char* in_d )
+	{
+		int p2 = sqrt(p);
+		MPI_Group orig_group, new_row_group, new_col_group; 
+		MPI_Comm new_row_comm, new_col_comm; 
+		MPI_Comm_group(MPI_COMM_WORLD, &orig_group); 
+		
+		int new_row_rank, new_col_rank;
+		
+		//build original ranks for the processors
+		unsigned int mesg_size = n/(8*p2);
 
+	
+		int row_indices[p2], col_indices[p2+1];
+			for(int i=0;i<p2;i++)
+				row_indices[i] = pi*p2+i;
+	/*		for(int i=0;i<=pi-1;i++)
+				row_indices[i+p2] = i*p2+pi;
+			for(int i=pi+1;i<p2;i++)
+				row_indices[i+p2-1] = i*p2+pi;
+	*/			
+			for(int i=0;i<p2;i++)
+				col_indices[i] = i*p2+pj;
+	/*		for(int i=0;i<=pj-1;i++)
+				col_indices[i] = i*p2+pj;
+			for(int i=pj+1;i<p2;i++)
+				col_indices[i-1] = i*p2+pj;
+			col_indices[p2-1] = pj*p2+p2-1;
+	*/
+				
+			MPI_Group_incl(orig_group, p2, row_indices, &new_row_group);
+				
+			MPI_Group_incl(orig_group, p2, col_indices, &new_col_group);
+
+			MPI_Comm_create(MPI_COMM_WORLD, new_row_group, &new_row_comm); 
+			MPI_Comm_create(MPI_COMM_WORLD, new_col_group, &new_col_comm); 
+
+			MPI_Group_rank (new_row_group, &new_row_rank); 
+			MPI_Group_rank (new_col_group, &new_col_rank); 
+			
+			char *out_h = (char*)malloc(mesg_size);
+			char *in_h = (char*)malloc(mesg_size);			
+						
+			if(pj==p2-1)
+				cudaMemcpy(out_h,out_d,mesg_size,cudaMemcpyDeviceToHost);
+						
+			MPI_Bcast( out_h, mesg_size, MPI_CHAR, p2-1, new_row_comm );
+				cudaMemcpy(out_d,out_h,mesg_size,cudaMemcpyHostToDevice);
+
+			if(pi==pj)
+				memcpy(in_h,out_h,mesg_size);
+					
+			MPI_Bcast( in_h, mesg_size, MPI_CHAR, pj, new_col_comm );
+	
+			cudaMemcpy(out_d,out_h,mesg_size,cudaMemcpyHostToDevice);
+			cudaMemcpy(in_d,in_h,mesg_size,cudaMemcpyHostToDevice);
+			
+			cudaDeviceSynchronize();
+			free(in_h);
+			free(out_h); 
+	}
+	
 };
 
 
