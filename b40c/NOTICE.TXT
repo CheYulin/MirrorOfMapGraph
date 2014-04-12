@@ -19,7 +19,7 @@
  * 
  ******************************************************************************/
 
- NOTICE: The code in this directory has been extensively modified from the b40c
- distribution. If you are looking for the original b40c distribution, please use
- the link in the license header above.
+ NOTICE: The b40c code has been extensively modified from the original 
+ distribution. If you are looking for the original b40c distribution, 
+ please use the link in the license header above.
  
