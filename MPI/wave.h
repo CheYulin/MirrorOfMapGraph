@@ -14,27 +14,66 @@ using namespace mpikernel;
 class wave
 //frontier contraction in a 2-d partitioned graph
 {
+public: 
 	int pi;	 //row
 	int pj;  //column
 	int p;
 	int n;
-
-
+	MPI_Group orig_group, new_row_group, new_col_group;
+	MPI_Comm new_row_comm, new_col_comm;
+	int new_row_rank, new_col_rank;
+	double init_time, propogate_time, broadcast_time;
 public: wave(int l_pi,int l_pj,int l_p, int l_n) 
 //l_pi is the x index
 //l_pj is the y index
 //l_p  is the number of partitions in 1d. usually, sqrt(number of processors)
 //l_n  is the size of the problem, number of vertices
-	{
+	{	
+		double starttime,endtime;
+		starttime = MPI_Wtime();
 		pi = l_pi;
 		pj = l_pj;
 		p  = l_p;
 		n  = l_n;
+
+		int p2 = sqrt(p);
+
+		MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
+
+                //build original ranks for the processors
+
+		int row_indices[p2], col_indices[p2+1];
+		for(int i=0;i<p2;i++)
+			row_indices[i] = pi*p2+i;
+/*		for(int i=0;i<=pi-1;i++)
+			row_indices[i+p2] = i*p2+pi;
+		for(int i=pi+1;i<p2;i++)
+			row_indices[i+p2-1] = i*p2+pi;
+*/		for(int i=0;i<p2;i++)
+			col_indices[i] = i*p2+pj;
+/*              for(int i=0;i<=pj-1;i++)
+			col_indices[i] = i*p2+pj;
+		for(int i=pj+1;i<p2;i++)
+			col_indices[i-1] = i*p2+pj;
+                col_indices[p2-1] = pj*p2+p2-1;
+*/
+		MPI_Group_incl(orig_group, p2, row_indices, &new_row_group);
+		MPI_Group_incl(orig_group, p2, col_indices, &new_col_group);
+		MPI_Comm_create(MPI_COMM_WORLD, new_row_group, &new_row_comm);
+		MPI_Comm_create(MPI_COMM_WORLD, new_col_group, &new_col_comm);
+		MPI_Group_rank (new_row_group, &new_row_rank);
+		MPI_Group_rank (new_col_group, &new_col_rank);
+		endtime = MPI_Wtime();
+		init_time = endtime - starttime;
+		propogate_time = 0;
+		broadcast_time = 0;
 	}
 
 void propogate(char* out_d, char* assigned_d, char* prefix_d )
 	//wave propogation, in sequential from top to bottom of the column
 	{
+	double starttime,endtime;
+	starttime = MPI_Wtime();
 	int p2 = sqrt(p);	
 	unsigned int mesg_size = n/(8*p2);
 	int myid = pi*p2+pj;
@@ -90,68 +129,39 @@ void propogate(char* out_d, char* assigned_d, char* prefix_d )
 			cudaDeviceSynchronize();										          
 		}
 
+	endtime = MPI_Wtime();
+	propogate_time += endtime-starttime;
 	}
 	
 	void broadcast_new_frontier( char* out_d, char* in_d )
 	{
+		double starttime,endtime;
+		starttime = MPI_Wtime();
 		int p2 = sqrt(p);
-		MPI_Group orig_group, new_row_group, new_col_group; 
-		MPI_Comm new_row_comm, new_col_comm; 
-		MPI_Comm_group(MPI_COMM_WORLD, &orig_group); 
-		
-		int new_row_rank, new_col_rank;
-		
-		//build original ranks for the processors
-		unsigned int mesg_size = n/(8*p2);
-
-	
-		int row_indices[p2], col_indices[p2+1];
-			for(int i=0;i<p2;i++)
-				row_indices[i] = pi*p2+i;
-	/*		for(int i=0;i<=pi-1;i++)
-				row_indices[i+p2] = i*p2+pi;
-			for(int i=pi+1;i<p2;i++)
-				row_indices[i+p2-1] = i*p2+pi;
-	*/			
-			for(int i=0;i<p2;i++)
-				col_indices[i] = i*p2+pj;
-	/*		for(int i=0;i<=pj-1;i++)
-				col_indices[i] = i*p2+pj;
-			for(int i=pj+1;i<p2;i++)
-				col_indices[i-1] = i*p2+pj;
-			col_indices[p2-1] = pj*p2+p2-1;
-	*/
-				
-			MPI_Group_incl(orig_group, p2, row_indices, &new_row_group);
-				
-			MPI_Group_incl(orig_group, p2, col_indices, &new_col_group);
-
-			MPI_Comm_create(MPI_COMM_WORLD, new_row_group, &new_row_comm); 
-			MPI_Comm_create(MPI_COMM_WORLD, new_col_group, &new_col_comm); 
-
-			MPI_Group_rank (new_row_group, &new_row_rank); 
-			MPI_Group_rank (new_col_group, &new_col_rank); 
+	        unsigned int mesg_size = n/(8*p2);
 			
-			char *out_h = (char*)malloc(mesg_size);
-			char *in_h = (char*)malloc(mesg_size);			
-						
-			if(pj==p2-1)
-				cudaMemcpy(out_h,out_d,mesg_size,cudaMemcpyDeviceToHost);
-						
-			MPI_Bcast( out_h, mesg_size, MPI_CHAR, p2-1, new_row_comm );
-				cudaMemcpy(out_d,out_h,mesg_size,cudaMemcpyHostToDevice);
-
-			if(pi==pj)
-				memcpy(in_h,out_h,mesg_size);
+		char *out_h = (char*)malloc(mesg_size);
+		char *in_h = (char*)malloc(mesg_size);			
 					
-			MPI_Bcast( in_h, mesg_size, MPI_CHAR, pj, new_col_comm );
+		if(pj==p2-1)
+			cudaMemcpy(out_h,out_d,mesg_size,cudaMemcpyDeviceToHost);
+						
+		MPI_Bcast( out_h, mesg_size, MPI_CHAR, p2-1, new_row_comm );
+		cudaMemcpy(out_d,out_h,mesg_size,cudaMemcpyHostToDevice);
+
+		if(pi==pj)
+			memcpy(in_h,out_h,mesg_size);
+					
+		MPI_Bcast( in_h, mesg_size, MPI_CHAR, pj, new_col_comm );
 	
-			cudaMemcpy(out_d,out_h,mesg_size,cudaMemcpyHostToDevice);
-			cudaMemcpy(in_d,in_h,mesg_size,cudaMemcpyHostToDevice);
+		cudaMemcpy(out_d,out_h,mesg_size,cudaMemcpyHostToDevice);
+		cudaMemcpy(in_d,in_h,mesg_size,cudaMemcpyHostToDevice);
 			
-			cudaDeviceSynchronize();
-			free(in_h);
-			free(out_h); 
+		cudaDeviceSynchronize();
+		free(in_h);
+		free(out_h); 
+		endtime = MPI_Wtime();
+		broadcast_time += endtime-starttime;
 	}
 	
 };
