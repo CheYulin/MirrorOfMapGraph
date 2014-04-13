@@ -61,9 +61,10 @@ namespace MPI
       for (int i = tidx; i < byte_size; i += gridDim.x * blockDim.x)
       {
         char b = bitmap[i];
-        char mask = 1;
+        char mask;
         for (int j = 0; j < 8; j++)
         {
+          mask = 1;
           mask <<= j;
           if(b & mask)
           {
@@ -99,7 +100,23 @@ namespace MPI
         char tmpb = b[i];
         c[i] = tmpb | tmpa;
       }
-
+    }
+    
+    template<typename Program>
+    __global__ void update_BFS_labels(int iter, typename Program::SizeT nodes, char* bitmap, typename Program::VertexType vertex_list)
+    {
+      int tid = blockIdx.x * blockDim.x + threadIdx.x;
+      for(int i = tid; i < nodes; i += blockDim.x * gridDim.x)
+      {
+        int byte_id = i / 8;
+        int bit_off = i % 8;
+        char mask = 1 << bit_off;
+        if(bitmap[byte_id] & mask)
+        {
+          vertex_list.d_labels[i] = iter;
+        }
+      }
+      
     }
 
   }
