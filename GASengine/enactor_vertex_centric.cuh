@@ -522,6 +522,7 @@ namespace GASengine
         PredIt pred,
         OutputIt output,
         int *d_total,
+        int *h_total,
         mgpu::ContextPtr mgpuContext)
     {
 
@@ -532,7 +533,7 @@ namespace GASengine
           , 0
           , mgpu::plus<int>()
           , d_total
-          , (int *)NULL
+          , h_total
           , d_map->get()
           , *mgpuContext);
 
@@ -991,6 +992,7 @@ namespace GASengine
               graph_slice->d_active_flags,
               graph_slice->frontier_queues.d_keys[selector],
               &d_frontier_size[frontier_selector],
+              (int*) NULL,
               m_mgpuContext);
 
           //using memset is faster?
@@ -1045,6 +1047,7 @@ namespace GASengine
                 graph_slice->d_active_flags,
                 graph_slice->frontier_queues.d_keys[selector],
                 &d_frontier_size[frontier_selector],
+                (int*) NULL,
                 m_mgpuContext);
           }
           else if (Program::expandOverEdges() == EXPAND_IN_EDGES)
@@ -1090,6 +1093,7 @@ namespace GASengine
                 graph_slice->d_active_flags,
                 graph_slice->frontier_queues.d_keys[selector],
                 &d_frontier_size[frontier_selector],
+                (int*) NULL,
                 m_mgpuContext);
 
           }
@@ -1156,6 +1160,7 @@ namespace GASengine
                 graph_slice->d_active_flags,
                 graph_slice->frontier_queues.d_keys[selector],
                 &d_frontier_size[frontier_selector],
+                (int*) NULL,
                 m_mgpuContext);
 
             if (edge_frontier_size >= graph_slice->frontier_elements[selector])
@@ -3121,8 +3126,32 @@ namespace GASengine
       cudaError_t retval = cudaSuccess;
       typename CsrProblem::GraphSlice *graph_slice = csr_problem.graph_slices[0];
 
+      int p = sqrt(np);// assuming that np is squre of an int
+      int pi = rank_id / p;
+      int pj = rank_id % p;
+      wave w(pi, pj, p, graph_slice->nodes);
+      int tag = 1;
+      int src_proc = pj * p + pi;
+      MPI_Status status;
+
+      const int VERT_PER_NODE = 7;
+      int vertex_id_start = VERT_PER_NODE * pj;
+      int vertex_id_end = vertex_id_start + VERT_PER_NODE;
+
+      vector<int> local_srcs;
+      local_srcs.reserve(num_srcs);
+
+      for(int i=0; i<num_srcs; i++)
+      {
+        if(srcs[i] >= vertex_id_start && srcs[i] < vertex_id_end)
+        {
+          local_srcs.push_back(srcs[i] - vertex_id_start);
+        }
+      }
+      frontier_size = local_srcs.size();
+
       int tmp[2] =
-      { num_srcs, 0};
+      { frontier_size, 0};
       if (retval = util::B40CPerror(
               cudaMemcpy(d_frontier_size,
                   tmp,
@@ -3138,8 +3167,10 @@ namespace GASengine
               max_queue_sizing))
       return retval;
 
-      Program::Initialize(directed, graph_slice->nodes, graph_slice->edges, num_srcs,
-          srcs, graph_slice->d_row_offsets, graph_slice->d_column_indices, graph_slice->d_column_offsets, graph_slice->d_row_indices,
+      printf("pi=%d, pj=%d, frontier_size=%d\n", pi, pj, frontier_size);
+
+      Program::Initialize(directed, graph_slice->nodes, graph_slice->edges, frontier_size, &local_srcs[0],
+          graph_slice->d_row_offsets, graph_slice->d_column_indices, graph_slice->d_column_offsets, graph_slice->d_row_indices,
           graph_slice->d_edge_values,
           graph_slice->vertex_list, graph_slice->edge_list,
           graph_slice->frontier_queues.d_keys,
@@ -3153,20 +3184,12 @@ namespace GASengine
       //      VertexId queue_index = 0;// Work stealing/queue index
       int selector = 0;
       int frontier_selector = 0;
-      frontier_size = num_srcs;
+      long long global_frontier_size = num_srcs;
 
       m_mgpuContext = mgpu::CreateCudaDevice(device_id);
 
-      int p = sqrt(np);// assuming that np is squre of an int
-      int pi = rank_id / p;
-      int pj = rank_id % p;
-      wave w(pi, pj, p, graph_slice->nodes);
-      int tag = 1;
-      int src_proc = pj * p + pi;
-      MPI_Status status;
-
-      iter_num = 1;
-      for (int iter = 0; iter < iter_num && frontier_size > 0; iter++)
+//      iter_num = 1;
+      for (int iter = 0; iter < iter_num; iter++)
       {
         if(iter > 0)
         {
@@ -3181,12 +3204,36 @@ namespace GASengine
               graph_slice->d_visit_flags,
               graph_slice->frontier_queues.d_keys[selector ^ 1],
               &d_frontier_size[frontier_selector],
+              &frontier_size,
               m_mgpuContext);
+
+          printf("Frontier size after bitmap: %d\n", frontier_size);
+
+          VertexId* test_vid = new VertexId[frontier_size];
+          cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector^1], frontier_size * sizeof(VertexId), cudaMemcpyDeviceToHost);
+          printf("Frontier after contract: ");
+          for (int i = 0; i < frontier_size; ++i)
+          {
+            printf("%d, ", test_vid[i]);
+          }
+          printf("\n");
+          delete[] test_vid;
+
+          long long tmp_frontier_size = frontier_size;
+          //check if done
+          MPI_Allreduce( &tmp_frontier_size, &global_frontier_size, 1,
+              MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+
+          printf("pi=%d, pj=%d, global_frontier_size=%lld\n", pi, pj, global_frontier_size);
+          if(global_frontier_size == 0)
+          break;
         }
 
-        retval = EnactIterativeSearch<ExpandPolicy, ContractPolicy > (csr_problem, h_row_offsets, directed, threshold,
-            expand_grid_size, contract_grid_size, selector, frontier_selector);
-
+        if(frontier_size > 0)
+        {
+          retval = EnactIterativeSearch<ExpandPolicy, ContractPolicy > (csr_problem, h_row_offsets, directed, threshold,
+              expand_grid_size, contract_grid_size, selector, frontier_selector);
+        }
         iteration[0]++;
 
         //w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
@@ -3194,11 +3241,32 @@ namespace GASengine
         w.reduce_frontier(graph_slice->d_bitmap_out,graph_slice->d_bitmap_in);
         //      MPI_Send(graph_slice->d_bitmap_out, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD);
 
+        int byte_size = (graph_slice->nodes + 8 - 1) / 8;
+        char* test_vid = new char[byte_size];
+        cudaMemcpy(test_vid, graph_slice->d_bitmap_out, byte_size * sizeof(char), cudaMemcpyDeviceToHost);
+        printf("pi=%d, pj=%d, d_bitmap_out: ", pi, pj);
+        for (int i = 0; i < byte_size; ++i)
+        {
+          printf("%d, ", test_vid[i]);
+        }
+        printf("\n");
+        delete[] test_vid;
+
+        test_vid = new char[byte_size];
+        cudaMemcpy(test_vid, graph_slice->d_bitmap_in, byte_size * sizeof(char), cudaMemcpyDeviceToHost);
+        printf("pi=%d, pj=%d, d_bitmap_in: ", pi, pj);
+        for (int i = 0; i < byte_size; ++i)
+        {
+          printf("%d, ", test_vid[i]);
+        }
+        printf("\n");
+        delete[] test_vid;
+
         if(pj == p-1)
         {
           int nthreads = 256;
           int nblocks = (graph_slice->nodes + nthreads - 1) / nthreads;
-          update_BFS_labels<Program><<<nblocks, nthreads>>>(iteration[0], graph_slice->nodes, graph_slice->d_bitmap_out,  graph_slice->vertex_list);
+          update_BFS_labels<Program><<<nblocks, nthreads>>>(iteration[0], graph_slice->nodes, graph_slice->d_bitmap_out, graph_slice->vertex_list);
         }
       }
       /* unsure of the units so commenting it out
