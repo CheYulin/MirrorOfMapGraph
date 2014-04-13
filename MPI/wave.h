@@ -67,7 +67,7 @@ public: wave(int l_pi,int l_pj,int l_p, int l_n)
 		broadcast_time = 0;
 	}
 
-void propogate(char* out_d, char* assigned_d, char* prefix_d )
+	void propogate(char* out_d, char* assigned_d, char* prefix_d )
 	//wave propogation, in sequential from top to bottom of the column
 	{
 	double starttime,endtime;
@@ -133,6 +133,37 @@ void propogate(char* out_d, char* assigned_d, char* prefix_d )
 	propogate_time += endtime-starttime;
 	}
 	
+void reduce_frontier(char* out_d, char* in_d)
+{
+	double starttime,endtime;
+	starttime = MPI_Wtime();
+	unsigned int mesg_size = n/(8*p);
+	char *out_h = (char*)malloc(mesg_size);
+	char *out_h2 = (char*)malloc(mesg_size);
+	char *in_h = (char*)malloc(mesg_size);			
+	cudaMemcpy(out_h,out_d,mesg_size,cudaMemcpyDeviceToHost);
+	cudaDeviceSynchronize();
+	MPI_Allreduce(out_h, out_h2, mesg_size,MPI_BYTE, MPI_BOR, new_row_comm);
+
+	cudaMemcpy(out_d,out_h2,mesg_size,cudaMemcpyHostToDevice);
+	cudaDeviceSynchronize();
+	endtime = MPI_Wtime();
+	propogate_time += endtime-starttime;
+
+	starttime = MPI_Wtime();
+	if(pi==pj)
+		memcpy(in_h,out_h2,mesg_size);
+			
+	MPI_Bcast( in_h, mesg_size, MPI_CHAR, pj, new_col_comm );
+	cudaMemcpy(in_d,in_h,mesg_size,cudaMemcpyHostToDevice);
+	cudaDeviceSynchronize();
+	free(in_h);
+	free(out_h); 
+	endtime = MPI_Wtime();
+	broadcast_time += endtime-starttime;
+
+}
+
 	void broadcast_new_frontier( char* out_d, char* in_d )
 	{
 		double starttime,endtime;

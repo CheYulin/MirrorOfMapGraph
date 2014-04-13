@@ -3184,12 +3184,25 @@ namespace GASengine
         
         iteration[0]++;
 
-        w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-	w.broadcast_new_frontier(graph_slice->d_bitmap_out,graph_slice->d_bitmap_in);
-
+        //w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+	//w.broadcast_new_frontier(graph_slice->d_bitmap_out,graph_slice->d_bitmap_in);
+	w.reduce_frontier(graph_slice->d_bitmap_out,graph_slice->d_bitmap_in);
         //      MPI_Send(graph_slice->d_bitmap_out, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD);
       }
+	/* unsure of the units so commenting it out
+	double init, prop, broad, tick;
+	char units;
+	MPI_Reduce( &w.init_time, &init, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
+	MPI_Reduce( &w.propogate_time, &prop, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
+	MPI_Reduce( &w.broadcast_time, &broad, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
 
+	tick = MPI_Wtick();
+	if(tick*10.0 >1.0) units = ' ';
+	else if(tick*10000.0 >1.0) units = 'm';
+	else if(tick*10000000.0 >1.0) units = 'u';
+
+	if(rank_id ==0)
+	printf("\n Time for the waves is :\n Setup Time:%f%cs Propogation time:%f%cs  Broadast time:%f%cs\n",init, units, prop, units, broad, units);*/
       return retval;
 
     }
