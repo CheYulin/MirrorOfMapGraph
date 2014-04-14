@@ -137,7 +137,7 @@ public:
   {
     double starttime, endtime;
     starttime = MPI_Wtime();
-    unsigned int mesg_size = ceil(n/(8.0*p);
+    unsigned int mesg_size = ceil(n/(8.0*p));
     char *out_h = (char*) malloc(mesg_size);
     char *out_h2 = (char*) malloc(mesg_size);
     char *in_h = (char*) malloc(mesg_size);

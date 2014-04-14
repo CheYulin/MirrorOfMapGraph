@@ -2995,34 +2995,34 @@ namespace GASengine
           int nthreads = 256;
           int nblocks = (frontier_size + nthreads - 1) / nthreads;
           MPI::mpikernel::frontier2flag<Program> << <nblocks, nthreads >> >(frontier_size, graph_slice->nodes, graph_slice->frontier_queues.d_keys[selector^1], graph_slice->d_visit_flags);
-          SYNC_CHECK();
+          util::B40CPerror(cudaDeviceSynchronize(), "frontier2flag", __FILE__, __LINE__);
           int byte_size = (graph_slice->nodes + 8 - 1) / 8;
           nblocks = (byte_size + nthreads - 1) / nthreads;
           MPI::mpikernel::flag2bitmap<Program> << <nblocks, nthreads >> >(graph_slice->nodes, byte_size, graph_slice->d_visit_flags, graph_slice->d_bitmap_out);
-          SYNC_CHECK();
+          util::B40CPerror(cudaDeviceSynchronize(), "flag2bitmap", __FILE__, __LINE__);
 
-          if (DEBUG)
+//          if (DEBUG)
           {
 
-            //            int bitmap_cout = 0;
-            //            int byte_size = (graph_slice->nodes + 8 - 1) / 8;
-            //            char* test_vid = new char[byte_size];
-            //            cudaMemcpy(test_vid, graph_slice->d_bitmap_out, byte_size, cudaMemcpyDeviceToHost);
-            //            printf("bitmap after contract: ");
-            //            for (int i = 0; i < byte_size; ++i)
-            //            {
-            //              for(int j=0; j<8; j++)
-            //              {
-            //                if(test_vid[i] & (1 << j))
-            //                {
-            //                  printf("%d, ", i*8 + j);
-            //                  bitmap_cout++;
-            //                }
-            //              }
-            //            }
-            //            printf("\n");
-            //            printf("bitmap_cout=%d\n", bitmap_cout);
-            //            delete[] test_vid;
+            int bitmap_cout = 0;
+            int byte_size = (graph_slice->nodes + 8 - 1) / 8;
+            char* test_vid = new char[byte_size];
+            cudaMemcpy(test_vid, graph_slice->d_bitmap_out, byte_size, cudaMemcpyDeviceToHost);
+            printf("bitmap after contract: ");
+            for (int i = 0; i < byte_size; ++i)
+            {
+              for(int j=0; j<8; j++)
+              {
+                if(test_vid[i] & (1 << j))
+                {
+                  printf("%d, ", i*8 + j);
+                  bitmap_cout++;
+                }
+              }
+            }
+            printf("\n");
+            printf("bitmap_cout=%d\n", bitmap_cout);
+            delete[] test_vid;
           }
 
           //          if (retval = util::B40CPerror(cudaMemset(graph_slice->d_bitmap_out, 0, (graph_slice->nodes + 8 - 1) / 8),
@@ -3176,6 +3176,28 @@ namespace GASengine
           graph_slice->frontier_queues.d_keys,
           graph_slice->frontier_queues.d_values);
 
+      int nthreads = 256;
+      int nblocks = (frontier_size + nthreads - 1) / nthreads;
+      MPI::mpikernel::frontier2flag<Program> << <nblocks, nthreads >> >(frontier_size, graph_slice->nodes, graph_slice->frontier_queues.d_keys[0], graph_slice->d_visit_flags);
+      util::B40CPerror(cudaDeviceSynchronize(), "frontier2flag", __FILE__, __LINE__);
+      int byte_size = (graph_slice->nodes + 8 - 1) / 8;
+      nblocks = (byte_size + nthreads - 1) / nthreads;
+      MPI::mpikernel::flag2bitmap<Program> << <nblocks, nthreads >> >(graph_slice->nodes, byte_size, graph_slice->d_visit_flags, graph_slice->d_bitmap_visited);
+      util::B40CPerror(cudaDeviceSynchronize(), "flag2bitmap", __FILE__, __LINE__);
+      if (retval = util::B40CPerror(cudaMemset(graph_slice->d_visit_flags, 0, graph_slice->nodes * sizeof (char)),
+              "Memset d_visit_flags failed", __FILE__, __LINE__))
+      return retval;
+
+      char* test_vid = new char[byte_size];
+      cudaMemcpy(test_vid, graph_slice->d_bitmap_visited, byte_size * sizeof(char), cudaMemcpyDeviceToHost);
+      printf("pi=%d, pj=%d, initial d_bitmap_visited: ", pi, pj);
+      for (int i = 0; i < byte_size; ++i)
+      {
+        printf("%d, ", test_vid[i]);
+      }
+      printf("\n");
+      delete[] test_vid;
+
       if (retval = Setup(csr_problem, expand_grid_size,
               contract_grid_size, 0))
       return retval;
@@ -3236,15 +3258,25 @@ namespace GASengine
         }
         iteration[0]++;
 
+        int byte_size = (graph_slice->nodes + 8 - 1) / 8;
+        char* test_vid = new char[byte_size];
+        cudaMemcpy(test_vid, graph_slice->d_bitmap_out, byte_size * sizeof(char), cudaMemcpyDeviceToHost);
+        printf("pi=%d, pj=%d, d_bitmap_out before: ", pi, pj);
+        for (int i = 0; i < byte_size; ++i)
+        {
+          printf("%d, ", test_vid[i]);
+        }
+        printf("\n");
+        delete[] test_vid;
+
         //w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
         //w.broadcast_new_frontier(graph_slice->d_bitmap_out,graph_slice->d_bitmap_in);
         w.reduce_frontier(graph_slice->d_bitmap_out,graph_slice->d_bitmap_in);
         //      MPI_Send(graph_slice->d_bitmap_out, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD);
 
-        int byte_size = (graph_slice->nodes + 8 - 1) / 8;
-        char* test_vid = new char[byte_size];
+        test_vid = new char[byte_size];
         cudaMemcpy(test_vid, graph_slice->d_bitmap_out, byte_size * sizeof(char), cudaMemcpyDeviceToHost);
-        printf("pi=%d, pj=%d, d_bitmap_out: ", pi, pj);
+        printf("pi=%d, pj=%d, d_bitmap_out after: ", pi, pj);
         for (int i = 0; i < byte_size; ++i)
         {
           printf("%d, ", test_vid[i]);
@@ -3255,6 +3287,22 @@ namespace GASengine
         test_vid = new char[byte_size];
         cudaMemcpy(test_vid, graph_slice->d_bitmap_in, byte_size * sizeof(char), cudaMemcpyDeviceToHost);
         printf("pi=%d, pj=%d, d_bitmap_in: ", pi, pj);
+        for (int i = 0; i < byte_size; ++i)
+        {
+          printf("%d, ", test_vid[i]);
+        }
+        printf("\n");
+        delete[] test_vid;
+
+        //update bitmap_visited
+        int nthreads = 256;
+        int nblocks = (byte_size + nthreads - 1) / nthreads;
+        bitunion<<<nblocks, nthreads>>>(byte_size, graph_slice->d_bitmap_out, graph_slice->d_bitmap_visited, graph_slice->d_bitmap_visited);
+        util::B40CPerror(cudaDeviceSynchronize(), "bitunion", __FILE__, __LINE__);
+
+        test_vid = new char[byte_size];
+        cudaMemcpy(test_vid, graph_slice->d_bitmap_visited, byte_size * sizeof(char), cudaMemcpyDeviceToHost);
+        printf("pi=%d, pj=%d, d_bitmap_visited: ", pi, pj);
         for (int i = 0; i < byte_size; ++i)
         {
           printf("%d, ", test_vid[i]);

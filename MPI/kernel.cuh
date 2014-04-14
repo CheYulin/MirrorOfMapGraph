@@ -39,13 +39,18 @@ namespace MPI
           if (v < nodes)
           {
             char f = flags[v];
+            int byte_offset = i;
+
             if (f == 1)
             {
-              int byte_offset = i;
               char mask_byte = 1 << j;
-
               bitmap[byte_offset] |= mask_byte;
 //                printf("v=%d, byte_offset=%d, mask_byte=%d, bitmap[byte_offset]=%d\n", v, byte_offset, mask_byte, bitmap[byte_offset]);
+            }
+            else
+            {
+              char mask_byte = ~(1 << j);
+              bitmap[byte_offset] &= mask_byte;
             }
           }
         }
