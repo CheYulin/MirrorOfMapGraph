@@ -215,30 +215,36 @@ namespace b40c
         for (VertexId node = 0; node < nodes; node++)
         {
 //          PrintValue(node);
-          printf("%d", node);
-          printf(": ");
-          for (SizeT edge = row_offsets[node]; edge < row_offsets[node + 1]; edge++)
+          if (node == 4096)
           {
-//            PrintValue(column_indices[edge]);
             printf("%d", node);
-            printf(", ");
+            printf(": ");
+            for (SizeT edge = row_offsets[node]; edge < row_offsets[node + 1]; edge++)
+            {
+//            PrintValue(column_indices[edge]);
+              printf("%d", node);
+              printf(", ");
+            }
+            printf("\n");
           }
-          printf("\n");
         }
 
         printf("Input Graph CSC:\n");
         for (VertexId node = 0; node < nodes; node++)
         {
-//          PrintValue(node);
-          printf("%d", node);
-          printf(": ");
-          for (SizeT edge = column_offsets[node]; edge < column_offsets[node + 1]; edge++)
+          if (node == 4096)
           {
+//          PrintValue(node);
+            printf("%d", node);
+            printf(": ");
+            for (SizeT edge = column_offsets[node]; edge < column_offsets[node + 1]; edge++)
+            {
 //            PrintValue(row_indices[edge]);
-            printf("%d", row_indices[edge]);
-            printf(", ");
+              printf("%d", row_indices[edge]);
+              printf(", ");
+            }
+            printf("\n");
           }
-          printf("\n");
         }
       }
 

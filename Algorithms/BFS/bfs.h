@@ -206,7 +206,8 @@ struct bfs
         VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
     {
 //      misc_value = vertex_id;
-//      printf("Expand: vertex_id=%d, neighbor_id_in = %d\n", vertex_id, neighbor_id_in);
+      if(neighbor_id_in == 4120 || neighbor_id_in == 4480 || vertex_id == 4096)
+        printf("Expand: vertex_id=%d, neighbor_id_in = %d\n", vertex_id, neighbor_id_in);
       frontier = neighbor_id_in;
     }
   };
@@ -214,28 +215,37 @@ struct bfs
   struct contract
   {
     __device__
-    void operator()(const int iteration, int &vertex_id,
+    void operator()(const int iteration, char *d_bitmap_visited, int &vertex_id,
         VertexType &vertex_list, EdgeType &edge_list, GatherType* gather_tmp, int& misc_value)
     {
-      // Load label of node
       int row_id = vertex_id;
-      int label;
-      label = vertex_list.d_labels[row_id];
-//      printf("row_id=%d, label=%d, iteration=%d\n", row_id, label, iteration);
-
-      if (label != -1)
-      {
-
-        // Seen it
+      int byte_id = row_id / 8;
+      int bit_off = row_id % 8;
+      char mask = 1 << bit_off;
+      char is_visited = d_bitmap_visited[byte_id] & mask;
+      if(row_id == 4120 || row_id == 4480)
+          printf("row_id=%d, mask=%d, is_visited=%d\n", row_id, mask, is_visited);
+      if(is_visited != 0 )
         vertex_id = -1;
-
-      }
-      else
-      {
-
-        // Update label with current iteration
-        vertex_list.d_labels[row_id] = iteration + 1;
-      }
+//      // Load label of node
+//      int row_id = vertex_id;
+//      int label;
+//      label = vertex_list.d_labels[row_id];
+////      printf("row_id=%d, label=%d, iteration=%d\n", row_id, label, iteration);
+//
+//      if (label != -1)
+//      {
+//
+//        // Seen it
+//        vertex_id = -1;
+//
+//      }
+//      else
+//      {
+//
+//        // Update label with current iteration
+//        vertex_list.d_labels[row_id] = iteration + 1;
+//      }
     }
   };
 

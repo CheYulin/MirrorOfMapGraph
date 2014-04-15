@@ -27,7 +27,8 @@ typedef unsigned int uint;
 #include <iostream>
 #include <omp.h>
 #include <mpi.h>
-
+#include <stdlib.h>
+#include <sstream>
 #include <config.h>
 
 // Utilities and correctness-checking
@@ -417,7 +418,8 @@ int main(int argc, char **argv)
       exit(1);
   }
 
-//  csr_graph.DisplayGraph();
+  if(rank_id == 0)
+    csr_graph.DisplayGraph();
   int num_srcs = 0;
   int* srcs = NULL;
   int origin = cfg.getParameter<int>("origin");
@@ -547,7 +549,12 @@ int main(int argc, char **argv)
 
   if (outFileName)
   {
-    FILE* f = fopen(outFileName, "w");
+    string fn_str(outFileName);
+    ostringstream convert;   // stream used for the conversion
+    convert << rank_id;
+    string buff = convert.str();
+    fn_str += buff;
+    FILE* f = fopen(fn_str.c_str(), "w");
     for (int i = 0; i < csr_graph.nodes; ++i)
     {
       fprintf(f, "%d\n", h_values[i]);

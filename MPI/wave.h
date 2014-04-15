@@ -11,24 +11,26 @@
 using namespace std;
 using namespace MPI;
 using namespace mpikernel;
+
 class wave
 //frontier contraction in a 2-d partitioned graph
 {
 public:
-  int pi;	 //row
-  int pj;  //column
+  int pi; //row
+  int pj; //column
   int p;
   int n;
   MPI_Group orig_group, new_row_group, new_col_group;
   MPI_Comm new_row_comm, new_col_comm;
   int new_row_rank, new_col_rank;
   double init_time, propogate_time, broadcast_time;
-  public:
+public:
+
   wave(int l_pi, int l_pj, int l_p, int l_n)
   //l_pi is the x index
-//l_pj is the y index
-//l_p  is the number of partitions in 1d. usually, sqrt(number of processors)
-//l_n  is the size of the problem, number of vertices
+  //l_pj is the y index
+  //l_p  is the number of partitions in 1d. usually, sqrt(number of processors)
+  //l_n  is the size of the problem, number of vertices
   {
     double starttime, endtime;
     starttime = MPI_Wtime();
@@ -73,11 +75,11 @@ public:
   {
     double starttime, endtime;
     starttime = MPI_Wtime();
-    unsigned int mesg_size = ceil(n/(8.0*p));
+    unsigned int mesg_size = ceil(n / 8.0);
     int myid = pi * p + pj;
     //int lastid = pi*p+p-1;
     int numthreads = 512;
-    int byte_size = (n / p + 8 - 1) / 8;
+    int byte_size = (n + 8 - 1) / 8;
     int numblocks = min(512, (byte_size + numthreads - 1) / numthreads);
 
     MPI_Request request[2];
@@ -87,25 +89,25 @@ public:
       //if first one in the column, initiate the wave propogation
       if (pj == 0)
       {
-        char *out_h = (char*) malloc(mesg_size);
+        char *out_h = (char*)malloc(mesg_size);
         cudaMemcpy(out_h, out_d, mesg_size, cudaMemcpyDeviceToHost);
 
         MPI_Isend(out_h, mesg_size, MPI_CHAR, myid + 1, pi, MPI_COMM_WORLD, &request[1]);
         MPI_Wait(&request[1], &status[1]);
         free(out_h);
       }
-      //else if not the last one, receive bitmap from top, process and send to next one
+        //else if not the last one, receive bitmap from top, process and send to next one
       else if (pj != p - 1)
       {
-        char *prefix_h = (char*) malloc(mesg_size);
+        char *prefix_h = (char*)malloc(mesg_size);
         MPI_Irecv(prefix_h, mesg_size, MPI_CHAR, myid - 1, pi, MPI_COMM_WORLD, &request[0]);
         MPI_Wait(&request[0], &status[0]);
 
         cudaMemcpy(prefix_d, prefix_h, mesg_size, cudaMemcpyHostToDevice);
-        mpikernel::bitsubstract<<<numblocks,numthreads>>>(mesg_size, out_d, prefix_d, assigned_d);
+        mpikernel::bitsubstract << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, assigned_d);
         cudaDeviceSynchronize();
-        mpikernel::bitunion<<<numblocks,numthreads>>>(mesg_size,out_d ,prefix_d, out_d);
-        char *out_h = (char*) malloc(mesg_size);
+        mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
+        char *out_h = (char*)malloc(mesg_size);
         cudaDeviceSynchronize();
         cudaMemcpy(out_h, out_d, mesg_size, cudaMemcpyDeviceToHost);
 
@@ -115,16 +117,16 @@ public:
         MPI_Wait(&request[1], &status[1]);
         free(out_h);
       }
-      //else receive from the previous and then broadcast to the broadcast group
+        //else receive from the previous and then broadcast to the broadcast group
       else
       {
-        char *prefix_h = (char*) malloc(mesg_size);
+        char *prefix_h = (char*)malloc(mesg_size);
         MPI_Irecv(prefix_h, mesg_size, MPI_CHAR, myid - 1, pi, MPI_COMM_WORLD, &request[0]);
         MPI_Wait(&request[0], &status[0]);
         cudaMemcpy(prefix_d, prefix_h, mesg_size, cudaMemcpyHostToDevice);
-        mpikernel::bitsubstract<<<numblocks,numthreads>>>(mesg_size, out_d, prefix_d, assigned_d);
+        mpikernel::bitsubstract << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, assigned_d);
         cudaDeviceSynchronize();
-        mpikernel::bitunion<<<numblocks,numthreads>>>(mesg_size,out_d ,prefix_d, out_d);
+        mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
         cudaDeviceSynchronize();
       }
     }
@@ -137,11 +139,29 @@ public:
   {
     double starttime, endtime;
     starttime = MPI_Wtime();
-    unsigned int mesg_size = ceil(n/(8.0*p));
-    char *out_h = (char*) malloc(mesg_size);
-    char *out_h2 = (char*) malloc(mesg_size);
-    char *in_h = (char*) malloc(mesg_size);
+    unsigned int mesg_size = ceil(n / (8.0));
+    char *out_h = (char*)malloc(mesg_size);
+    char *out_h2 = (char*)malloc(mesg_size);
+    char *in_h = (char*)malloc(mesg_size);
     cudaMemcpy(out_h, out_d, mesg_size, cudaMemcpyDeviceToHost);
+    
+    if (pi == 0 && pj == 0)
+    {
+//      char* test_vid = new char[byte_size];
+//      cudaMemcpy(test_vid, graph_slice->d_bitmap_out, byte_size * sizeof (char), cudaMemcpyDeviceToHost);
+      int id = 4096;
+      int byte_id = id / 8;
+      int bit_off = id % 8;
+      char mask = 1 << bit_off;
+//      printf("In reduce: pi=%d, pj=%d, mesg_size=%d, 4096Outafter: %d\n", pi, pj, mesg_size, out_h[byte_id] & mask);
+//      delete[] test_vid;
+
+//      test_vid = new char[byte_size];
+//      cudaMemcpy(test_vid, graph_slice->d_bitmap_in, byte_size * sizeof (char), cudaMemcpyDeviceToHost);
+//      printf("In reduce: pi=%d, pj=%d, 4096Inafter: %d\n", pi, pj, in_h[byte_id] & mask);
+//      delete[] test_vid;
+    }
+    
     cudaDeviceSynchronize();
     MPI_Allreduce(out_h, out_h2, mesg_size, MPI_BYTE, MPI_BOR, new_row_comm);
 
@@ -153,6 +173,8 @@ public:
     starttime = MPI_Wtime();
     if (pi == pj)
       memcpy(in_h, out_h2, mesg_size);
+
+    
 
     MPI_Bcast(in_h, mesg_size, MPI_CHAR, pj, new_col_comm);
     cudaMemcpy(in_d, in_h, mesg_size, cudaMemcpyHostToDevice);
@@ -169,10 +191,10 @@ public:
     double starttime, endtime;
     starttime = MPI_Wtime();
 
-    unsigned int mesg_size = ceil(n/(8.0*p));
+    unsigned int mesg_size = ceil(n / (8.0));
 
-    char *out_h = (char*) malloc(mesg_size);
-    char *in_h = (char*) malloc(mesg_size);
+    char *out_h = (char*)malloc(mesg_size);
+    char *in_h = (char*)malloc(mesg_size);
 
     if (pj == p - 1)
       cudaMemcpy(out_h, out_d, mesg_size, cudaMemcpyDeviceToHost);
