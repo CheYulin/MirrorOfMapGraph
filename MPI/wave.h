@@ -6,6 +6,7 @@
  */
 #include "mpi.h"
 #include "kernel.cuh"
+#include <GASengine/statistics.h>
 #ifndef WAVE_H_
 #define WAVE_H_
 using namespace std;
@@ -24,9 +25,10 @@ public:
   MPI_Comm new_row_comm, new_col_comm;
   int new_row_rank, new_col_rank;
   double init_time, propogate_time, broadcast_time;
+  Statistics* stats;
 public:
 
-  wave(int l_pi, int l_pj, int l_p, int l_n)
+  wave(int l_pi, int l_pj, int l_p, int l_n, Statistics* l_stats)
   //l_pi is the x index
   //l_pj is the y index
   //l_p  is the number of partitions in 1d. usually, sqrt(number of processors)
@@ -38,6 +40,7 @@ public:
     pj = l_pj;
     p = l_p;
     n = l_n;
+    stats = l_stats;
 
     MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
 
@@ -145,23 +148,6 @@ public:
     char *in_h = (char*)malloc(mesg_size);
     cudaMemcpy(out_h, out_d, mesg_size, cudaMemcpyDeviceToHost);
     
-    if (pi == 0 && pj == 0)
-    {
-//      char* test_vid = new char[byte_size];
-//      cudaMemcpy(test_vid, graph_slice->d_bitmap_out, byte_size * sizeof (char), cudaMemcpyDeviceToHost);
-      int id = 4096;
-      int byte_id = id / 8;
-      int bit_off = id % 8;
-      char mask = 1 << bit_off;
-//      printf("In reduce: pi=%d, pj=%d, mesg_size=%d, 4096Outafter: %d\n", pi, pj, mesg_size, out_h[byte_id] & mask);
-//      delete[] test_vid;
-
-//      test_vid = new char[byte_size];
-//      cudaMemcpy(test_vid, graph_slice->d_bitmap_in, byte_size * sizeof (char), cudaMemcpyDeviceToHost);
-//      printf("In reduce: pi=%d, pj=%d, 4096Inafter: %d\n", pi, pj, in_h[byte_id] & mask);
-//      delete[] test_vid;
-    }
-    
     cudaDeviceSynchronize();
     MPI_Allreduce(out_h, out_h2, mesg_size, MPI_BYTE, MPI_BOR, new_row_comm);
 
@@ -173,8 +159,6 @@ public:
     starttime = MPI_Wtime();
     if (pi == pj)
       memcpy(in_h, out_h2, mesg_size);
-
-    
 
     MPI_Bcast(in_h, mesg_size, MPI_CHAR, pj, new_col_comm);
     cudaMemcpy(in_d, in_h, mesg_size, cudaMemcpyHostToDevice);

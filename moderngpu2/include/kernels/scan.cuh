@@ -165,8 +165,8 @@ MGPU_HOST void Scan(
                     Op op,
 	                T* reduce_global, 
                     T* reduce_host, 
-                    DestIt dest_global, 
-	                CudaContext& context) 
+                    DestIt dest_global,
+	                CudaContext& context)
 {
 		
 	MGPU_MEM(T) totalDevice;

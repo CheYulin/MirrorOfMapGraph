@@ -12,6 +12,8 @@ inline void registerParameters() {
   Config::registerParameter<int>("iter_num","The number of iterations to perform (default INT_MAX)", INT_MAX);
   Config::registerParameter<int>("num_src","The number of starting vertices when random sources is specified (default 1)", 1);
   Config::registerParameter<int>("run_CPU","Run CPU implementation for testing (default 0)", 0);
+//  Config::registerParameter<int>("num_vertices","Number of vertices for the random graph (default 10)", 10);
+//  Config::registerParameter<int>("num_edges","Number of edges for the random graph (default 100)", 100);
   Config::registerParameter<int>("with_value","Whether to load edge values from market file (default 0)", 0); // the device number
   Config::registerParameter<double>("max_queue_sizing","The frontier queue size is this value times the number of vertices in the graph (default 1.5)", 1.5); //frontier queue size
   Config::registerParameter<int>("threshold","When frontier size is larger than threshold, two-phase strategy is used otherwise dynamic scheduling it used (default 10000)", 10000);

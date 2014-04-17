@@ -389,7 +389,7 @@ int main(int argc, char **argv)
       i++;
       numVertices = atoi(argv[i]);
     }
-    else if (strncmp(argv[i], "-v", 100) == 0)
+    else if (strncmp(argv[i], "-e", 100) == 0)
     {
       i++;
       numEdges = atoi(argv[i]);
@@ -414,6 +414,8 @@ int main(int argc, char **argv)
   else
   {
     //build graph randomly
+//	  int numVertices = cfg.getParameter<int>("num_vertices");
+//	  int numEdges = cfg.getParameter<int>("num_edges");
     if (builder::BuildRandomGraph<g_with_value>(numVertices, numEdges, csr_graph, false) != 0)
       exit(1);
   }

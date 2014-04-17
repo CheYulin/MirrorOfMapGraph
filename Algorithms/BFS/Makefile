@@ -5,7 +5,7 @@ LD_OPTIONS =  -O3 -L/usr/lib/ -L$(MGPU_PATH)
 #NVCC_OPTS = -G -g -Xptxas -v -Xcompiler -fopenmp  -I. -I../../
 #NVCC_ARCHS = -gencode=arch=compute_20,code=sm_20
 #NVCC_ARCHS = -gencode arch=compute_35,code=sm_35
-LD_LIBS = -lgomp -lmgpu -lmpi -lstdc++
+LD_LIBS = -lgomp -lmgpu -lmpl -lmpich -lstdc++
 
 GEN_SM35 = -gencode=arch=compute_35,code=\"sm_35,compute_35\" 
 GEN_SM30 = -gencode=arch=compute_30,code=\"sm_30,compute_30\" 

@@ -44,8 +44,7 @@ cudaError_t B40CPerror(
 	bool print = true)
 {
 	if (error && print) {
-		fprintf(stderr, "[%s, %d] %s (CUDA error %d: %s)\n", filename, line, message, error, cudaGetErrorString(error));
-		fflush(stderr);
+		printf("[%s, %d] %s (CUDA error %d: %s)\n", filename, line, message, error, cudaGetErrorString(error));
 	}
 	return error;
 }
