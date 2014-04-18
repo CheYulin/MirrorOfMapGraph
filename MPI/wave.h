@@ -24,7 +24,7 @@ public:
   MPI_Group orig_group, new_row_group, new_col_group;
   MPI_Comm new_row_comm, new_col_comm;
   int new_row_rank, new_col_rank;
-  double init_time, propogate_time, broadcast_time;
+  double init_time, propagate_time, broadcast_time;
   Statistics* stats;
 public:
 
@@ -69,7 +69,7 @@ public:
     MPI_Group_rank(new_col_group, &new_col_rank);
     endtime = MPI_Wtime();
     init_time = endtime - starttime;
-    propogate_time = 0;
+    propagate_time = 0;
     broadcast_time = 0;
   }
 
@@ -135,10 +135,11 @@ public:
     }
 
     endtime = MPI_Wtime();
-    propogate_time += endtime - starttime;
+    propagate_time += endtime - starttime;
   }
 
-  void reduce_frontier(char* out_d, char* in_d)
+//Version that does not support GPUDirect 
+  void reduce_frontier_CPU(char* out_d, char* in_d)
   {
     double starttime, endtime;
     starttime = MPI_Wtime();
@@ -154,7 +155,7 @@ public:
     cudaMemcpy(out_d, out_h2, mesg_size, cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
     endtime = MPI_Wtime();
-    propogate_time += endtime - starttime;
+    propagate_time += endtime - starttime;
 
     starttime = MPI_Wtime();
     if (pi == pj)
@@ -167,8 +168,31 @@ public:
     free(out_h);
     endtime = MPI_Wtime();
     broadcast_time += endtime - starttime;
+  }
+
+//version that supports GPUDirect
+  void reduce_frontier_GDR(char* out_d, char* in_d)
+  {
+    double starttime, endtime;
+    starttime = MPI_Wtime();
+    unsigned int mesg_size = ceil(n / (8.0));
+
+    MPI_Allreduce(out_d, out_d, mesg_size, MPI_BYTE, MPI_BOR, new_row_comm);
+    endtime = MPI_Wtime();
+
+    propagate_time += endtime - starttime;
+
+    starttime = MPI_Wtime();
+    if (pi == pj)
+	cudaMemcpy(in_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
+
+    MPI_Bcast(in_d, mesg_size, MPI_CHAR, pj, new_col_comm);
+
+    endtime = MPI_Wtime();
+    broadcast_time += endtime - starttime;
 
   }
+
 
   void broadcast_new_frontier(char* out_d, char* in_d)
   {
