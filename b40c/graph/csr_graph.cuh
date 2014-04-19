@@ -74,7 +74,7 @@ namespace b40c
       template<bool LOAD_VALUES, typename Tuple>
       void FromCoo(Tuple *coo, SizeT coo_nodes, SizeT coo_edges, int undirected, bool ordered_rows = false)
       {
-        printf("  Converting %d vertices, %d directed edges (%s tuples) to CSR format... ", coo_nodes, coo_edges, ordered_rows ? "ordered" : "unordered");
+//        printf("  Converting %d vertices, %d directed edges (%s tuples) to CSR format... ", coo_nodes, coo_edges, ordered_rows ? "ordered" : "unordered");
         time_t mark1 = time(NULL);
         fflush (stdout);
 
@@ -159,7 +159,7 @@ namespace b40c
         }
 
         time_t mark2 = time(NULL);
-        printf("Done converting (%ds).\n", (int) (mark2 - mark1));
+//        printf("Done converting (%ds).\n", (int) (mark2 - mark1));
         fflush(stdout);
       }
 
@@ -214,37 +214,31 @@ namespace b40c
         printf("Input Graph:\n");
         for (VertexId node = 0; node < nodes; node++)
         {
-//          PrintValue(node);
-          if (node == 4096)
+          printf("%d", node);
+          printf(": ");
+          for (SizeT edge = row_offsets[node]; edge < row_offsets[node + 1]; edge++)
           {
-            printf("%d", node);
-            printf(": ");
-            for (SizeT edge = row_offsets[node]; edge < row_offsets[node + 1]; edge++)
-            {
 //            PrintValue(column_indices[edge]);
-              printf("%d", node);
-              printf(", ");
-            }
-            printf("\n");
+            printf("%d", column_indices[edge]);
+            printf(", ");
           }
+          printf("\n");
         }
 
         printf("Input Graph CSC:\n");
         for (VertexId node = 0; node < nodes; node++)
         {
-          if (node == 4096)
-          {
+
 //          PrintValue(node);
-            printf("%d", node);
-            printf(": ");
-            for (SizeT edge = column_offsets[node]; edge < column_offsets[node + 1]; edge++)
-            {
+          printf("%d", node);
+          printf(": ");
+          for (SizeT edge = column_offsets[node]; edge < column_offsets[node + 1]; edge++)
+          {
 //            PrintValue(row_indices[edge]);
-              printf("%d", row_indices[edge]);
-              printf(", ");
-            }
-            printf("\n");
+            printf("%d", row_indices[edge]);
+            printf(", ");
           }
+          printf("\n");
         }
       }
 

@@ -26,6 +26,7 @@ struct CooEdgeTuple {
 	Value val;
 
 	CooEdgeTuple(VertexId row, VertexId col, Value val) : row(row), col(col), val(val) {}
+	CooEdgeTuple() : row(0), col(0), val(0) {}
 
 	void Val(Value &value)
 	{
@@ -58,11 +59,11 @@ bool DimacsTupleCompare (
 	if (elem1.row < elem2.row) {
 		// Sort edges by source node (to make rows)
 		return true;
-/*
+
 	} else if ((elem1.row == elem2.row) && (elem1.col < elem2.col)) {
 		// Sort edgelists as well for coherence
 		return true;
-*/
+
 	} 
 	
 	return false;

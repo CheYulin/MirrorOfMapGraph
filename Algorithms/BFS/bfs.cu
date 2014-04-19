@@ -1,5 +1,5 @@
-/*
- Copyright (C) SYSTAP, LLC 2006-2014.  All rights reserved.
+/**
+ Copyright 2013-2014 SYSTAP, LLC.  http://www.systap.com
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -12,6 +12,12 @@
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
+
+ This work was (partially) funded by the DARPA XDATA program under
+ AFRL Contract #FA8750-13-C-0002.
+
+ This material is based upon work supported by the Defense Advanced
+ Research Projects Agency (DARPA) under Contract No. D14PC00029.
  */
 
 typedef unsigned int uint;
@@ -41,6 +47,7 @@ typedef unsigned int uint;
 
 #include <GASengine/csr_problem.cuh>
 #include <GASengine/enactor_vertex_centric.cuh>
+#include <MPI/partitioner.h>
 
 using namespace b40c;
 using namespace graph;
@@ -169,7 +176,7 @@ void correctTest(int nodes, int* reference_labels, int* h_labels)
   {
     if (reference_labels[i] != h_labels[i])
     {
-//      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n", i, reference_labels[i], h_labels[i]);
+      //      printf("Incorrect value for node %d: CPU value %d, GPU value %d\n", i, reference_labels[i], h_labels[i]);
       pass = false;
     }
   }
@@ -208,7 +215,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
   int i;
   int rank, namelen;
   char processor_name[MPI_MAX_PROCESSOR_NAME];
-//  freopen("/dev/null", "w", stderr); /* Hide errors from nodes with no CUDA cards */
+  //  freopen("/dev/null", "w", stderr); /* Hide errors from nodes with no CUDA cards */
   MPI_Status stat;
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
@@ -243,7 +250,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
         sprintf(idstr, "+ %-11s %5d %4d", processor_name, rank,
             devCount);
         idstr2[0] = '\0';
-//        for (int i = 0; i < devCount; ++i)
+        //        for (int i = 0; i < devCount; ++i)
         {
 
           cudaDeviceProp devProp;
@@ -262,7 +269,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
     }
     strncat(buff, idstr, BUFSIZE);
 
-//    printf("\n\n\n");
+    //    printf("\n\n\n");
     printf("  Probing nodes...\n");
     printf("     Node        Psid  CUDA Cards (devID)\n");
     printf("     ----------- ----- ---- ----------\n");
@@ -275,7 +282,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
       printf("%s\n", buff);
     }
     printf("\n");
-//    MPI_Finalize();
+    //    MPI_Finalize();
   }
   else
   {
@@ -298,7 +305,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
             devCount);
         idstr2[0] = '\0';
 
-//        for (int i = 0; i < devCount; ++i)
+        //        for (int i = 0; i < devCount; ++i)
         {
           cudaDeviceProp devProp;
           cudaGetDeviceProperties(&devProp, device_id);
@@ -317,7 +324,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
     strncat(buff, idstr, BUFSIZE);
     MPI_Send(buff, BUFSIZE, MPI_CHAR, 0, TAG, MPI_COMM_WORLD);
   }
-//  MPI_Finalize();
+  //  MPI_Finalize();
 }
 
 int main(int argc, char **argv)
@@ -330,8 +337,8 @@ int main(int argc, char **argv)
   bool graph_random = false;
 
   const char* outFileName = 0;
-//  int src[1];
-//  bool g_undirected;
+  //  int src[1];
+  //  bool g_undirected;
   const bool g_stream_from_host = false;
   const bool g_with_value = true;
   const bool g_mark_predecessor = false;
@@ -343,8 +350,8 @@ int main(int argc, char **argv)
   CsrGraph<VertexId, Value, SizeT> csr_graph(g_stream_from_host);
   char source_file_name[100] = "";
 
-//  int device = 0;
-//  double max_queue_sizing = 1.3;
+  //  int device = 0;
+  //  double max_queue_sizing = 1.3;
   Config cfg;
   int numVertices = 10, numEdges = 100;
   for (int i = 1; i < argc; i++)
@@ -400,28 +407,81 @@ int main(int argc, char **argv)
   {
     //Generate random graph
     graph_random = true;
-//      printUsageAndExit(argv[0]);
-//      exit(1);
+    //      printUsageAndExit(argv[0]);
+    //      exit(1);
   }
 
   int directed = cfg.getParameter<int>("directed");
 
   if (graph_random == false)
   {
-    if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph, false) != 0)
-      exit(1);
+    typedef CooEdgeTuple<typename bfs::VertexId, typename bfs::DataType> EdgeTupleType;
+    long long num_part_1d = sqrt(np);
+
+    if (rank_id == 0)
+    {
+      if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph, false) != 0)
+        exit(1);
+
+      long long num_vert_per_part_1d = (csr_graph.nodes + num_part_1d - 1) / num_part_1d;
+      Partitioner<bfs> partition_2d(&csr_graph, np);
+      vector<EdgeTupleType*> coos;
+      vector<long long> part_count;
+
+      printf("Start partitioning ...\n");
+      partition_2d.partition(coos, part_count);
+      printf("Parition sizes: ");
+      for (int i = 0; i < np; i++)
+      {
+        printf("%d ", part_count[i]);
+      }
+      printf("\n");
+
+      MPI_Request request[2];
+      for (int i = 1; i < np; i++)
+      {
+        long long buffer[2] = { part_count[i], num_vert_per_part_1d };
+        MPI_Isend(buffer, sizeof(long long) * 2, MPI_CHAR, i, 0, MPI_COMM_WORLD, &request[0]);
+        MPI_Isend(coos[i], sizeof(EdgeTupleType) * part_count[i], MPI_CHAR, i, 0, MPI_COMM_WORLD, &request[1]);
+      }
+
+//      printf("nodes=%d, num_part_1d=%d, num_vert_per_part_1d=%d\n", csr_graph.nodes, num_part_1d, num_vert_per_part_1d);
+      csr_graph.FromCoo<true>(coos[rank_id], num_vert_per_part_1d, part_count[rank_id], !directed);
+//      csr_graph.DisplayGraph();
+    }
+    else
+    {
+      MPI_Request request[2];
+      MPI_Status status[2];
+
+      long long buffer[2];
+      MPI_Irecv(buffer, sizeof(long long) * 2, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &request[0]);
+      MPI_Wait(&request[0], &status[0]);
+      long long part_size = buffer[0];
+      long long num_vert_per_part_1d = buffer[1];
+
+      EdgeTupleType* coos = new EdgeTupleType[part_size];
+      MPI_Irecv(coos, part_size * sizeof(EdgeTupleType), MPI_CHAR, 0, 0, MPI_COMM_WORLD, &request[1]);
+      MPI_Wait(&request[1], &status[1]);
+
+//      printf("rank_id=%d, part_size=%d, num_vert_per_part_1d=%d\n", rank_id, part_size, num_vert_per_part_1d);
+      csr_graph.FromCoo<true>(coos, num_vert_per_part_1d, part_size, !directed);
+//      if(rank_id == 3)
+//        csr_graph.DisplayGraph();
+    }
   }
   else
   {
+
     //build graph randomly
-//	  int numVertices = cfg.getParameter<int>("num_vertices");
-//	  int numEdges = cfg.getParameter<int>("num_edges");
+    //	  int numVertices = cfg.getParameter<int>("num_vertices");
+    //	  int numEdges = cfg.getParameter<int>("num_edges");
     if (builder::BuildRandomGraph<g_with_value>(numVertices, numEdges, csr_graph, false) != 0)
       exit(1);
   }
 
-  if(rank_id == 0)
-    csr_graph.DisplayGraph();
+//  if(rank_id == 0)
+//    csr_graph.DisplayGraph();
   int num_srcs = 0;
   int* srcs = NULL;
   int origin = cfg.getParameter<int>("origin");
@@ -505,7 +565,7 @@ int main(int argc, char **argv)
     //    return 0;
   }
 
-// Allocate problem on GPU
+  // Allocate problem on GPU
   int num_gpus = 1;
   typedef GASengine::CsrProblem<bfs, VertexId, SizeT, Value,
       g_mark_predecessor, g_with_value> CsrProblem;
@@ -552,7 +612,7 @@ int main(int argc, char **argv)
   if (outFileName)
   {
     string fn_str(outFileName);
-    ostringstream convert;   // stream used for the conversion
+    ostringstream convert; // stream used for the conversion
     convert << rank_id;
     string buff = convert.str();
     fn_str += buff;
