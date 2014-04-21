@@ -220,7 +220,7 @@ namespace b40c
           for (SizeT edge = row_offsets[node]; edge < row_offsets[node + 1]; edge++)
           {
 //            PrintValue(column_indices[edge]);
-            printf("%d", node);
+            printf("%d", column_indices[edge]);
             printf(", ");
           }
           printf("\n");
