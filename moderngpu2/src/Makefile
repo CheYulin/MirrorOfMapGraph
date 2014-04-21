@@ -18,4 +18,4 @@ mmio.o: mmio.cpp
 	nvcc -c $(NVCC_OPTS) $< -I $(INCLUDE_DIR)
 
 clean:
-	rm *.o libmgpu.a
+	-rm *.o libmgpu.a ../libmgpu.a

@@ -1,17 +1,17 @@
 Quick Start Guide
 -----------------
 
-MPGraph is Massively Parallel Graph processing on GPUs.
+MapGraph is Massively Parallel Graph processing on GPUs.
 
-- The MPGraph API makes it easy to develop high performance graph
+- The MapGraph API makes it easy to develop high performance graph
   analytics on GPUs. The API is based on the Gather-Apply-Scatter
   (GAS) model as used in GraphLab. To deliver high performance
   computation and efficiently utilize the high memory bandwidth of
-  GPUs, MPGraph's CUDA kernels use multiple sophisticated strategies,
+  GPUs, MapGraph's CUDA kernels use multiple sophisticated strategies,
   such as vertex-degree-dependent dynamic parallelism granularity and
   frontier compaction.
 
-- MPGraph is up to two order of magnitude faster than parallel CPU
+- MapGraph is up to two order of magnitude faster than parallel CPU
   implementations on up 24 CPU cores and has performance comparable to
   a state-of-the-art manually optimized GPU implementation.
 
@@ -21,9 +21,12 @@ MPGraph is Massively Parallel Graph processing on GPUs.
 
 - Partitioned graphs and Multi-GPU support will be in a future
   release.
+  
+- There is also a CPU-only version of the MapGraph engine packaged and 
+  distributed inside the bigdata open-source graph database.
 
 
-Building and running MPGraph
+Building and running MapGraph
 ----------------------------
 
 "make" at the top-level will build all algorithms in the ./Algorithms
@@ -82,16 +85,16 @@ For SSSP, the output is a column whose value is the shortest path distance
 from the starting vertex.
 
 
-MPGraph Directory Structure
+MapGraph Directory Structure
 ---------------------------
 
 - ./Algorithms - This is the parent directory for the BFS, SSSP, CC,
-   PR and other graph analytics that are bundled with the MPGraph
+   PR and other graph analytics that are bundled with the MapGraph
    distribution.
 
-- ./doc - The MPGraph documentation.  This includes detailed
-  information on the MPGraph API and how to write your own high
-  performance graph algorithms using MPGraph.  Use "make doc" at the
+- ./doc - The MapGraph documentation.  This includes detailed
+  information on the MapGraph API and how to write your own high
+  performance graph algorithms using MapGraph.  Use "make doc" at the
   top-level directory to build the documentation. See
   doc/api/index.html to get started.
 
@@ -101,10 +104,10 @@ MPGraph Directory Structure
    relevant to graph processing have been included.  The original bc40
    library provided a high performance implementation of BFS, but did
    not support any other algorithms.  The bc40 kernels bundled by
-   MPGraph have been extensively adapted to support the MPGraph API.
+   MapGraph have been extensively adapted to support the MapGraph API.
 
 The following directories support performance and correctness
-regression tests for mpgraph.  See regressions/README for this.
+regression tests for mapgraph.  See regressions/README for this.
 Correctness testing depends on powergraph (which can be very complex
 to install). We are still in the process of cleaning up and extending
 CI and performance regression testing.
@@ -119,8 +122,11 @@ CI and performance regression testing.
 
 - ./PowerGraphReferenceImplementations - implementations of various
   algorithms for the powergraph API that are also implemented by
-  MPGraph.  This is for performance comparison against PowerGraph.
+  MapGraph.  This is for performance comparison against PowerGraph.
 
 ----------------------------------
 This work was (partially) funded by the DARPA XDATA program under
 AFRL Contract #FA8750-13-C-0002.
+
+This material is based upon work supported by the Defense Advanced
+Research Projects Agency (DARPA) under Contract No. D14PC00029.

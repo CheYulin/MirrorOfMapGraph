@@ -14,16 +14,17 @@
  limitations under the License.
  */
 
-/*! \mainpage MPGraph
+/*! \mainpage MapGraph
 
 \section intro_sec Introduction
 
-MPGraph is Massively Parallel Graph processing on GPUs.
+MapGraph is Massively Parallel Graph processing on GPUs. (Previously known as
+"MPGraph").
 
-- The MPGraph API makes it easy to develop high performance graph
+- The MapGraph API makes it easy to develop high performance graph
 analytics on GPUs. The API is based on the Gather-Apply-Scatter (GAS)
 model as used in GraphLab. To deliver high performance computation and
-efficiently utilize the high memory bandwidth of GPUs, MPGraph's CUDA
+efficiently utilize the high memory bandwidth of GPUs, MapGraph's CUDA
 kernels use multiple sophisticated strategies, such as
 vertex-degree-dependent dynamic parallelism granularity and frontier
 compaction.
@@ -34,36 +35,43 @@ billion traversed edges per second on a single GPU.
 
 - Partitioned graphs and Multi-GPU support will be in a future release.
 
-MPGraph is under the <a
+- The MapGraph API also comes in a CPU-only version that is currently packaged 
+and distributed with the <a href="http://sourceforge.net/projects/bigdata/">
+bigdata open-source graph database</a>. GAS programs operate over the graph
+data loaded into the database and are accessed via either a Java API or a
+<a href="http://www.w3.org/TR/sparql11-federated-query/">SPARQL 1.1 Service Call
+</a>. Packaging the GPU version inside bigdata will be in a future release.
+
+MapGraph is under the <a
 href="http://www.apache.org/licenses/LICENSE-2.0.html" > Apache 2
-license</a>.  You can download MPGraph from <a
+license</a>.  You can download MapGraph from <a
 href="http://sourceforge.net/projects/mpgraph/" >
 http://sourceforge.net/projects/mpgraph/ </a>. For the lastest version
 of this documentation, see <a
-href="http://www.systap.com/mpgraph/api/html/index.html">
-http://www.systap.com/mpgraph/api/html/index.html </a>.  You can
+href="http://www.systap.com/mapgraph/api/html/index.html">
+http://www.systap.com/mapgraph/api/html/index.html </a>.  You can
 subscribe to receive notice for future updates on the <a
 href="http://sourceforge.net/projects/mpgraph/" >project home
 page</a>.  For open source support, please ask a question on the <a
-href="https://sourceforge.net/p/mpgraph/mailman/" >MPGraph mailing
+href="https://sourceforge.net/p/mpgraph/mailman/" >MapGraph mailing
 lists</a> or file a <a
 href="https://sourceforge.net/p/mpgraph/tickets/" >ticket</a>.  To
 inquire about commercial support, please email us at
-licenses@bigdata.com.  You can follow MPGraph and the bigdata graph
+licenses@bigdata.com.  You can follow MapGraph and the bigdata graph
 database platform at <a href="http://www.bigdata.com/blog"
 >http://www.bigdata.com/blog</a>.
 
 This work was (partially) funded by the DARPA XDATA program under AFRL
 <tt>Contract #FA8750-13-C-0002</tt>.
 
-\subsection performance MPGraph vs Many-Core CPUs
+\subsection performance MapGraph vs Many-Core CPUs
 
-MPGraph is up to two orders of magnitude faster than parallel CPU
+MapGraph is up to two orders of magnitude faster than parallel CPU
 implementations on up 24 CPU cores and has performance comparable to a
 state-of-the-art manually optimized GPU implementation.  For example,
-the diagram below shows the speedups of MPGraph versus GraphLab for SSSP.
+the diagram below shows the speedups of MapGraph versus GraphLab for SSSP.
 
-\image html MPGraphv2-vs-GraphLab-SSSP.jpg "MPGraph v2 Speedups (versus GraphLab, SSSP, N-core)"
+\image html MapGraphv2-vs-GraphLab-SSSP.jpg "MapGraph v2 Speedups (versus GraphLab, SSSP, N-core)"
 
 For our GPU evaluations we used a NVIDIA c2075 (Fermi architecture), but
 performance is similar on other NVIDIA cards.
@@ -75,9 +83,9 @@ gcc (GCC) 4.4.6 20110731 (Red Hat 4.4.6-3). The results were obtained
 using the synchronous engine for GraphLab due to core faults with some
 data sets when using the asynchronous engine.
 
-\section api The MPGraph API
+\section api The MapGraph API
 
-MPGraph is implemented as a set of templates following a design
+MapGraph is implemented as a set of templates following a design
 pattern that is similar to the Gather-Apply-Scatter (GAS) API. GAS is
 a vertex-centric API, similar to the API first popularized by Pregel.
 The GAS API breaks down operations into the following phases:
@@ -93,9 +101,9 @@ barriers (each kernel provides a memory barrier); (d) optimize memory
 layout; and (e) allow "push" style scatter operators are similar to
 "signal" with a message value to create a side-effect in GraphLab.
 
-\subsection kernels MPGraph Kernels
+\subsection kernels MapGraph Kernels
 
-MPGraph defines the following kernels and supports their invocation
+MapGraph defines the following kernels and supports their invocation
 from templated CUDA programs.  Each kernel may have one or more device
 functions that it invokes.  User code (a) provides implementations of
 those device functions to customize the behavior of the algorithm; and
@@ -124,24 +132,24 @@ Scatter Phase Kernels::
 - contract: The contract kernel eliminates duplicates in the frontier
   (this is the problem of simultaneous discovery).
 
-\subsection data_structures MPGraph Data Structures
+\subsection data_structures MapGraph Data Structures
 
-In order to write code to the MPGraph API, it helps to have a
+In order to write code to the MapGraph API, it helps to have a
 high-level understanding of the data structures used to maintain the
 frontier, the topology, and the user data associated with the vertices
 and edges of the graph.
 
 \subsubsection frontier Frontier Queues
 
-MPGraph uses frontier queues to maintain a dense list of the active
-vertices.  These queues are managed by the MPGraph kernels, but user
+MapGraph uses frontier queues to maintain a dense list of the active
+vertices.  These queues are managed by the MapGraph kernels, but user
 data may be allocated and accessed that is 1:1 with the frontier (see
 below).  The frontier array dimensions are determined by the number of
 vertices in the graph times the frontier queue size multiplier. The
 frontier is in global memory, but is buffered in shared memory by some
 kernels.
 
-\image html MPGraph-Frontier.jpg "MPGraph Frontier Queues"
+\image html MapGraph-Frontier.jpg "MapGraph Frontier Queues"
 
 The frontier is populated by the expand() kernel.  The contract()
 kernel may be used to eliminate some or all of the duplicates
@@ -167,7 +175,7 @@ that process the topology using a variety of different strategies.
 Users do not need to access or understand the internals of the
 topology data structures to write graph algorithms.
 
-\image html MPGraph-Topology.jpg "MPGraph Topology"
+\image html MapGraph-Topology.jpg "MapGraph Topology"
 
 The forward topology index is currently a Compressed Sparse Row (CSR)
 matrix that provides row based indexing into the graph.  This data
@@ -189,7 +197,7 @@ access.  (User data can also be 1:1 with the frontier - see above.)
 There are two basic user data structures: The vertex list and the edge
 list.
 
-\image html MPGraph-UserData.jpg "MPGraph User Data"
+\image html MapGraph-UserData.jpg "MapGraph User Data"
 
 The VertexList is a structure of named arrays that provides data for
 each vertex in the graph.  The index into each array is the vertexId.
@@ -207,15 +215,15 @@ Structures of Arrays pattern for optimal memory access patterns on the
 GPU.  To add your own data, you add a field to the vertex data struct
 or the edge data struct. That field will be an array that is 1:1 with
 the vertex identifiers.  You will need to initialize your array.
-MPGraph will provide you with access to your data from within the
+MapGraph will provide you with access to your data from within the
 appropriate device functions.
 
-\subsection write_your_own Writing your own MPGraph algorithm
+\subsection write_your_own Writing your own MapGraph algorithm
 
-MPGraph is based on templates.  This means that there is no interface
+MapGraph is based on templates.  This means that there is no interface
 or super class from which you can derive your code.  Instead, you need
 to start with one of the existing implementations that uses the
-MPGraph template "pattern". You then need to review and modify the
+MapGraph template "pattern". You then need to review and modify the
 function that initializes the user data structures (the vertex list
 and the edge list) and the device functions that implement the user
 code for the Gather, Apply, and Scatter primitives.  You can also
