@@ -51,6 +51,7 @@ struct Statistics
   double total_allreduce_time;
   double total_update_time; // update visited bitmap and label time
   double total_time;
+	double total_iter;
 
   Statistics(int rank_id) :
     total_GPU_time(0.0), total_propagate_time(0.0), wave_setup_time(0.0), total_broadcast_time(0.0), total_wave_time(
@@ -88,7 +89,8 @@ struct Statistics
         cout << "iter " << i << ": " << "frontier_size: " << iter_stats[i].frontier_size << ", GPU_time: " << iter_stats[i].GPU_time << ", wave_time: " << iter_stats[i].wave_time << ", allreduce_time: "
             << iter_stats[i].allreduce_time << ", update_time: " << iter_stats[i].update_time << endl;
        }
-      cout << "total_GPU_time: " << l_GPU_time;
+			cout << "total_iter: " << total_iter;
+      cout << ", total_GPU_time: " << l_GPU_time;
       cout << ", total_propagate_time: " << l_propagate_time;
       cout << ", wave_setup_time: " << l_wave_setup_time;
       cout << ", total_broadcast_time: " << l_broadcast_time;

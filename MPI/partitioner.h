@@ -106,15 +106,15 @@ public:
       }
     }
 
-    for(int i=0; i<coos.size(); i++)
-    {
-      printf("Partition %d: ", i);
-      for(int j=0; j<part_count[i]; j++)
-      {
-        printf("(%d, %d), ", coos[i][j].row, coos[i][j].col);
-      }
-      printf("\n");
-    }
+//    for(int i=0; i<coos.size(); i++)
+//    {
+//      printf("Partition %d: ", i);
+//      for(int j=0; j<part_count[i]; j++)
+//      {
+//        printf("(%d, %d), ", coos[i][j].row, coos[i][j].col);
+//      }
+//      printf("\n");
+//    }
   }
 };
 

@@ -3508,7 +3508,7 @@ namespace GASengine
       stats->wave_setup_time = w.init_time;
       stats->total_propagate_time = w.propagate_time;
       stats->total_broadcast_time = w.broadcast_time;
-
+      stats->total_iter = iteration[0] - 1;
       //	MPI_Barrier(MPI_COMM_WORLD);
 
       total_end = MPI_Wtime();

@@ -19,6 +19,30 @@
  * Thanks!
  ******************************************************************************/
 
+/*THIS FILE HAS BEEN MODIFIED FROM THE ORIGINAL*/
+
+/**
+Copyright 2013-2014 SYSTAP, LLC.  http://www.systap.com
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+This work was (partially) funded by the DARPA XDATA program under
+AFRL Contract #FA8750-13-C-0002.
+
+This material is based upon work supported by the Defense Advanced
+Research Projects Agency (DARPA) under Contract No. D14PC00029.
+*/
+
 /******************************************************************************
  * Random Graph Construction Routines
  ******************************************************************************/
@@ -37,6 +61,7 @@ namespace builder {
 
 double Drand48()
 {
+	srand(time(NULL));
 	return double(rand()) / RAND_MAX;
 }
 
@@ -157,8 +182,8 @@ int BuildRmatGraph(
 		double c = c0;
 		double d = 1.0 - (a0 + b0 + c0);
 
-		VertexId u 		= 1;
-		VertexId v 		= 1;
+		VertexId u 		= 0;
+		VertexId v 		= 0;
 		VertexId step 	= nodes / 2;
 
 		while (step >= 1) {
@@ -192,7 +217,7 @@ int BuildRmatGraph(
 	fflush(stdout);
 	
 	// Convert sorted COO to CSR
-	csr_graph.template FromCoo<LOAD_VALUES>(coo, nodes, directed_edges);
+	csr_graph.template FromCoo<LOAD_VALUES>(coo, nodes, directed_edges, undirected);
 	free(coo);
 	
 	return 0;
