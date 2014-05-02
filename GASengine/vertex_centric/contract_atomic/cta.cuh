@@ -112,7 +112,7 @@ namespace GASengine
         GatherType *m_gatherTmp;
         VertexType &vertex_list;
         EdgeType &edge_list;
-        char* d_bitmap_visited;
+        unsigned char* d_bitmap_visited;
         VisitedMask *d_visited_mask; // Mask for detecting visited status
 
         // Work progress
@@ -486,7 +486,7 @@ namespace GASengine
                                        GatherType *m_gatherTmp,
                                        VertexType &vertex_list,
                                        EdgeType &edge_list,
-                                       char* d_bitmap_visited,
+                                       unsigned char* d_bitmap_visited,
                                        VisitedMask *d_visited_mask,
                                        util::CtaWorkProgress &work_progress,
                                        SizeT max_vertex_frontier) :

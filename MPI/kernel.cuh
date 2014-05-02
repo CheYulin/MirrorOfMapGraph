@@ -41,7 +41,7 @@ namespace MPI
     }
 
     template<typename Program>
-    __global__ void flag2bitmap(int nodes, int byte_size, char* flags, char* bitmap)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
+    __global__ void flag2bitmap(int nodes, int byte_size, char* flags, unsigned char* bitmap)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
     {
       int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -74,7 +74,7 @@ namespace MPI
     }
 
     template<typename Program>
-    __global__ void bitmap2flag(int byte_size, char* bitmap, char* flags)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
+    __global__ void bitmap2flag(int byte_size, unsigned char* bitmap, char* flags)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
     {
       int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -97,7 +97,7 @@ namespace MPI
     }
 
     //c = a - b
-    __global__ void bitsubstract(int byte_size, char* a, const char* b, char* c)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
+    __global__ void bitsubstract(int byte_size, unsigned char* a, const unsigned char* b, unsigned char* c)          // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
     {
       int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -110,7 +110,7 @@ namespace MPI
     }
 
     //c = union(a, b)
-    __global__ void bitunion(int byte_size, char* a, const char* b, char* c)
+    __global__ void bitunion(int byte_size, unsigned char* a, const unsigned char* b, unsigned char* c)
     {
       int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -123,7 +123,7 @@ namespace MPI
     }
     
     template<typename Program>
-    __global__ void update_BFS_labels(int iter, typename Program::SizeT nodes, char* bitmap, typename Program::VertexType vertex_list)
+    __global__ void update_BFS_labels(int iter, typename Program::SizeT nodes, unsigned char* bitmap, typename Program::VertexType vertex_list)
     {
       int tid = blockIdx.x * blockDim.x + threadIdx.x;
       for(int i = tid; i < nodes; i += blockDim.x * gridDim.x)

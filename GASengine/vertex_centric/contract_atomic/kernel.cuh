@@ -80,7 +80,7 @@ namespace GASengine
                                                       typename Program::GatherType *&m_gatherTmp,
                                                       typename Program::VertexType &vertex_list,
                                                       typename Program::EdgeType &edge_list,
-                                                      char *&d_bitmap_visited,
+                                                      unsigned char *&d_bitmap_visited,
                                                       typename KernelPolicy::VisitedMask *&d_visited_mask,
                                                       util::CtaWorkProgress &work_progress, util::CtaWorkDistribution<typename KernelPolicy::SizeT> &work_decomposition, typename KernelPolicy::SizeT &max_vertex_frontier,
                                                       typename KernelPolicy::SmemStorage & smem_storage)
@@ -238,7 +238,7 @@ namespace GASengine
                                                       VertexType &vertex_list,
                                                       EdgeType &edge_list,
                                                       char *&d_changed,
-                                                      char *&d_bitmap_visited,
+                                                      unsigned char *&d_bitmap_visited,
                                                       VisitedMask *&d_visited_mask,
                                                       util::CtaWorkProgress &work_progress,
                                                       SizeT &max_edge_frontier,
@@ -391,7 +391,7 @@ namespace GASengine
                   typename Program::VertexType vertex_list, //
                   typename Program::EdgeType edge_list, //
                   char *d_changed, //changed flag
-                  char *d_bitmap_visited,
+                  unsigned char *d_bitmap_visited,
                   typename KernelPolicy::VisitedMask *d_visited_mask, // Mask for detecting visited status
                   util::CtaWorkProgress work_progress, // Atomic workstealing and queueing counters
                   typename KernelPolicy::SizeT max_edge_frontier, // Maximum number of elements we can place into the outgoing edge frontier

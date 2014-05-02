@@ -89,10 +89,10 @@ struct bfs
 
     delete[] h_init_labels;
 
-    printf("Starting vertex: ");
-    for (int i = 0; i < num_srcs; i++)
-      printf("%d ", srcs[i]);
-    printf("\n");
+//    printf("Starting vertex: ");
+//    for (int i = 0; i < num_srcs; i++)
+//      printf("%d ", srcs[i]);
+//    printf("\n");
 
     if (b40c::util::B40CPerror(
         cudaMemcpy(d_frontier_keys[0], srcs, num_srcs * sizeof(int),
@@ -108,20 +108,20 @@ struct bfs
         __LINE__))
       exit(0);
 
-    int init_value[1] = { 0 };
-    if (b40c::util::B40CPerror(
-        cudaMemcpy(d_frontier_values[0], init_value,
-            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
-        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
-        __LINE__))
-      exit(0);
-
-    if (b40c::util::B40CPerror(
-        cudaMemcpy(d_frontier_values[1], init_value,
-            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
-        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
-        __LINE__))
-      exit(0);
+//    int init_value[1] = { 0 };
+//    if (b40c::util::B40CPerror(
+//        cudaMemcpy(d_frontier_values[0], init_value,
+//            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
+//        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
+//        __LINE__))
+//      exit(0);
+//
+//    if (b40c::util::B40CPerror(
+//        cudaMemcpy(d_frontier_values[1], init_value,
+//            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
+//        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
+//        __LINE__))
+//      exit(0);
 
   }
 
@@ -230,7 +230,7 @@ struct bfs
   struct contract
   {
     __device__
-    void operator()(const int iteration, char *d_bitmap_visited, int &vertex_id,
+    void operator()(const int iteration, unsigned char *d_bitmap_visited, int &vertex_id,
         VertexType &vertex_list, EdgeType &edge_list, GatherType* gather_tmp, int& misc_value)
     {
       int row_id = vertex_id;

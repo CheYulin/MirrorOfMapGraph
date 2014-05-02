@@ -175,12 +175,12 @@ namespace GASengine
       int* d_edgeCountScan;
       int* d_active_flags;
       char* d_changed;
-      char* d_bitmap_edgefrontier;
-      char* d_bitmap_out;
-      char* d_bitmap_prefix;
-      char* d_bitmap_assigned;
-      char* d_bitmap_in;
-      char* d_bitmap_visited;
+      unsigned char* d_bitmap_edgefrontier;
+      unsigned char* d_bitmap_out;
+      unsigned char* d_bitmap_prefix;
+      unsigned char* d_bitmap_assigned;
+      unsigned char* d_bitmap_in;
+      unsigned char* d_bitmap_visited;
 
       GatherType *m_gatherMapTmp;
       GatherType *m_gatherTmp;
@@ -590,6 +590,8 @@ namespace GASengine
               "CsrProblem cudaMalloc d_visit_flags failed",
               __FILE__, __LINE__))
             break;
+
+          //int bitmap_size = graph_slices[0]->nodes + 31 - graph_slices[0]->nodes % 31; // for compression extension, must be multiple of 31
 
           if (retval = util::B40CPerror(
               cudaMalloc((void**) &graph_slices[0]->d_bitmap_edgefrontier,
