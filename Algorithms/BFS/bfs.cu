@@ -49,7 +49,7 @@ typedef unsigned int uint;
 #include <GASengine/csr_problem.cuh>
 #include <GASengine/enactor_vertex_centric.cuh>
 #include <MPI/partitioner.h>
-
+#include <MPI/generator/make_graph.h>
 using namespace b40c;
 using namespace graph;
 using namespace std;
@@ -229,7 +229,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
     printf("  Spawning from %s \n", processor_name);
     printf("  CUDA MPI\n");
     printf("\n");
-    for (i = 1; i < numprocs; i++)
+ /*   for (i = 1; i < numprocs; i++)
     {
       buff[0] = 'I';
       MPI_Send(buff, BUFSIZE, MPI_CHAR, i, TAG, MPI_COMM_WORLD);
@@ -284,8 +284,9 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
     }
     printf("\n");
     //    MPI_Finalize();
+   */
   }
-  else
+ /* else
   {
     MPI_Recv(buff, BUFSIZE, MPI_CHAR, 0, TAG, MPI_COMM_WORLD, &stat);
     MPI_Get_processor_name(processor_name, &namelen);
@@ -324,7 +325,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
     }
     strncat(buff, idstr, BUFSIZE);
     MPI_Send(buff, BUFSIZE, MPI_CHAR, 0, TAG, MPI_COMM_WORLD);
-  }
+  }*/
   //  MPI_Finalize();
 }
 
@@ -348,6 +349,7 @@ int main(int argc, char **argv)
   typedef int Value; // Use as the value type
   typedef int SizeT; // Use as the graph size type
   char* graph_file = NULL;
+  int graph_type = 0;
   CsrGraph<VertexId, Value, SizeT> csr_graph(g_stream_from_host);
   char source_file_name[100] = "";
 
@@ -402,6 +404,11 @@ int main(int argc, char **argv)
       i++;
       numEdges = atoi(argv[i]);
     }
+    else if (strncmp(argv[i], "-gtype", 100) == 0)
+    {
+      i++;
+      graph_type = atoi(argv[i]);
+    }
   }
 
   if (graph_file == NULL)
@@ -414,7 +421,7 @@ int main(int argc, char **argv)
 
   int directed = cfg.getParameter<int>("directed");
 
-  if (graph_random == false)
+  if (graph_random == false && graph_type == 1)
   {
     typedef CooEdgeTuple<typename bfs::VertexId, typename bfs::DataType> EdgeTupleType;
     long long num_part_1d = sqrt(np);
@@ -471,9 +478,48 @@ int main(int argc, char **argv)
       //        csr_graph.DisplayGraph();
     }
   }
+
+else if (graph_random == false )
+	{
+	typedef CooEdgeTuple<VertexId, Value> EdgeTupleType;
+	printf("Reading Edge List from Flat Files");\
+	MPI_File sizefile,cFile;
+
+	int i;
+	int length[np];
+	int rc = MPI_File_open( MPI_COMM_WORLD,"Graphsizes", MPI_MODE_RDONLY, MPI_INFO_NULL, &sizefile );
+	    			if (rc) {
+				printf( "Unable to open file \"Graphsizes\"\n" );fflush(stdout);
+    				}
+
+	MPI_File_read(sizefile,&length, np, MPI_INT, MPI_STATUS_IGNORE);
+	int numedges = length[rank_id];	
+	printf("\nThe number of edges is:%d\n",numedges);
+	MPI_File_close(&sizefile);
+
+	char filename[10];
+	sprintf(filename,"graph%d",rank_id);	
+
+	rc = MPI_File_open( MPI_COMM_WORLD,filename, MPI_MODE_RDONLY, MPI_INFO_NULL, &cFile );
+	    			if (rc) {
+				printf( "Unable to open file \"graph%d\"\n",rank_id );fflush(stdout);
+				}
+	int edges[2*numedges];
+	MPI_File_read(cFile, &edges, 2*numedges, MPI_INT, MPI_STATUS_IGNORE);
+
+	EdgeTupleType *coo = (EdgeTupleType*) malloc(sizeof(EdgeTupleType) * numedges);
+	for (SizeT i = 0; i < numedges; i++) {
+	coo[i].row = edges[2*i];
+	coo[i].col = edges[2*i+1];
+	coo[i].val = 1;}
+	int p= sqrt(np);
+	int numvert1d = numVertices/p;
+	csr_graph.FromCoo<true>(coo, numvert1d , numedges, !directed);
+	}
+
   else
   {
-
+printf("\nRandom Graph\n");
     //    typedef CooEdgeTuple<typename bfs::VertexId, typename bfs::DataType> EdgeTupleType;
     //    long long num_part_1d = sqrt(np);
     //
@@ -533,9 +579,36 @@ int main(int argc, char **argv)
     //      //      if(rank_id == 3)
     //      //        csr_graph.DisplayGraph();
     //    }
+	MPI_Barrier(MPI_COMM_WORLD);
+	int log_numvertices=0;
+	int temp_numVertices = numVertices;
+	while (temp_numVertices >>= 1) ++log_numvertices;
+	if(rank_id==0)	
+		printf("\nlog:%d numv %d \n",log_numvertices,numVertices);
 
-    if (builder::BuildRandomGraph<g_with_value>(numVertices, numEdges, csr_graph, false) != 0)
-      exit(1);
+	int64_t nedges;
+	packed_edge* result;
+	make_graph(log_numvertices, numVertices, 1, 2, &nedges, &result);
+
+	printf("\nGraph Made\n");
+	MPI_Barrier(MPI_COMM_WORLD);
+	int p = sqrt(np); // assuming that np is squre of an int
+	int vertices1d = numVertices/p;
+      	int pi = vertices1d * (rank_id / p);
+      	int pj = vertices1d * (rank_id % p);
+
+	typedef CooEdgeTuple<VertexId, Value> EdgeTupleType;
+	EdgeTupleType *coo = (EdgeTupleType*) malloc(sizeof(EdgeTupleType) * nedges);
+	for (SizeT i = 0; i < nedges; i++) {
+		coo[i].row = get_v0_from_edge(&result[i]) - pj;
+		coo[i].col = get_v1_from_edge(&result[i]) - pi;
+		coo[i].val = 1;
+		}	
+      csr_graph.FromCoo<true>(coo, vertices1d, nedges, !directed);
+    if(rank_id == 2)
+      csr_graph.DisplayGraph();
+    //if (builder::BuildRandomGraph<g_with_value>(numVertices, numEdges, csr_graph, false) != 0)
+    //  exit(1);
   }
 
   //  if(rank_id == 0)
