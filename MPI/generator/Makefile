@@ -6,12 +6,19 @@ LDFLAGS = -O3
 MPICC = mpicc
 
 GENERATOR_SOURCES = graph_generator.c make_graph.c splittable_mrg.c utils.c
+GENERATOR_OBJS = graph_generator.o make_graph.o splittable_mrg.o utils.o
 GENERATOR_HEADERS = graph_generator.h make_graph.h mod_arith_32bit.h mod_arith_64bit.h mod_arith.h mod_arith_xmt.h splittable_mrg.h utils.h user_settings.h mrg_transitions.c
 
-all: generator_test_mpi
+all: generator_test_mpi libgen.a
 
-generator_test_mpi: generator_test_mpi.c $(GENERATOR_SOURCES) $(GENERATOR_HEADERS)
-	$(MPICC) $(CFLAGS) $(LDFLAGS) -o generator_test_mpi generator_test_mpi.c $(GENERATOR_SOURCES) -lm
+generator_test_mpi_objs: $(GENERATOR_SOURCES) $(GENERATOR_HEADERS)
+	$(MPICC) $(CFLAGS) $(LDFLAGS) -c generator_test_mpi.c $(GENERATOR_SOURCES) -lm
 
+generator_test_mpi: generator_test_mpi_objs
+	$(MPICC) $(CFLAGS) $(LDFLAGS) -o generator_test_mpi generator_test_mpi.c $(GENERATOR_OBJS) -lm
+
+libgen.a:$(GENERATOR_OBJS)
+	ar rcs $@ $^
+	
 clean:
 	-rm -f generator_test_mpi

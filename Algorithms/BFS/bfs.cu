@@ -519,7 +519,7 @@ else if (graph_random == false )
 
   else
   {
-printf("\nRandom Graph\n");
+//printf("\nRandom Graph\n");
     //    typedef CooEdgeTuple<typename bfs::VertexId, typename bfs::DataType> EdgeTupleType;
     //    long long num_part_1d = sqrt(np);
     //
@@ -579,36 +579,8 @@ printf("\nRandom Graph\n");
     //      //      if(rank_id == 3)
     //      //        csr_graph.DisplayGraph();
     //    }
-	MPI_Barrier(MPI_COMM_WORLD);
-	int log_numvertices=0;
-	int temp_numVertices = numVertices;
-	while (temp_numVertices >>= 1) ++log_numvertices;
-	if(rank_id==0)	
-		printf("\nlog:%d numv %d \n",log_numvertices,numVertices);
-
-	int64_t nedges;
-	packed_edge* result;
-	make_graph(log_numvertices, numVertices, 1, 2, &nedges, &result);
-
-	printf("\nGraph Made\n");
-	MPI_Barrier(MPI_COMM_WORLD);
-	int p = sqrt(np); // assuming that np is squre of an int
-	int vertices1d = numVertices/p;
-      	int pi = vertices1d * (rank_id / p);
-      	int pj = vertices1d * (rank_id % p);
-
-	typedef CooEdgeTuple<VertexId, Value> EdgeTupleType;
-	EdgeTupleType *coo = (EdgeTupleType*) malloc(sizeof(EdgeTupleType) * nedges);
-	for (SizeT i = 0; i < nedges; i++) {
-		coo[i].row = get_v0_from_edge(&result[i]) - pj;
-		coo[i].col = get_v1_from_edge(&result[i]) - pi;
-		coo[i].val = 1;
-		}	
-      csr_graph.FromCoo<true>(coo, vertices1d, nedges, !directed);
-    if(rank_id == 2)
-      csr_graph.DisplayGraph();
-    //if (builder::BuildRandomGraph<g_with_value>(numVertices, numEdges, csr_graph, false) != 0)
-    //  exit(1);
+    if (builder::BuildRandomGraph<g_with_value>(numVertices, numEdges, csr_graph, false) != 0)
+      exit(1);
   }
 
   //  if(rank_id == 0)
