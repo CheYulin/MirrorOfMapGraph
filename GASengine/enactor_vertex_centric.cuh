@@ -3324,9 +3324,11 @@ namespace GASengine
       wave w(pi, pj, p, graph_slice->nodes, stats);
       MPI_Barrier(MPI_COMM_WORLD);
       //      printf("\nmyid:%d Wave initiaized time:%lf\n", rank_id, MPI_Wtime());
-      int NUM_WARMUP = 0;
+      int NUM_WARMUP = 100;
       for (int i = 0; i < NUM_WARMUP; i++)
-      {
+      { 
+        w.propogate_compressed(graph_slice->d_bitmap_out,graph_slice->d_bitmap_out,graph_slice->d_bitmap_out);
+        w.broadcast_new_frontier_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
         w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
       }
       double start_time, end_time, total_start, total_end;
@@ -3426,9 +3428,9 @@ namespace GASengine
         //MPI_Barrier(MPI_COMM_WORLD);
         start_time = MPI_Wtime();
 
-        w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-        w.broadcast_new_frontier_compressed(graph_slice->d_bitmap_out,graph_slice->d_bitmap_in);
-//        w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+       w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+       w.broadcast_new_frontier(graph_slice->d_bitmap_out,graph_slice->d_bitmap_in);
+       // w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
 //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         end_time = MPI_Wtime();
         //MPI_Barrier(MPI_COMM_WORLD);

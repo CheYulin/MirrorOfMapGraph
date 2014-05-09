@@ -229,7 +229,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
     printf("  Spawning from %s \n", processor_name);
     printf("  CUDA MPI\n");
     printf("\n");
- /*   for (i = 1; i < numprocs; i++)
+    for (i = 1; i < numprocs; i++)
     {
       buff[0] = 'I';
       MPI_Send(buff, BUFSIZE, MPI_CHAR, i, TAG, MPI_COMM_WORLD);
@@ -284,9 +284,9 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
     }
     printf("\n");
     //    MPI_Finalize();
-   */
+   
   }
- /* else
+  else
   {
     MPI_Recv(buff, BUFSIZE, MPI_CHAR, 0, TAG, MPI_COMM_WORLD, &stat);
     MPI_Get_processor_name(processor_name, &namelen);
@@ -325,7 +325,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
     }
     strncat(buff, idstr, BUFSIZE);
     MPI_Send(buff, BUFSIZE, MPI_CHAR, 0, TAG, MPI_COMM_WORLD);
-  }*/
+  }
   //  MPI_Finalize();
 }
 

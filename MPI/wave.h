@@ -227,7 +227,7 @@ public:
         // char *prefix_h = (char*)malloc(mesg_size);
 
         int word_size = (n + 30) / 31;
-        MPI_Recv(bitmap_compressed, word_size, MPI_BYTE, myid - 1, tag, MPI_COMM_WORLD, &status[0]);
+        MPI_Recv(bitmap_compressed, word_size * sizeof(unsigned int), MPI_BYTE, myid - 1, tag, MPI_COMM_WORLD, &status[0]);
         //        MPI_Wait(&request[0], &status[0]);
         MPI_Get_count(&status[0], MPI_BYTE, (int*) &compressed_size);
 
@@ -259,7 +259,7 @@ public:
       {
         //char *prefix_h = (char*)malloc(mesg_size);
         int word_size = (n + 30) / 31;
-        MPI_Recv(bitmap_compressed, word_size, MPI_BYTE, myid - 1, tag, MPI_COMM_WORLD, &status[0]);
+        MPI_Recv(bitmap_compressed, word_size*sizeof(unsigned int), MPI_BYTE, myid - 1, tag, MPI_COMM_WORLD, &status[0]);
 
         MPI_Get_count(&status[0], MPI_BYTE, (int*) &compressed_size);
         starttime = MPI_Wtime();
