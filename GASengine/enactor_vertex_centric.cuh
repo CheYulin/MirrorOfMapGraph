@@ -92,7 +92,7 @@ namespace GASengine
 {
 
   template<typename CsrProblem, typename Program, bool INSTRUMENT> // Whether or not to collect per-CTA clock-count statistics
-  class EnactorVertexCentric: public EnactorBase
+  class EnactorVertexCentric : public EnactorBase
   {
     //---------------------------------------------------------------------
     // Members
@@ -109,7 +109,7 @@ namespace GASengine
         int rank_id;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank_id);
         printf("rank_id: %d, %s(%d): cuda error %d (%s)\n", rank_id, file,
-            line, err, cudaGetErrorString(err));
+               line, err, cudaGetErrorString(err));
         abort();
       }
     }
@@ -170,7 +170,7 @@ namespace GASengine
      * Prepare enactor for search.  Must be called prior to each search.
      */
     cudaError_t Setup(CsrProblem &csr_problem, int expand_grid_size,
-        int contract_grid_size, int iter)
+                      int contract_grid_size, int iter)
     {
       typedef typename CsrProblem::SizeT SizeT;
       typedef typename CsrProblem::VertexId VertexId;
@@ -188,27 +188,27 @@ namespace GASengine
 
           // Allocate pinned memory for done
           if (retval = util::B40CPerror(
-              cudaHostAlloc((void **) &done, sizeof(int) * 1, flags),
-              "EnactorContractExpand cudaHostAlloc done failed",
-              __FILE__, __LINE__))
+                                        cudaHostAlloc((void **)&done, sizeof (int)* 1, flags),
+                                        "EnactorContractExpand cudaHostAlloc done failed",
+                                        __FILE__, __LINE__))
             break;
 
           // Map done into GPU space
           if (retval =
               util::B40CPerror(
-                  cudaHostGetDevicePointer((void **) &d_done,
-                      (void *) done, 0),
-                  "EnactorContractExpand cudaHostGetDevicePointer done failed",
-                  __FILE__, __LINE__))
+                               cudaHostGetDevicePointer((void **)&d_done,
+                                                        (void *)done, 0),
+                               "EnactorContractExpand cudaHostGetDevicePointer done failed",
+                               __FILE__, __LINE__))
             break;
 
           // Create throttle event
           if (retval =
               util::B40CPerror(
-                  cudaEventCreateWithFlags(&throttle_event,
-                      cudaEventDisableTiming),
-                  "EnactorContractExpand cudaEventCreateWithFlags throttle_event failed",
-                  __FILE__, __LINE__))
+                               cudaEventCreateWithFlags(&throttle_event,
+                                                        cudaEventDisableTiming),
+                               "EnactorContractExpand cudaEventCreateWithFlags throttle_event failed",
+                               __FILE__, __LINE__))
             break;
         }
 
@@ -220,19 +220,19 @@ namespace GASengine
 
           // Allocate pinned memory
           if (retval = util::B40CPerror(
-              cudaHostAlloc((void **) &iteration,
-                  sizeof(long long) * 1, flags),
-              "EnactorContractExpand cudaHostAlloc iteration failed",
-              __FILE__, __LINE__))
+                                        cudaHostAlloc((void **)&iteration,
+                                                      sizeof (long long)* 1, flags),
+                                        "EnactorContractExpand cudaHostAlloc iteration failed",
+                                        __FILE__, __LINE__))
             break;
 
           // Map into GPU space
           if (retval =
               util::B40CPerror(
-                  cudaHostGetDevicePointer((void **) &d_iteration,
-                      (void *) iteration, 0),
-                  "EnactorContractExpand cudaHostGetDevicePointer iteration failed",
-                  __FILE__, __LINE__))
+                               cudaHostGetDevicePointer((void **)&d_iteration,
+                                                        (void *)iteration, 0),
+                               "EnactorContractExpand cudaHostGetDevicePointer iteration failed",
+                               __FILE__, __LINE__))
             break;
         }
 
@@ -249,7 +249,7 @@ namespace GASengine
         if (retval = backward_sum_kernel_stats.Setup(expand_grid_size))
           break;
         if (retval = backward_contract_kernel_stats.Setup(
-            contract_grid_size))
+                                                          contract_grid_size))
           break;
 
         // Reset statistics
@@ -261,20 +261,20 @@ namespace GASengine
 
         // Single-gpu graph slice
         typename CsrProblem::GraphSlice *graph_slice =
-            csr_problem.graph_slices[0];
+                csr_problem.graph_slices[0];
 
         // Bind bitmask texture
         int bytes = (graph_slice->nodes + 8 - 1) / 8;
         cudaChannelFormatDesc bitmask_desc = cudaCreateChannelDesc<char>();
         if (retval =
             util::B40CPerror(
-                cudaBindTexture(0,
-                    vertex_centric::contract_atomic::BitmaskTex<
-                        VisitedMask>::ref,
-                    graph_slice->d_visited_mask, bitmask_desc,
-                    bytes),
-                "EnactorVertexCentric cudaBindTexture bitmask_tex_ref failed",
-                __FILE__, __LINE__))
+                             cudaBindTexture(0,
+                                             vertex_centric::contract_atomic::BitmaskTex<
+                                             VisitedMask>::ref,
+                                             graph_slice->d_visited_mask, bitmask_desc,
+                                             bytes),
+                             "EnactorVertexCentric cudaBindTexture bitmask_tex_ref failed",
+                             __FILE__, __LINE__))
           break;
       }
       while (0);
@@ -308,19 +308,19 @@ namespace GASengine
      * Constructor
      */
     EnactorVertexCentric(Config cfg, bool DEBUG = false) :
-        cfg(cfg), EnactorBase(EDGE_FRONTIERS, DEBUG), iteration(NULL), d_iteration(
-            NULL), total_queued(0), done(NULL), d_done(NULL), preComputed(
-            false)
+    cfg(cfg), EnactorBase(EDGE_FRONTIERS, DEBUG), iteration(NULL), d_iteration(
+                                                                               NULL), total_queued(0), done(NULL), d_done(NULL), preComputed(
+                                                                                                                                             false)
     {
-      cudaMallocHost(&m_hostMappedValue, sizeof(SizeT), cudaHostAllocMapped);
+      cudaMallocHost(&m_hostMappedValue, sizeof (SizeT), cudaHostAllocMapped);
       cudaHostGetDevicePointer(&m_deviceMappedValue, m_hostMappedValue, 0);
-      cudaMalloc((void**) &d_frontier_size, 2 * sizeof(SizeT));
-      cudaMalloc((void**) &d_edge_frontier_size, 2 * sizeof(SizeT));
+      cudaMalloc((void**)&d_frontier_size, 2 * sizeof (SizeT));
+      cudaMalloc((void**)&d_edge_frontier_size, 2 * sizeof (SizeT));
 
       if (util::B40CPerror(
-          cudaMemset(d_edge_frontier_size, 0, 2 * sizeof(SizeT)),
-          "CsrProblem cudaMemset d_edge_frontier_size failed", __FILE__,
-          __LINE__))
+                           cudaMemset(d_edge_frontier_size, 0, 2 * sizeof (SizeT)),
+                           "CsrProblem cudaMemset d_edge_frontier_size failed", __FILE__,
+                           __LINE__))
         exit(1);
     }
 
@@ -331,19 +331,19 @@ namespace GASengine
     {
       if (iteration)
       {
-        util::B40CPerror(cudaFreeHost((void *) iteration),
-            "EnactorVertexCentric cudaFreeHost iteration failed",
-            __FILE__, __LINE__);
+        util::B40CPerror(cudaFreeHost((void *)iteration),
+                         "EnactorVertexCentric cudaFreeHost iteration failed",
+                         __FILE__, __LINE__);
       }
       if (done)
       {
-        util::B40CPerror(cudaFreeHost((void *) done),
-            "EnactorVertexCentric cudaFreeHost done failed", __FILE__,
-            __LINE__);
+        util::B40CPerror(cudaFreeHost((void *)done),
+                         "EnactorVertexCentric cudaFreeHost done failed", __FILE__,
+                         __LINE__);
 
         util::B40CPerror(cudaEventDestroy(throttle_event),
-            "EnactorVertexCentric cudaEventDestroy throttle_event failed",
-            __FILE__, __LINE__);
+                         "EnactorVertexCentric cudaEventDestroy throttle_event failed",
+                         __FILE__, __LINE__);
       }
     }
 
@@ -351,7 +351,7 @@ namespace GASengine
      * Obtain statistics about the last BFS search enacted
      */
     void GetStatistics(long long &total_queued, VertexId &search_depth,
-        double &avg_duty)
+                       double &avg_duty)
     {
       cudaThreadSynchronize();
 
@@ -359,49 +359,49 @@ namespace GASengine
       search_depth = this->iteration[0] - 1;
 
       avg_duty =
-          (total_lifetimes > 0) ?
-                                  double(total_runtimes) / total_lifetimes :
-                                  0.0;
+              (total_lifetimes > 0) ?
+              double(total_runtimes) / total_lifetimes :
+              0.0;
     }
 
-    struct EdgeCountIterator: public std::iterator<std::input_iterator_tag, int>
+    struct EdgeCountIterator : public std::iterator<std::input_iterator_tag, int>
     {
       int *m_offsets;
       int *m_active;
 
       __host__ __device__ EdgeCountIterator(int *offsets, int *active) :
-          m_offsets(offsets), m_active(active)
+      m_offsets(offsets), m_active(active)
       {
       }
       ;
 
       __device__
-      int operator[](int i) const
-          {
+              int operator[](int i)const
+      {
         int active = m_active[i];
         return max(m_offsets[active + 1] - m_offsets[active], 1);
       }
 
-      __device__ EdgeCountIterator operator +(int i) const
-          {
+      __device__ EdgeCountIterator operator +(int i)const
+      {
         return EdgeCountIterator(m_offsets, m_active + i);
       }
     };
 
-    struct ReduceFunctor: std::binary_function<GatherType, GatherType,
-        GatherType>
+    struct ReduceFunctor : std::binary_function<GatherType, GatherType,
+    GatherType>
     {
 
       __device__ GatherType operator()(const GatherType &left,
-          const GatherType & right)
+                                       const GatherType & right)
       {
         typename Program::gather_sum gather_sum_functor;
         return gather_sum_functor(left, right);
       }
     };
 
-    struct PredicatedEdgeCountIterator: public std::iterator<
-        std::input_iterator_tag, VertexId>
+    struct PredicatedEdgeCountIterator : public std::iterator<
+    std::input_iterator_tag, VertexId>
     {
       VertexId *m_offsets;
       VertexId *m_active;
@@ -410,40 +410,40 @@ namespace GASengine
       char *m_predicates;
 
       __host__ __device__ PredicatedEdgeCountIterator(VertexId *offsets,
-          VertexId *active, char * predicates,
-          typename Program::VertexType &vertex_list,
-          typename Program::EdgeType & edge_list) :
-          m_offsets(offsets), m_active(active), m_predicates(predicates), m_vertex_list(
-              vertex_list), m_edge_list(edge_list)
+                                                      VertexId *active, char * predicates,
+                                                      typename Program::VertexType &vertex_list,
+                                                      typename Program::EdgeType & edge_list) :
+      m_offsets(offsets), m_active(active), m_predicates(predicates), m_vertex_list(
+                                                                                    vertex_list), m_edge_list(edge_list)
       {
       }
       ;
 
       __device__ VertexId operator[](VertexId i) const
-          {
+      {
         VertexId active = m_active[i];
         typename Program::expand_vertex expand_vertex_functor;
         bool changed = expand_vertex_functor(active, m_predicates[active],
-            m_vertex_list, m_edge_list);
+                                             m_vertex_list, m_edge_list);
         return changed ? m_offsets[active + 1] - m_offsets[active] : 0;
       }
 
       __device__ PredicatedEdgeCountIterator operator +(VertexId i) const
-          {
+      {
         return PredicatedEdgeCountIterator(m_offsets, m_active + i,
-            m_predicates, m_vertex_list, m_edge_list);
+                                           m_predicates, m_vertex_list, m_edge_list);
       }
     };
 
-    struct ActivateGatherIterator: public std::iterator<std::input_iterator_tag,
-        VertexId>
+    struct ActivateGatherIterator : public std::iterator<std::input_iterator_tag,
+    VertexId>
     {
       VertexId *m_offsets;
       VertexId *m_active;
 
       __host__ __device__ ActivateGatherIterator(VertexId* offsets,
-          VertexId * active) :
-          m_offsets(offsets), m_active(active)
+                                                 VertexId * active) :
+      m_offsets(offsets), m_active(active)
       {
       }
       ;
@@ -454,7 +454,7 @@ namespace GASengine
       }
 
       __device__ ActivateGatherIterator operator +(VertexId i) const
-          {
+      {
         return ActivateGatherIterator(m_offsets, m_active + i);
       }
     };
@@ -464,7 +464,7 @@ namespace GASengine
       int* m_flags;
 
       __host__ __device__ ActivateOutputIterator(int* flags) :
-          m_flags(flags)
+      m_flags(flags)
       {
       }
 
@@ -474,7 +474,7 @@ namespace GASengine
       }
 
       __device__
-      void operator =(VertexId dst)
+              void operator =(VertexId dst)
       {
         m_flags[dst] = 1;
       }
@@ -485,27 +485,27 @@ namespace GASengine
       }
     };
 
-    struct ReduceOutputIterator: public std::iterator<std::input_iterator_tag,
-        VertexId>
+    struct ReduceOutputIterator : public std::iterator<std::input_iterator_tag,
+    VertexId>
     {
       GatherType *m_gather;
       VertexId *m_active;
 
       __host__ __device__ ReduceOutputIterator(GatherType *gatherTmp,
-          VertexId * active) :
-          m_gather(gatherTmp), m_active(active)
+                                               VertexId * active) :
+      m_gather(gatherTmp), m_active(active)
       {
       }
       ;
 
       __device__ GatherType& operator[](VertexId i) const
-          {
+      {
         VertexId active = m_active[i];
         return m_gather[active];
       }
 
       __device__ ReduceOutputIterator operator +(VertexId i) const
-          {
+      {
         return ReduceOutputIterator(m_gather, m_active + i);
       }
 
@@ -517,15 +517,15 @@ namespace GASengine
     };
 
     void scatter_mgpu(int frontier_selector, int* d_edge_frontier_size,
-        int num_active, typename Program::SizeT* offsets,
-        typename Program::VertexId* active_vertices,
-        typename Program::VertexId* edge_count_scan,
-        typename Program::VertexId* indices,
-        typename Program::VertexId* edge_frontier,
-        typename Program::VertexType& vertex_list,
-        typename Program::EdgeType& edge_list,
-        typename Program::VertexId* d_edgeCSC_indices,
-        typename Program::VertexId* misc_values)
+                      int num_active, typename Program::SizeT* offsets,
+                      typename Program::VertexId* active_vertices,
+                      typename Program::VertexId* edge_count_scan,
+                      typename Program::VertexId* indices,
+                      typename Program::VertexId* edge_frontier,
+                      typename Program::VertexType& vertex_list,
+                      typename Program::EdgeType& edge_list,
+                      typename Program::VertexId* d_edgeCSC_indices,
+                      typename Program::VertexId* misc_values)
     {
 
       const int NT = 128;
@@ -538,15 +538,15 @@ namespace GASengine
       int numBlocks = MGPU_DIV_UP(move_count + num_active, NV);
 
       MGPU_MEM(int)partitionsDevice = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper > (
-          mgpu::counting_iterator<int>(0), move_count, edge_count_scan,
-          num_active, NV, 0, mgpu::less<int>(), *m_mgpuContext);
+                                                                                         mgpu::counting_iterator<int>(0), move_count, edge_count_scan,
+                                                                                         num_active, NV, 0, mgpu::less<int>(), *m_mgpuContext);
 
-      vertex_centric::mgpukernel::kernel_scatter_mgpu<Tuning, NT, VT, Program><< <
-      numBlocks, launch.x, 0, m_mgpuContext->Stream() >> >(
-          frontier_selector, move_count, num_active, d_edge_frontier_size,
-          offsets, active_vertices, edge_count_scan, indices,
-          partitionsDevice->get(), edge_frontier, vertex_list, edge_list,
-          d_edgeCSC_indices, misc_values);
+      vertex_centric::mgpukernel::kernel_scatter_mgpu<Tuning, NT, VT, Program> << <
+              numBlocks, launch.x, 0, m_mgpuContext->Stream() >> >(
+                                                                   frontier_selector, move_count, num_active, d_edge_frontier_size,
+                                                                   offsets, active_vertices, edge_count_scan, indices,
+                                                                   partitionsDevice->get(), edge_frontier, vertex_list, edge_list,
+                                                                   d_edgeCSC_indices, misc_values);
 
       //      MGPU_SYNC_CHECK("KernelIntervalMove");
       SYNC_CHECK();
@@ -554,19 +554,19 @@ namespace GASengine
 
     template<typename PredIt, typename OutputIt>
     void copy_if_mgpu(int num, PredIt pred, OutputIt output, int *d_total,
-        int *h_total, mgpu::ContextPtr mgpuContext)
+                      int *h_total, mgpu::ContextPtr mgpuContext)
     {
 
       MGPU_MEM(int)d_map = mgpuContext->Malloc<int>(num);
 
       mgpu::Scan<mgpu::MgpuScanTypeExc > (pred
-          , num
-          , 0
-          , mgpu::plus<int>()
-          , d_total
-          , h_total
-          , d_map->get()
-          , *mgpuContext);
+                                          , num
+                                          , 0
+                                          , mgpu::plus<int>()
+                                          , d_total
+                                          , h_total
+                                          , d_map->get()
+                                          , *mgpuContext);
 
       int threads = 256;
       int blocks = min((num + threads - 1) / threads, 256);
@@ -574,9 +574,9 @@ namespace GASengine
       mgpu::counting_iterator<int> input(0);
 
       vertex_centric::mgpukernel::kernel_copy_if << <blocks, threads >> >(input, num,
-          pred,
-          d_map->get(),
-          output);
+                                                                          pred,
+                                                                          d_map->get(),
+                                                                          output);
     }
 
     void expand_mgpu(typename CsrProblem::GraphSlice *graph_slice, int &selector, const int frontier_selector, const int directed)
@@ -619,13 +619,13 @@ namespace GASengine
           //          printf("Expand_mgpu:Dup:All\n");
           PredicatedEdgeCountIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
           mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
-              , frontier_size
-              , 0
-              , mgpu::plus<VertexId > ()
-              , &d_edge_frontier_size[frontier_selector]
-              , &edge_frontier_size
-              , graph_slice->d_edgeCountScan
-              , *m_mgpuContext);
+                                                                                                                    , frontier_size
+                                                                                                                    , 0
+                                                                                                                    , mgpu::plus<VertexId > ()
+                                                                                                                    , &d_edge_frontier_size[frontier_selector]
+                                                                                                                    , &edge_frontier_size
+                                                                                                                    , graph_slice->d_edgeCountScan
+                                                                                                                    , *m_mgpuContext);
           //				int rank_id;
           //				MPI_Comm_rank(MPI_COMM_WORLD, &rank_id);
           //				printf("rank_id=%d, frontier_size=%d, edge_frontier_size=%d\n", rank_id, frontier_size, edge_frontier_size);
@@ -633,9 +633,9 @@ namespace GASengine
           //      cudaDeviceSynchronize();      //terminate scan kernel before read out m_hostMappedValue
 
           if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof (SizeT), cudaMemcpyDeviceToHost),
-                  "CsrProblem cudaMemcpy d_edge_frontier_size failed", __FILE__,
-                  __LINE__))
-          exit(1);
+                               "CsrProblem cudaMemcpy d_edge_frontier_size failed", __FILE__,
+                               __LINE__))
+            exit(1);
           //
           //      printf("m_nActive = %d\n", frontier_size);
           //      printf("nActiveEdges = %d\n", edge_frontier_size);
@@ -647,30 +647,30 @@ namespace GASengine
           //        SYNC_CHECK();
 
           scatter_mgpu(frontier_selector,
-              d_edge_frontier_size,
-              frontier_size,
-              graph_slice->d_row_offsets,
-              graph_slice->frontier_queues.d_keys[selector ^ 1],
-              graph_slice->d_edgeCountScan,
-              graph_slice->d_column_indices,
-              graph_slice->frontier_queues.d_keys[selector],
-              graph_slice->vertex_list,
-              graph_slice->edge_list,
-              NULL,
-              graph_slice->frontier_queues.d_values[0]);
+                       d_edge_frontier_size,
+                       frontier_size,
+                       graph_slice->d_row_offsets,
+                       graph_slice->frontier_queues.d_keys[selector ^ 1],
+                       graph_slice->d_edgeCountScan,
+                       graph_slice->d_column_indices,
+                       graph_slice->frontier_queues.d_keys[selector],
+                       graph_slice->vertex_list,
+                       graph_slice->edge_list,
+                       NULL,
+                       graph_slice->frontier_queues.d_values[0]);
           SYNC_CHECK();
 
           int edge_frontier_size1 = edge_frontier_size;
 
           PredicatedEdgeCountIterator ecIterator2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
           mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator2
-              , frontier_size
-              , 0
-              , mgpu::plus<VertexId > ()
-              , &d_edge_frontier_size[frontier_selector]
-              , &edge_frontier_size
-              , graph_slice->d_edgeCountScan
-              , *m_mgpuContext);
+                                                                                                                    , frontier_size
+                                                                                                                    , 0
+                                                                                                                    , mgpu::plus<VertexId > ()
+                                                                                                                    , &d_edge_frontier_size[frontier_selector]
+                                                                                                                    , &edge_frontier_size
+                                                                                                                    , graph_slice->d_edgeCountScan
+                                                                                                                    , *m_mgpuContext);
           SYNC_CHECK();
 
           //      cudaDeviceSynchronize();      //terminate scan kernel before read out m_hostMappedValue
@@ -690,17 +690,17 @@ namespace GASengine
           }
           SYNC_CHECK();
           scatter_mgpu(frontier_selector,
-              d_edge_frontier_size,
-              frontier_size,
-              graph_slice->d_column_offsets,
-              graph_slice->frontier_queues.d_keys[selector ^ 1],
-              graph_slice->d_edgeCountScan,
-              graph_slice->d_row_indices,
-              graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1,
-              graph_slice->vertex_list,
-              graph_slice->edge_list,
-              graph_slice->d_edgeCSC_indices,
-              graph_slice->frontier_queues.d_values[0] + edge_frontier_size1);
+                       d_edge_frontier_size,
+                       frontier_size,
+                       graph_slice->d_column_offsets,
+                       graph_slice->frontier_queues.d_keys[selector ^ 1],
+                       graph_slice->d_edgeCountScan,
+                       graph_slice->d_row_indices,
+                       graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1,
+                       graph_slice->vertex_list,
+                       graph_slice->edge_list,
+                       graph_slice->d_edgeCSC_indices,
+                       graph_slice->frontier_queues.d_values[0] + edge_frontier_size1);
 
           //          cudaMemcpy(
           //              graph_slice->frontier_queues.d_keys[selector]
@@ -719,10 +719,10 @@ namespace GASengine
           edge_frontier_size += edge_frontier_size1;
           //          printf("edge_frontier_final = %d\n", edge_frontier_size);
           cudaMemcpy(
-              &d_edge_frontier_size[frontier_selector],
-              &edge_frontier_size,
-              sizeof (int),
-              cudaMemcpyHostToDevice);
+                     &d_edge_frontier_size[frontier_selector],
+                     &edge_frontier_size,
+                     sizeof (int),
+                     cudaMemcpyHostToDevice);
           SYNC_CHECK();
 
           //          VertexId* test_vid = new VertexId[edge_frontier_size];
@@ -745,14 +745,14 @@ namespace GASengine
             PredicatedEdgeCountIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
             SYNC_CHECK();
             mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
-                , frontier_size
-                , 0
-                , mgpu::plus<VertexId > ()
-                , &d_edge_frontier_size[frontier_selector]
-                , &edge_frontier_size
-                //							, (int)NULL
-                , graph_slice->d_edgeCountScan
-                , *m_mgpuContext);
+                                                                                                                      , frontier_size
+                                                                                                                      , 0
+                                                                                                                      , mgpu::plus<VertexId > ()
+                                                                                                                      , &d_edge_frontier_size[frontier_selector]
+                                                                                                                      , &edge_frontier_size
+                                                                                                                      //							, (int)NULL
+                                                                                                                      , graph_slice->d_edgeCountScan
+                                                                                                                      , *m_mgpuContext);
 
             //					int rank_id;
             //					MPI_Comm_rank(MPI_COMM_WORLD, &rank_id);
@@ -775,30 +775,30 @@ namespace GASengine
             }
 
             scatter_mgpu(frontier_selector,
-                d_edge_frontier_size,
-                frontier_size,
-                graph_slice->d_row_offsets,
-                graph_slice->frontier_queues.d_keys[selector ^ 1],
-                graph_slice->d_edgeCountScan,
-                graph_slice->d_column_indices,
-                graph_slice->frontier_queues.d_keys[selector],
-                graph_slice->vertex_list,
-                graph_slice->edge_list,
-                NULL,
-                graph_slice->frontier_queues.d_values[0]);
+                         d_edge_frontier_size,
+                         frontier_size,
+                         graph_slice->d_row_offsets,
+                         graph_slice->frontier_queues.d_keys[selector ^ 1],
+                         graph_slice->d_edgeCountScan,
+                         graph_slice->d_column_indices,
+                         graph_slice->frontier_queues.d_keys[selector],
+                         graph_slice->vertex_list,
+                         graph_slice->edge_list,
+                         NULL,
+                         graph_slice->frontier_queues.d_values[0]);
             SYNC_CHECK();
           }
           else if (Program::expandOverEdges() == EXPAND_IN_EDGES)
           {
             PredicatedEdgeCountIterator ecIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
             mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
-                , frontier_size
-                , 0
-                , mgpu::plus<VertexId > ()
-                , &d_edge_frontier_size[frontier_selector]
-                , &edge_frontier_size
-                , graph_slice->d_edgeCountScan
-                , *m_mgpuContext);
+                                                                                                                      , frontier_size
+                                                                                                                      , 0
+                                                                                                                      , mgpu::plus<VertexId > ()
+                                                                                                                      , &d_edge_frontier_size[frontier_selector]
+                                                                                                                      , &edge_frontier_size
+                                                                                                                      , graph_slice->d_edgeCountScan
+                                                                                                                      , *m_mgpuContext);
             //      cudaDeviceSynchronize();      //terminate scan kernel before read out m_hostMappedValue
 
             //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
@@ -816,17 +816,17 @@ namespace GASengine
             //        SYNC_CHECK();
 
             scatter_mgpu(frontier_selector,
-                d_edge_frontier_size,
-                frontier_size,
-                graph_slice->d_column_offsets,
-                graph_slice->frontier_queues.d_keys[selector ^ 1],
-                graph_slice->d_edgeCountScan,
-                graph_slice->d_row_indices,
-                graph_slice->frontier_queues.d_keys[selector],
-                graph_slice->vertex_list,
-                graph_slice->edge_list,
-                graph_slice->d_edgeCSC_indices,
-                graph_slice->frontier_queues.d_values[0]);
+                         d_edge_frontier_size,
+                         frontier_size,
+                         graph_slice->d_column_offsets,
+                         graph_slice->frontier_queues.d_keys[selector ^ 1],
+                         graph_slice->d_edgeCountScan,
+                         graph_slice->d_row_indices,
+                         graph_slice->frontier_queues.d_keys[selector],
+                         graph_slice->vertex_list,
+                         graph_slice->edge_list,
+                         graph_slice->d_edgeCSC_indices,
+                         graph_slice->frontier_queues.d_values[0]);
 
           }
           else if (Program::expandOverEdges() == EXPAND_ALL_EDGES)
@@ -834,13 +834,13 @@ namespace GASengine
             //          printf("Expand_mgpu:Dup:All\n");
             PredicatedEdgeCountIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
             mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
-                , frontier_size
-                , 0
-                , mgpu::plus<VertexId > ()
-                , &d_edge_frontier_size[frontier_selector]
-                , &edge_frontier_size
-                , graph_slice->d_edgeCountScan
-                , *m_mgpuContext);
+                                                                                                                      , frontier_size
+                                                                                                                      , 0
+                                                                                                                      , mgpu::plus<VertexId > ()
+                                                                                                                      , &d_edge_frontier_size[frontier_selector]
+                                                                                                                      , &edge_frontier_size
+                                                                                                                      , graph_slice->d_edgeCountScan
+                                                                                                                      , *m_mgpuContext);
             //      cudaDeviceSynchronize();      //terminate scan kernel before read out m_hostMappedValue
 
             //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
@@ -858,29 +858,29 @@ namespace GASengine
             //        SYNC_CHECK();
 
             scatter_mgpu(frontier_selector,
-                d_edge_frontier_size,
-                frontier_size,
-                graph_slice->d_row_offsets,
-                graph_slice->frontier_queues.d_keys[selector ^ 1],
-                graph_slice->d_edgeCountScan,
-                graph_slice->d_column_indices,
-                graph_slice->frontier_queues.d_keys[selector],
-                graph_slice->vertex_list,
-                graph_slice->edge_list,
-                NULL,
-                graph_slice->frontier_queues.d_values[0]);
+                         d_edge_frontier_size,
+                         frontier_size,
+                         graph_slice->d_row_offsets,
+                         graph_slice->frontier_queues.d_keys[selector ^ 1],
+                         graph_slice->d_edgeCountScan,
+                         graph_slice->d_column_indices,
+                         graph_slice->frontier_queues.d_keys[selector],
+                         graph_slice->vertex_list,
+                         graph_slice->edge_list,
+                         NULL,
+                         graph_slice->frontier_queues.d_values[0]);
 
             int edge_frontier_size1 = edge_frontier_size;
 
             PredicatedEdgeCountIterator ecIterator2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
             mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator2
-                , frontier_size
-                , 0
-                , mgpu::plus<VertexId > ()
-                , &d_edge_frontier_size[frontier_selector]
-                , &edge_frontier_size
-                , graph_slice->d_edgeCountScan
-                , *m_mgpuContext);
+                                                                                                                      , frontier_size
+                                                                                                                      , 0
+                                                                                                                      , mgpu::plus<VertexId > ()
+                                                                                                                      , &d_edge_frontier_size[frontier_selector]
+                                                                                                                      , &edge_frontier_size
+                                                                                                                      , graph_slice->d_edgeCountScan
+                                                                                                                      , *m_mgpuContext);
 
             //      cudaDeviceSynchronize();      //terminate scan kernel before read out m_hostMappedValue
 
@@ -899,17 +899,17 @@ namespace GASengine
             }
             //        SYNC_CHECK();
             scatter_mgpu(frontier_selector,
-                d_edge_frontier_size,
-                frontier_size,
-                graph_slice->d_column_offsets,
-                graph_slice->frontier_queues.d_keys[selector ^ 1],
-                graph_slice->d_edgeCountScan,
-                graph_slice->d_row_indices,
-                graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1,
-                graph_slice->vertex_list,
-                graph_slice->edge_list,
-                graph_slice->d_edgeCSC_indices,
-                graph_slice->frontier_queues.d_values[0] + edge_frontier_size1);
+                         d_edge_frontier_size,
+                         frontier_size,
+                         graph_slice->d_column_offsets,
+                         graph_slice->frontier_queues.d_keys[selector ^ 1],
+                         graph_slice->d_edgeCountScan,
+                         graph_slice->d_row_indices,
+                         graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1,
+                         graph_slice->vertex_list,
+                         graph_slice->edge_list,
+                         graph_slice->d_edgeCSC_indices,
+                         graph_slice->frontier_queues.d_values[0] + edge_frontier_size1);
 
             //          cudaMemcpy(
             //              graph_slice->frontier_queues.d_keys[selector]
@@ -928,10 +928,10 @@ namespace GASengine
             edge_frontier_size += edge_frontier_size1;
             //          printf("edge_frontier_final = %d\n", edge_frontier_size);
             cudaMemcpy(
-                &d_edge_frontier_size[frontier_selector],
-                &edge_frontier_size,
-                sizeof (int),
-                cudaMemcpyHostToDevice);
+                       &d_edge_frontier_size[frontier_selector],
+                       &edge_frontier_size,
+                       sizeof (int),
+                       cudaMemcpyHostToDevice);
 
             //          VertexId* test_vid = new VertexId[edge_frontier_size];
             //          cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector], edge_frontier_size * sizeof(VertexId), cudaMemcpyDeviceToHost);
@@ -978,23 +978,23 @@ namespace GASengine
 
           PredicatedEdgeCountIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
           mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
-              , frontier_size
-              , 0
-              , mgpu::plus<VertexId > ()
-              , &d_edge_frontier_size[frontier_selector]
-              , &edge_frontier_size
-              , graph_slice->d_edgeCountScan
-              , *m_mgpuContext);
+                                                                                                                    , frontier_size
+                                                                                                                    , 0
+                                                                                                                    , mgpu::plus<VertexId > ()
+                                                                                                                    , &d_edge_frontier_size[frontier_selector]
+                                                                                                                    , &edge_frontier_size
+                                                                                                                    , graph_slice->d_edgeCountScan
+                                                                                                                    , *m_mgpuContext);
 
           //          printf("edge_frontier_size1=%d\n", edge_frontier_size);
 
           IntervalGather(edge_frontier_size,
-              ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
-              graph_slice->d_edgeCountScan,
-              frontier_size,
-              graph_slice->d_column_indices,
-              ActivateOutputIterator(graph_slice->d_active_flags),
-              *m_mgpuContext);
+                         ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+                         graph_slice->d_edgeCountScan,
+                         frontier_size,
+                         graph_slice->d_column_indices,
+                         ActivateOutputIterator(graph_slice->d_active_flags),
+                         *m_mgpuContext);
 
           //          test_vid = new int[graph_slice->nodes];
           //          cudaMemcpy(test_vid, graph_slice->d_active_flags, graph_slice->nodes * sizeof(int), cudaMemcpyDeviceToHost);
@@ -1008,23 +1008,23 @@ namespace GASengine
 
           PredicatedEdgeCountIterator ecIterator2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
           mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator2
-              , frontier_size
-              , 0
-              , mgpu::plus<VertexId > ()
-              , &d_edge_frontier_size[frontier_selector]
-              , &edge_frontier_size
-              , graph_slice->d_edgeCountScan
-              , *m_mgpuContext);
+                                                                                                                    , frontier_size
+                                                                                                                    , 0
+                                                                                                                    , mgpu::plus<VertexId > ()
+                                                                                                                    , &d_edge_frontier_size[frontier_selector]
+                                                                                                                    , &edge_frontier_size
+                                                                                                                    , graph_slice->d_edgeCountScan
+                                                                                                                    , *m_mgpuContext);
 
           //          printf("edge_frontier_size2=%d\n", edge_frontier_size);
 
           IntervalGather(edge_frontier_size,
-              ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
-              graph_slice->d_edgeCountScan,
-              frontier_size,
-              graph_slice->d_row_indices,
-              ActivateOutputIterator(graph_slice->d_active_flags),
-              *m_mgpuContext);
+                         ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+                         graph_slice->d_edgeCountScan,
+                         frontier_size,
+                         graph_slice->d_row_indices,
+                         ActivateOutputIterator(graph_slice->d_active_flags),
+                         *m_mgpuContext);
 
           //          test_vid = new int[graph_slice->nodes];
           //          cudaMemcpy(test_vid, graph_slice->d_active_flags, graph_slice->nodes * sizeof(int), cudaMemcpyDeviceToHost);
@@ -1037,17 +1037,17 @@ namespace GASengine
           //          delete[] test_vid;
 
           copy_if_mgpu(graph_slice->nodes,
-              graph_slice->d_active_flags,
-              graph_slice->frontier_queues.d_keys[selector],
-              &d_frontier_size[frontier_selector],
-              (int*)NULL,
-              m_mgpuContext);
+                       graph_slice->d_active_flags,
+                       graph_slice->frontier_queues.d_keys[selector],
+                       &d_frontier_size[frontier_selector],
+                       (int*)NULL,
+                       m_mgpuContext);
 
           //using memset is faster?
           if (util::B40CPerror(cudaMemcpy(&d_edge_frontier_size[frontier_selector], &zero, sizeof (SizeT), cudaMemcpyHostToDevice),
-                  "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
-                  __LINE__))
-          exit(1);
+                               "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
+                               __LINE__))
+            exit(1);
 
         }
         else
@@ -1056,13 +1056,13 @@ namespace GASengine
           {
             PredicatedEdgeCountIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
             mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
-                , frontier_size
-                , 0
-                , mgpu::plus<VertexId > ()
-                , &d_edge_frontier_size[frontier_selector]
-                , &edge_frontier_size
-                , graph_slice->d_edgeCountScan
-                , *m_mgpuContext);
+                                                                                                                      , frontier_size
+                                                                                                                      , 0
+                                                                                                                      , mgpu::plus<VertexId > ()
+                                                                                                                      , &d_edge_frontier_size[frontier_selector]
+                                                                                                                      , &edge_frontier_size
+                                                                                                                      , graph_slice->d_edgeCountScan
+                                                                                                                      , *m_mgpuContext);
             //      cudaDeviceSynchronize();      //terminate scan kernel before read out m_hostMappedValue
 
             //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
@@ -1079,36 +1079,36 @@ namespace GASengine
             }
             //        SYNC_CHECK();
             if (util::B40CPerror(cudaMemcpy(&d_edge_frontier_size[frontier_selector], &zero, sizeof (SizeT), cudaMemcpyHostToDevice),
-                    "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
-                    __LINE__))
-            exit(1);
+                                 "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
+                                 __LINE__))
+              exit(1);
 
             IntervalGather(edge_frontier_size,
-                ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
-                graph_slice->d_edgeCountScan,
-                frontier_size,
-                graph_slice->d_column_indices,
-                ActivateOutputIterator(graph_slice->d_active_flags),
-                *m_mgpuContext);
+                           ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+                           graph_slice->d_edgeCountScan,
+                           frontier_size,
+                           graph_slice->d_column_indices,
+                           ActivateOutputIterator(graph_slice->d_active_flags),
+                           *m_mgpuContext);
 
             copy_if_mgpu(graph_slice->nodes,
-                graph_slice->d_active_flags,
-                graph_slice->frontier_queues.d_keys[selector],
-                &d_frontier_size[frontier_selector],
-                (int*)NULL,
-                m_mgpuContext);
+                         graph_slice->d_active_flags,
+                         graph_slice->frontier_queues.d_keys[selector],
+                         &d_frontier_size[frontier_selector],
+                         (int*)NULL,
+                         m_mgpuContext);
           }
           else if (Program::expandOverEdges() == EXPAND_IN_EDGES)
           {
             PredicatedEdgeCountIterator ecIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
             mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
-                , frontier_size
-                , 0
-                , mgpu::plus<VertexId > ()
-                , &d_edge_frontier_size[frontier_selector]
-                , &edge_frontier_size
-                , graph_slice->d_edgeCountScan
-                , *m_mgpuContext);
+                                                                                                                      , frontier_size
+                                                                                                                      , 0
+                                                                                                                      , mgpu::plus<VertexId > ()
+                                                                                                                      , &d_edge_frontier_size[frontier_selector]
+                                                                                                                      , &edge_frontier_size
+                                                                                                                      , graph_slice->d_edgeCountScan
+                                                                                                                      , *m_mgpuContext);
             //      cudaDeviceSynchronize();      //terminate scan kernel before read out m_hostMappedValue
 
             //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
@@ -1125,24 +1125,24 @@ namespace GASengine
             }
             //        SYNC_CHECK();
             if (util::B40CPerror(cudaMemcpy(&d_edge_frontier_size[frontier_selector], &zero, sizeof (SizeT), cudaMemcpyHostToDevice),
-                    "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
-                    __LINE__))
-            exit(1);
+                                 "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
+                                 __LINE__))
+              exit(1);
 
             IntervalGather(edge_frontier_size,
-                ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
-                graph_slice->d_edgeCountScan,
-                frontier_size,
-                graph_slice->d_row_indices,
-                ActivateOutputIterator(graph_slice->d_active_flags),
-                *m_mgpuContext);
+                           ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+                           graph_slice->d_edgeCountScan,
+                           frontier_size,
+                           graph_slice->d_row_indices,
+                           ActivateOutputIterator(graph_slice->d_active_flags),
+                           *m_mgpuContext);
 
             copy_if_mgpu(graph_slice->nodes,
-                graph_slice->d_active_flags,
-                graph_slice->frontier_queues.d_keys[selector],
-                &d_frontier_size[frontier_selector],
-                (int*)NULL,
-                m_mgpuContext);
+                         graph_slice->d_active_flags,
+                         graph_slice->frontier_queues.d_keys[selector],
+                         &d_frontier_size[frontier_selector],
+                         (int*)NULL,
+                         m_mgpuContext);
 
           }
           else if (Program::expandOverEdges() == EXPAND_ALL_EDGES)
@@ -1150,21 +1150,21 @@ namespace GASengine
 
             PredicatedEdgeCountIterator ecIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
             mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator
-                , frontier_size
-                , 0
-                , mgpu::plus<VertexId > ()
-                , &d_edge_frontier_size[frontier_selector]
-                , &edge_frontier_size
-                , graph_slice->d_edgeCountScan
-                , *m_mgpuContext);
+                                                                                                                      , frontier_size
+                                                                                                                      , 0
+                                                                                                                      , mgpu::plus<VertexId > ()
+                                                                                                                      , &d_edge_frontier_size[frontier_selector]
+                                                                                                                      , &edge_frontier_size
+                                                                                                                      , graph_slice->d_edgeCountScan
+                                                                                                                      , *m_mgpuContext);
 
             IntervalGather(edge_frontier_size,
-                ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
-                graph_slice->d_edgeCountScan,
-                frontier_size,
-                graph_slice->d_column_indices,
-                ActivateOutputIterator(graph_slice->d_active_flags),
-                *m_mgpuContext);
+                           ActivateGatherIterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+                           graph_slice->d_edgeCountScan,
+                           frontier_size,
+                           graph_slice->d_column_indices,
+                           ActivateOutputIterator(graph_slice->d_active_flags),
+                           *m_mgpuContext);
             //
             //          int* test_vid = new int[graph_slice->nodes];
             //          cudaMemcpy(test_vid, graph_slice->d_active_flags, graph_slice->nodes * sizeof(int), cudaMemcpyDeviceToHost);
@@ -1178,21 +1178,21 @@ namespace GASengine
 
             PredicatedEdgeCountIterator ecIterator2(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1], graph_slice->d_changed, graph_slice->vertex_list, graph_slice->edge_list);
             mgpu::Scan<mgpu::MgpuScanTypeExc, PredicatedEdgeCountIterator, VertexId, mgpu::plus<VertexId>, VertexId*>(ecIterator2
-                , frontier_size
-                , 0
-                , mgpu::plus<VertexId > ()
-                , &d_edge_frontier_size[frontier_selector]
-                , &edge_frontier_size
-                , graph_slice->d_edgeCountScan
-                , *m_mgpuContext);
+                                                                                                                      , frontier_size
+                                                                                                                      , 0
+                                                                                                                      , mgpu::plus<VertexId > ()
+                                                                                                                      , &d_edge_frontier_size[frontier_selector]
+                                                                                                                      , &edge_frontier_size
+                                                                                                                      , graph_slice->d_edgeCountScan
+                                                                                                                      , *m_mgpuContext);
 
             IntervalGather(edge_frontier_size,
-                ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
-                graph_slice->d_edgeCountScan,
-                frontier_size,
-                graph_slice->d_row_indices,
-                ActivateOutputIterator(graph_slice->d_active_flags),
-                *m_mgpuContext);
+                           ActivateGatherIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
+                           graph_slice->d_edgeCountScan,
+                           frontier_size,
+                           graph_slice->d_row_indices,
+                           ActivateOutputIterator(graph_slice->d_active_flags),
+                           *m_mgpuContext);
 
             //          test_vid = new int[graph_slice->nodes];
             //          cudaMemcpy(test_vid, graph_slice->d_active_flags, graph_slice->nodes * sizeof(int), cudaMemcpyDeviceToHost);
@@ -1205,11 +1205,11 @@ namespace GASengine
             //          delete[] test_vid;
 
             copy_if_mgpu(graph_slice->nodes,
-                graph_slice->d_active_flags,
-                graph_slice->frontier_queues.d_keys[selector],
-                &d_frontier_size[frontier_selector],
-                (int*)NULL,
-                m_mgpuContext);
+                         graph_slice->d_active_flags,
+                         graph_slice->frontier_queues.d_keys[selector],
+                         &d_frontier_size[frontier_selector],
+                         (int*)NULL,
+                         m_mgpuContext);
 
             if (edge_frontier_size >= graph_slice->frontier_elements[selector])
             {
@@ -1219,9 +1219,9 @@ namespace GASengine
 
             //using memset is faster?
             if (util::B40CPerror(cudaMemcpy(&d_edge_frontier_size[frontier_selector], &zero, sizeof (SizeT), cudaMemcpyHostToDevice),
-                    "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
-                    __LINE__))
-            exit(1);
+                                 "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
+                                 __LINE__))
+              exit(1);
 
           }
           else
@@ -1292,16 +1292,16 @@ namespace GASengine
 
       const int nThreadsPerBlock = 128;
       SizeT nBlocks = MGPU_DIV_UP(frontier_size,
-          nThreadsPerBlock);
+                                  nThreadsPerBlock);
 
       vertex_centric::mgpukernel::apply<Program> << <nBlocks, nThreadsPerBlock >> >(
-          iteration[0],
-          frontier_size,
-          graph_slice->frontier_queues.d_keys[selector ^ 1],
-          graph_slice->m_gatherTmp,
-          graph_slice->vertex_list,
-          graph_slice->edge_list,
-          graph_slice->d_changed);
+                                                                                    iteration[0],
+                                                                                    frontier_size,
+                                                                                    graph_slice->frontier_queues.d_keys[selector ^ 1],
+                                                                                    graph_slice->m_gatherTmp,
+                                                                                    graph_slice->vertex_list,
+                                                                                    graph_slice->edge_list,
+                                                                                    graph_slice->d_changed);
       SYNC_CHECK();
 
       //      test_vid = new float[graph_slice->nodes];
@@ -1328,26 +1328,26 @@ namespace GASengine
     void gather_mgpu(typename CsrProblem::GraphSlice *graph_slice, const int selector, const int directed)
     {
       if (directed == 0)
-      //      if(0)
+        //      if(0)
       {
         //          printf("Gather all edges --- gather in!\n");
         EdgeCountIterator ecIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]);
 
         mgpu::Scan<mgpu::MgpuScanTypeExc, EdgeCountIterator, int, mgpu::plus<int>, int*>(
-            ecIterator,
-            frontier_size,
-            0,
-            mgpu::plus<int>(),
-            m_deviceMappedValue,
-            (int *)NULL,
-            graph_slice->d_edgeCountScan,
-            *m_mgpuContext);
+                                                                                         ecIterator,
+                                                                                         frontier_size,
+                                                                                         0,
+                                                                                         mgpu::plus<int>(),
+                                                                                         m_deviceMappedValue,
+                                                                                         (int *)NULL,
+                                                                                         graph_slice->d_edgeCountScan,
+                                                                                         *m_mgpuContext);
 
         //          int n_active_edges = *m_hostMappedValue;
         int n_active_edges;
         cudaMemcpy(&n_active_edges, m_deviceMappedValue,
-            sizeof (int),
-            cudaMemcpyDeviceToHost);
+                   sizeof (int),
+                   cudaMemcpyDeviceToHost);
 
         SYNC_CHECK();
         //      printf("n_active_edges = %d\n", n_active_edges);
@@ -1355,27 +1355,27 @@ namespace GASengine
 
         const int nThreadsPerBlock = 128;
         MGPU_MEM(int)partitions = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper >
-        (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
-            nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
+                (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
+                 nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
 
         SizeT nBlocks = MGPU_DIV_UP(n_active_edges + frontier_size, nThreadsPerBlock);
         //          dim3 grid = vertex_centric::mgpukernel::calcGridDim(nBlocks);
 
         vertex_centric::mgpukernel::kernel_gather_mgpu<Program, VertexId,
-        nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
-            frontier_size,
-            graph_slice->frontier_queues.d_keys[selector ^ 1],
-            nBlocks,
-            n_active_edges,
-            graph_slice->d_edgeCountScan,
-            partitions->get(),
-            graph_slice->d_column_offsets,
-            graph_slice->d_row_indices,
-            graph_slice->vertex_list,
-            graph_slice->edge_list,
-            NULL,
-            graph_slice->m_gatherDstsTmp,
-            graph_slice->m_gatherMapTmp);
+                nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
+                                                                     frontier_size,
+                                                                     graph_slice->frontier_queues.d_keys[selector ^ 1],
+                                                                     nBlocks,
+                                                                     n_active_edges,
+                                                                     graph_slice->d_edgeCountScan,
+                                                                     partitions->get(),
+                                                                     graph_slice->d_column_offsets,
+                                                                     graph_slice->d_row_indices,
+                                                                     graph_slice->vertex_list,
+                                                                     graph_slice->edge_list,
+                                                                     NULL,
+                                                                     graph_slice->m_gatherDstsTmp,
+                                                                     graph_slice->m_gatherMapTmp);
 
         SYNC_CHECK();
 
@@ -1404,16 +1404,16 @@ namespace GASengine
         //        delete[] test_vid2;
 
         mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
-            , graph_slice->m_gatherMapTmp
-            , n_active_edges
-            , Program::INIT_VALUE
-            , ReduceFunctor()
-            , mgpu::equal_to<VertexId > ()
-            , (VertexId *)NULL
-            , ReduceOutputIterator(graph_slice->m_gatherTmp1, graph_slice->frontier_queues.d_keys[selector ^ 1])
-            , NULL
-            , NULL
-            , *m_mgpuContext);
+                          , graph_slice->m_gatherMapTmp
+                          , n_active_edges
+                          , Program::INIT_VALUE
+                          , ReduceFunctor()
+                          , mgpu::equal_to<VertexId > ()
+                          , (VertexId *)NULL
+                          , ReduceOutputIterator(graph_slice->m_gatherTmp1, graph_slice->frontier_queues.d_keys[selector ^ 1])
+                          , NULL
+                          , NULL
+                          , *m_mgpuContext);
 
         SYNC_CHECK();
 
@@ -1432,49 +1432,49 @@ namespace GASengine
         //        printf("Gather all edges --- gather out!\n");
 
         EdgeCountIterator ecIterator2(graph_slice->d_row_offsets,
-            graph_slice->frontier_queues.d_keys[selector ^ 1]);
+                                      graph_slice->frontier_queues.d_keys[selector ^ 1]);
 
         mgpu::Scan<mgpu::MgpuScanTypeExc, EdgeCountIterator, int, mgpu::plus<int>, int*>(
-            ecIterator2,
-            frontier_size,
-            0,
-            mgpu::plus<int>(),
-            m_deviceMappedValue,
-            (int *)NULL,
-            graph_slice->d_edgeCountScan,
-            *m_mgpuContext);
+                                                                                         ecIterator2,
+                                                                                         frontier_size,
+                                                                                         0,
+                                                                                         mgpu::plus<int>(),
+                                                                                         m_deviceMappedValue,
+                                                                                         (int *)NULL,
+                                                                                         graph_slice->d_edgeCountScan,
+                                                                                         *m_mgpuContext);
 
         SYNC_CHECK();
 
         //          n_active_edges = *m_hostMappedValue;
         cudaMemcpy(&n_active_edges, m_deviceMappedValue,
-            sizeof (int),
-            cudaMemcpyDeviceToHost);
+                   sizeof (int),
+                   cudaMemcpyDeviceToHost);
         //        printf("Gather all: out: n_active_edges = %d\n", n_active_edges);
 
         partitions = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper >
-        (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
-            nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
+                (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
+                 nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
 
         nBlocks = MGPU_DIV_UP(n_active_edges + frontier_size,
-            nThreadsPerBlock);
+                              nThreadsPerBlock);
         //          grid = vertex_centric::mgpukernel::calcGridDim(nBlocks);
 
         vertex_centric::mgpukernel::kernel_gather_mgpu<Program, VertexId,
-        nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
-            frontier_size,
-            graph_slice->frontier_queues.d_keys[selector ^ 1],
-            nBlocks,
-            n_active_edges,
-            graph_slice->d_edgeCountScan,
-            partitions->get(),
-            graph_slice->d_row_offsets,
-            graph_slice->d_column_indices,
-            graph_slice->vertex_list,
-            graph_slice->edge_list,
-            graph_slice->d_edgeCSC_indices,
-            graph_slice->m_gatherDstsTmp,
-            graph_slice->m_gatherMapTmp);
+                nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
+                                                                     frontier_size,
+                                                                     graph_slice->frontier_queues.d_keys[selector ^ 1],
+                                                                     nBlocks,
+                                                                     n_active_edges,
+                                                                     graph_slice->d_edgeCountScan,
+                                                                     partitions->get(),
+                                                                     graph_slice->d_row_offsets,
+                                                                     graph_slice->d_column_indices,
+                                                                     graph_slice->vertex_list,
+                                                                     graph_slice->edge_list,
+                                                                     graph_slice->d_edgeCSC_indices,
+                                                                     graph_slice->m_gatherDstsTmp,
+                                                                     graph_slice->m_gatherMapTmp);
 
         SYNC_CHECK();
 
@@ -1503,16 +1503,16 @@ namespace GASengine
         //          delete[] test_vid2;
 
         mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
-            , graph_slice->m_gatherMapTmp
-            , n_active_edges
-            , Program::INIT_VALUE
-            , ReduceFunctor()
-            , mgpu::equal_to<VertexId > ()
-            , (VertexId *)NULL
-            , ReduceOutputIterator(graph_slice->m_gatherTmp2, graph_slice->frontier_queues.d_keys[selector ^ 1])
-            , NULL
-            , NULL
-            , *m_mgpuContext);
+                          , graph_slice->m_gatherMapTmp
+                          , n_active_edges
+                          , Program::INIT_VALUE
+                          , ReduceFunctor()
+                          , mgpu::equal_to<VertexId > ()
+                          , (VertexId *)NULL
+                          , ReduceOutputIterator(graph_slice->m_gatherTmp2, graph_slice->frontier_queues.d_keys[selector ^ 1])
+                          , NULL
+                          , NULL
+                          , *m_mgpuContext);
 
         SYNC_CHECK();
 
@@ -1533,10 +1533,10 @@ namespace GASengine
         thrust::device_ptr<GatherType> m_gatherTmp_ptr = thrust::device_pointer_cast(graph_slice->m_gatherTmp);
         typename Program::gather_sum gather_sum_functor;
         thrust::transform(m_gatherTmp1_ptr,
-            m_gatherTmp1_ptr + graph_slice->nodes,
-            m_gatherTmp2_ptr,
-            m_gatherTmp_ptr,
-            gather_sum_functor);
+                          m_gatherTmp1_ptr + graph_slice->nodes,
+                          m_gatherTmp2_ptr,
+                          m_gatherTmp_ptr,
+                          gather_sum_functor);
 
         //          test_vid1 = new GatherType[graph_slice->nodes];
         //          cudaMemcpy(test_vid1, graph_slice->graph_slice->m_gatherTmp,
@@ -1611,62 +1611,62 @@ namespace GASengine
         if (Program::gatherOverEdges() == GATHER_IN_EDGES)
         {
           EdgeCountIterator ecIterator(graph_slice->d_column_offsets,
-              graph_slice->frontier_queues.d_keys[selector ^ 1]);
+                                       graph_slice->frontier_queues.d_keys[selector ^ 1]);
 
           mgpu::Scan<mgpu::MgpuScanTypeExc, EdgeCountIterator, int, mgpu::plus<int>, int*>(
-              ecIterator,
-              frontier_size,
-              0,
-              mgpu::plus<int>(),
-              m_deviceMappedValue,
-              (int *)NULL,
-              graph_slice->d_edgeCountScan,
-              *m_mgpuContext);
+                                                                                           ecIterator,
+                                                                                           frontier_size,
+                                                                                           0,
+                                                                                           mgpu::plus<int>(),
+                                                                                           m_deviceMappedValue,
+                                                                                           (int *)NULL,
+                                                                                           graph_slice->d_edgeCountScan,
+                                                                                           *m_mgpuContext);
 
           //          int n_active_edges = *m_hostMappedValue;
           int n_active_edges;
           cudaMemcpy(&n_active_edges, m_deviceMappedValue,
-              sizeof (int),
-              cudaMemcpyDeviceToHost);
+                     sizeof (int),
+                     cudaMemcpyDeviceToHost);
 
           //          printf("n_active_edges = %d, frontier_size = %d\n", n_active_edges, frontier_size);
 
           const int nThreadsPerBlock = 128;
           MGPU_MEM(int)partitions = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper >
-          (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
-              nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
+                  (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
+                   nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
 
           SizeT nBlocks = MGPU_DIV_UP(n_active_edges + frontier_size,
-              nThreadsPerBlock);
+                                      nThreadsPerBlock);
           dim3 grid = vertex_centric::mgpukernel::calcGridDim(nBlocks);
 
           vertex_centric::mgpukernel::kernel_gather_mgpu<Program, VertexId,
-          nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
-              frontier_size,
-              graph_slice->frontier_queues.d_keys[selector ^ 1],
-              nBlocks,
-              n_active_edges,
-              graph_slice->d_edgeCountScan,
-              partitions->get(),
-              graph_slice->d_column_offsets,
-              graph_slice->d_row_indices,
-              graph_slice->vertex_list,
-              graph_slice->edge_list,
-              NULL,
-              graph_slice->m_gatherDstsTmp,
-              graph_slice->m_gatherMapTmp);
+                  nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
+                                                                       frontier_size,
+                                                                       graph_slice->frontier_queues.d_keys[selector ^ 1],
+                                                                       nBlocks,
+                                                                       n_active_edges,
+                                                                       graph_slice->d_edgeCountScan,
+                                                                       partitions->get(),
+                                                                       graph_slice->d_column_offsets,
+                                                                       graph_slice->d_row_indices,
+                                                                       graph_slice->vertex_list,
+                                                                       graph_slice->edge_list,
+                                                                       NULL,
+                                                                       graph_slice->m_gatherDstsTmp,
+                                                                       graph_slice->m_gatherMapTmp);
 
           mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
-              , graph_slice->m_gatherMapTmp
-              , n_active_edges
-              , Program::INIT_VALUE
-              , ReduceFunctor()
-              , mgpu::equal_to<VertexId > ()
-              , (VertexId *)NULL
-              , ReduceOutputIterator(graph_slice->m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
-              , NULL
-              , NULL
-              , *m_mgpuContext);
+                            , graph_slice->m_gatherMapTmp
+                            , n_active_edges
+                            , Program::INIT_VALUE
+                            , ReduceFunctor()
+                            , mgpu::equal_to<VertexId > ()
+                            , (VertexId *)NULL
+                            , ReduceOutputIterator(graph_slice->m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
+                            , NULL
+                            , NULL
+                            , *m_mgpuContext);
 
           //          GatherType* test_vid2 = new GatherType[graph_slice->nodes];
           //          cudaMemcpy(test_vid2, graph_slice->graph_slice->m_gatherTmp,
@@ -1683,61 +1683,61 @@ namespace GASengine
         else if (Program::gatherOverEdges() == GATHER_OUT_EDGES)
         {
           EdgeCountIterator ecIterator(graph_slice->d_row_offsets,
-              graph_slice->frontier_queues.d_keys[selector ^ 1]);
+                                       graph_slice->frontier_queues.d_keys[selector ^ 1]);
 
           mgpu::Scan<mgpu::MgpuScanTypeExc, EdgeCountIterator, int, mgpu::plus<int>, int*>(
-              ecIterator,
-              frontier_size,
-              0,
-              mgpu::plus<int>(),
-              m_deviceMappedValue,
-              (int *)NULL,
-              graph_slice->d_edgeCountScan,
-              *m_mgpuContext);
+                                                                                           ecIterator,
+                                                                                           frontier_size,
+                                                                                           0,
+                                                                                           mgpu::plus<int>(),
+                                                                                           m_deviceMappedValue,
+                                                                                           (int *)NULL,
+                                                                                           graph_slice->d_edgeCountScan,
+                                                                                           *m_mgpuContext);
 
           //          int n_active_edges = *m_hostMappedValue;
           int n_active_edges;
           cudaMemcpy(&n_active_edges, m_deviceMappedValue,
-              sizeof (int),
-              cudaMemcpyDeviceToHost);
+                     sizeof (int),
+                     cudaMemcpyDeviceToHost);
           //      printf("n_active_edges = %d\n", n_active_edges);
 
           const int nThreadsPerBlock = 128;
           MGPU_MEM(int)partitions = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper >
-          (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
-              nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
+                  (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
+                   nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
 
           SizeT nBlocks = MGPU_DIV_UP(n_active_edges + frontier_size,
-              nThreadsPerBlock);
+                                      nThreadsPerBlock);
           dim3 grid = vertex_centric::mgpukernel::calcGridDim(nBlocks);
 
           vertex_centric::mgpukernel::kernel_gather_mgpu<Program, VertexId,
-          nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
-              frontier_size,
-              graph_slice->frontier_queues.d_keys[selector ^ 1],
-              nBlocks,
-              n_active_edges,
-              graph_slice->d_edgeCountScan,
-              partitions->get(),
-              graph_slice->d_row_offsets,
-              graph_slice->d_column_indices,
-              graph_slice->vertex_list,
-              graph_slice->edge_list,
-              graph_slice->d_edgeCSC_indices,
-              graph_slice->m_gatherDstsTmp,
-              graph_slice->m_gatherMapTmp);
+                  nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
+                                                                       frontier_size,
+                                                                       graph_slice->frontier_queues.d_keys[selector ^ 1],
+                                                                       nBlocks,
+                                                                       n_active_edges,
+                                                                       graph_slice->d_edgeCountScan,
+                                                                       partitions->get(),
+                                                                       graph_slice->d_row_offsets,
+                                                                       graph_slice->d_column_indices,
+                                                                       graph_slice->vertex_list,
+                                                                       graph_slice->edge_list,
+                                                                       graph_slice->d_edgeCSC_indices,
+                                                                       graph_slice->m_gatherDstsTmp,
+                                                                       graph_slice->m_gatherMapTmp);
 
           mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
-              , graph_slice->m_gatherMapTmp
-              , n_active_edges
-              , Program::INIT_VALUE
-              , ReduceFunctor()
-              , mgpu::equal_to<VertexId > ()
-              , (VertexId *)NULL
-              , ReduceOutputIterator(graph_slice->m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
-              , NULL
-              , NULL
-              , *m_mgpuContext);
+                            , graph_slice->m_gatherMapTmp
+                            , n_active_edges
+                            , Program::INIT_VALUE
+                            , ReduceFunctor()
+                            , mgpu::equal_to<VertexId > ()
+                            , (VertexId *)NULL
+                            , ReduceOutputIterator(graph_slice->m_gatherTmp, graph_slice->frontier_queues.d_keys[selector ^ 1])
+                            , NULL
+                            , NULL
+                            , *m_mgpuContext);
         }
         else if (Program::gatherOverEdges() == GATHER_ALL_EDGES)
         {
@@ -1745,46 +1745,46 @@ namespace GASengine
           EdgeCountIterator ecIterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]);
 
           mgpu::Scan<mgpu::MgpuScanTypeExc, EdgeCountIterator, int, mgpu::plus<int>, int*>(
-              ecIterator,
-              frontier_size,
-              0,
-              mgpu::plus<int>(),
-              m_deviceMappedValue,
-              (int *)NULL,
-              graph_slice->d_edgeCountScan,
-              *m_mgpuContext);
+                                                                                           ecIterator,
+                                                                                           frontier_size,
+                                                                                           0,
+                                                                                           mgpu::plus<int>(),
+                                                                                           m_deviceMappedValue,
+                                                                                           (int *)NULL,
+                                                                                           graph_slice->d_edgeCountScan,
+                                                                                           *m_mgpuContext);
 
           //          int n_active_edges = *m_hostMappedValue;
           int n_active_edges;
           cudaMemcpy(&n_active_edges, m_deviceMappedValue,
-              sizeof (int),
-              cudaMemcpyDeviceToHost);
+                     sizeof (int),
+                     cudaMemcpyDeviceToHost);
           //      printf("n_active_edges = %d\n", n_active_edges);
           //          printf("Gather all: int: n_active_edges = %d\n", n_active_edges);
 
           const int nThreadsPerBlock = 128;
           MGPU_MEM(int)partitions = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper >
-          (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
-              nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
+                  (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
+                   nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
 
           SizeT nBlocks = MGPU_DIV_UP(n_active_edges + frontier_size, nThreadsPerBlock);
           //          dim3 grid = vertex_centric::mgpukernel::calcGridDim(nBlocks);
 
           vertex_centric::mgpukernel::kernel_gather_mgpu<Program, VertexId,
-          nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
-              frontier_size,
-              graph_slice->frontier_queues.d_keys[selector ^ 1],
-              nBlocks,
-              n_active_edges,
-              graph_slice->d_edgeCountScan,
-              partitions->get(),
-              graph_slice->d_column_offsets,
-              graph_slice->d_row_indices,
-              graph_slice->vertex_list,
-              graph_slice->edge_list,
-              NULL,
-              graph_slice->m_gatherDstsTmp,
-              graph_slice->m_gatherMapTmp);
+                  nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
+                                                                       frontier_size,
+                                                                       graph_slice->frontier_queues.d_keys[selector ^ 1],
+                                                                       nBlocks,
+                                                                       n_active_edges,
+                                                                       graph_slice->d_edgeCountScan,
+                                                                       partitions->get(),
+                                                                       graph_slice->d_column_offsets,
+                                                                       graph_slice->d_row_indices,
+                                                                       graph_slice->vertex_list,
+                                                                       graph_slice->edge_list,
+                                                                       NULL,
+                                                                       graph_slice->m_gatherDstsTmp,
+                                                                       graph_slice->m_gatherMapTmp);
 
           //          VertexId* test_vid3 = new VertexId[n_active_edges];
           //          cudaMemcpy(test_vid3, graph_slice->m_gatherDstsTmp,
@@ -1811,16 +1811,16 @@ namespace GASengine
           //          delete[] test_vid2;
 
           mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
-              , graph_slice->m_gatherMapTmp
-              , n_active_edges
-              , Program::INIT_VALUE
-              , ReduceFunctor()
-              , mgpu::equal_to<VertexId > ()
-              , (VertexId *)NULL
-              , ReduceOutputIterator(graph_slice->m_gatherTmp1, graph_slice->frontier_queues.d_keys[selector ^ 1])
-              , NULL
-              , NULL
-              , *m_mgpuContext);
+                            , graph_slice->m_gatherMapTmp
+                            , n_active_edges
+                            , Program::INIT_VALUE
+                            , ReduceFunctor()
+                            , mgpu::equal_to<VertexId > ()
+                            , (VertexId *)NULL
+                            , ReduceOutputIterator(graph_slice->m_gatherTmp1, graph_slice->frontier_queues.d_keys[selector ^ 1])
+                            , NULL
+                            , NULL
+                            , *m_mgpuContext);
 
           //          GatherType* test_vid1 = new GatherType[graph_slice->nodes];
           //          cudaMemcpy(test_vid1, graph_slice->m_gatherTmp1,
@@ -1837,47 +1837,47 @@ namespace GASengine
           //          printf("Gather all edges --- gather out!\n");
 
           EdgeCountIterator ecIterator2(graph_slice->d_row_offsets,
-              graph_slice->frontier_queues.d_keys[selector ^ 1]);
+                                        graph_slice->frontier_queues.d_keys[selector ^ 1]);
 
           mgpu::Scan<mgpu::MgpuScanTypeExc, EdgeCountIterator, int, mgpu::plus<int>, int*>(
-              ecIterator2,
-              frontier_size,
-              0,
-              mgpu::plus<int>(),
-              m_deviceMappedValue,
-              (int *)NULL,
-              graph_slice->d_edgeCountScan,
-              *m_mgpuContext);
+                                                                                           ecIterator2,
+                                                                                           frontier_size,
+                                                                                           0,
+                                                                                           mgpu::plus<int>(),
+                                                                                           m_deviceMappedValue,
+                                                                                           (int *)NULL,
+                                                                                           graph_slice->d_edgeCountScan,
+                                                                                           *m_mgpuContext);
 
           //          n_active_edges = *m_hostMappedValue;
           cudaMemcpy(&n_active_edges, m_deviceMappedValue,
-              sizeof (int),
-              cudaMemcpyDeviceToHost);
+                     sizeof (int),
+                     cudaMemcpyDeviceToHost);
           //          printf("Gather all: out: n_active_edges = %d\n", n_active_edges);
 
           partitions = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper >
-          (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
-              nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
+                  (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, frontier_size,
+                   nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
 
           nBlocks = MGPU_DIV_UP(n_active_edges + frontier_size,
-              nThreadsPerBlock);
+                                nThreadsPerBlock);
           //          grid = vertex_centric::mgpukernel::calcGridDim(nBlocks);
 
           vertex_centric::mgpukernel::kernel_gather_mgpu<Program, VertexId,
-          nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
-              frontier_size,
-              graph_slice->frontier_queues.d_keys[selector ^ 1],
-              nBlocks,
-              n_active_edges,
-              graph_slice->d_edgeCountScan,
-              partitions->get(),
-              graph_slice->d_row_offsets,
-              graph_slice->d_column_indices,
-              graph_slice->vertex_list,
-              graph_slice->edge_list,
-              graph_slice->d_edgeCSC_indices,
-              graph_slice->m_gatherDstsTmp,
-              graph_slice->m_gatherMapTmp);
+                  nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
+                                                                       frontier_size,
+                                                                       graph_slice->frontier_queues.d_keys[selector ^ 1],
+                                                                       nBlocks,
+                                                                       n_active_edges,
+                                                                       graph_slice->d_edgeCountScan,
+                                                                       partitions->get(),
+                                                                       graph_slice->d_row_offsets,
+                                                                       graph_slice->d_column_indices,
+                                                                       graph_slice->vertex_list,
+                                                                       graph_slice->edge_list,
+                                                                       graph_slice->d_edgeCSC_indices,
+                                                                       graph_slice->m_gatherDstsTmp,
+                                                                       graph_slice->m_gatherMapTmp);
 
           //          test_vid3 = new VertexId[n_active_edges];
           //          cudaMemcpy(test_vid3, graph_slice->m_gatherDstsTmp,
@@ -1904,16 +1904,16 @@ namespace GASengine
           //          delete[] test_vid2;
 
           mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
-              , graph_slice->m_gatherMapTmp
-              , n_active_edges
-              , Program::INIT_VALUE
-              , ReduceFunctor()
-              , mgpu::equal_to<VertexId > ()
-              , (VertexId *)NULL
-              , ReduceOutputIterator(graph_slice->m_gatherTmp2, graph_slice->frontier_queues.d_keys[selector ^ 1])
-              , NULL
-              , NULL
-              , *m_mgpuContext);
+                            , graph_slice->m_gatherMapTmp
+                            , n_active_edges
+                            , Program::INIT_VALUE
+                            , ReduceFunctor()
+                            , mgpu::equal_to<VertexId > ()
+                            , (VertexId *)NULL
+                            , ReduceOutputIterator(graph_slice->m_gatherTmp2, graph_slice->frontier_queues.d_keys[selector ^ 1])
+                            , NULL
+                            , NULL
+                            , *m_mgpuContext);
 
           //          test_vid1 = new GatherType[graph_slice->nodes];
           //          cudaMemcpy(test_vid1, graph_slice->m_gatherTmp2,
@@ -1932,10 +1932,10 @@ namespace GASengine
           thrust::device_ptr<GatherType> m_gatherTmp_ptr = thrust::device_pointer_cast(graph_slice->m_gatherTmp);
           typename Program::gather_sum gather_sum_functor;
           thrust::transform(m_gatherTmp1_ptr,
-              m_gatherTmp1_ptr + graph_slice->nodes,
-              m_gatherTmp2_ptr,
-              m_gatherTmp_ptr,
-              gather_sum_functor);
+                            m_gatherTmp1_ptr + graph_slice->nodes,
+                            m_gatherTmp2_ptr,
+                            m_gatherTmp_ptr,
+                            gather_sum_functor);
 
           //          test_vid1 = new GatherType[graph_slice->nodes];
           //          cudaMemcpy(test_vid1, graph_slice->m_gatherTmp,
@@ -1970,37 +1970,37 @@ namespace GASengine
         {
           //            printf("Expand_dynamic:Dup:All\n");
           vertex_centric::expand_atomic::Kernel<ExpandPolicy,
-          Program> << <expand_grid_size,
-          ExpandPolicy::THREADS >> >(iteration[0],
-              queue_index,// queue counter index
-              queue_index,// steal counter index
-              1,// number of GPUs
-              frontier_selector,
-              0,
-              d_frontier_size,
-              d_edge_frontier_size,
-              d_done,
-              graph_slice->frontier_queues.d_keys[selector
-              ^ 1],// vertex frontier in
-              graph_slice->frontier_queues.d_keys[selector],// edge frontier out
-              graph_slice->frontier_queues.d_values[selector],// predecessor out
-              graph_slice->vertex_list,//
-              graph_slice->edge_list,
-              NULL,
-              graph_slice->d_changed,
-              graph_slice->d_column_indices,
-              graph_slice->d_row_offsets,
-              this->work_progress,
-              graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-              graph_slice->frontier_elements[selector],// max edge frontier vertices
-              this->expand_kernel_stats);
+                  Program> << <expand_grid_size,
+                  ExpandPolicy::THREADS >> >(iteration[0],
+                                             queue_index, // queue counter index
+                                             queue_index, // steal counter index
+                                             1, // number of GPUs
+                                             frontier_selector,
+                                             0,
+                                             d_frontier_size,
+                                             d_edge_frontier_size,
+                                             d_done,
+                                             graph_slice->frontier_queues.d_keys[selector
+                                             ^ 1], // vertex frontier in
+                                             graph_slice->frontier_queues.d_keys[selector], // edge frontier out
+                                             graph_slice->frontier_queues.d_values[selector], // predecessor out
+                                             graph_slice->vertex_list, //
+                                             graph_slice->edge_list,
+                                             NULL,
+                                             graph_slice->d_changed,
+                                             graph_slice->d_column_indices,
+                                             graph_slice->d_row_offsets,
+                                             this->work_progress,
+                                             graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                             graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                             this->expand_kernel_stats);
 
           int edge_frontier_size1;
           cudaMemcpy(
-              &edge_frontier_size1,
-              &d_edge_frontier_size[frontier_selector],
-              sizeof (int),
-              cudaMemcpyDeviceToHost);
+                     &edge_frontier_size1,
+                     &d_edge_frontier_size[frontier_selector],
+                     sizeof (int),
+                     cudaMemcpyDeviceToHost);
 
           //            cudaDeviceSynchronize();
           //
@@ -2018,30 +2018,30 @@ namespace GASengine
           //            delete [] frontier;
 
           vertex_centric::expand_atomic::Kernel<ExpandPolicy,
-          Program> << <expand_grid_size,
-          ExpandPolicy::THREADS >> >(iteration[0],
-              queue_index,// queue counter index
-              queue_index,// steal counter index
-              1,// number of GPUs
-              frontier_selector,
-              edge_frontier_size1,
-              d_frontier_size,
-              d_edge_frontier_size,
-              d_done,
-              graph_slice->frontier_queues.d_keys[selector
-              ^ 1],// vertex frontier in
-              graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1,// edge frontier out
-              graph_slice->frontier_queues.d_values[selector] + edge_frontier_size1,// predecessor out
-              graph_slice->vertex_list,//
-              graph_slice->edge_list,
-              graph_slice->d_edgeCSC_indices,
-              graph_slice->d_changed,
-              graph_slice->d_row_indices,
-              graph_slice->d_column_offsets,
-              this->work_progress,
-              graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-              graph_slice->frontier_elements[selector],// max edge frontier vertices
-              this->expand_kernel_stats);
+                  Program> << <expand_grid_size,
+                  ExpandPolicy::THREADS >> >(iteration[0],
+                                             queue_index, // queue counter index
+                                             queue_index, // steal counter index
+                                             1, // number of GPUs
+                                             frontier_selector,
+                                             edge_frontier_size1,
+                                             d_frontier_size,
+                                             d_edge_frontier_size,
+                                             d_done,
+                                             graph_slice->frontier_queues.d_keys[selector
+                                             ^ 1], // vertex frontier in
+                                             graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1, // edge frontier out
+                                             graph_slice->frontier_queues.d_values[selector] + edge_frontier_size1, // predecessor out
+                                             graph_slice->vertex_list, //
+                                             graph_slice->edge_list,
+                                             graph_slice->d_edgeCSC_indices,
+                                             graph_slice->d_changed,
+                                             graph_slice->d_row_indices,
+                                             graph_slice->d_column_offsets,
+                                             this->work_progress,
+                                             graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                             graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                             this->expand_kernel_stats);
           //          vertex_centric::expand_atomic::Kernel<ExpandPolicy,
           //          Program><<<expand_grid_size,
           //          ExpandPolicy::THREADS>>>(iteration[0],
@@ -2073,94 +2073,94 @@ namespace GASengine
           {
 
             vertex_centric::expand_atomic::Kernel<ExpandPolicy, Program> << <expand_grid_size,
-            ExpandPolicy::THREADS >> >(iteration[0],
-                queue_index, // queue counter index
-                queue_index,// steal counter index
-                1,// number of GPUs
-                frontier_selector,
-                0,
-                d_frontier_size,
-                d_edge_frontier_size,
-                d_done,
-                graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
-                graph_slice->frontier_queues.d_keys[selector],// edge frontier out
-                graph_slice->frontier_queues.d_values[selector],// predecessor out
-                graph_slice->vertex_list,//
-                graph_slice->edge_list,
-                NULL,
-                graph_slice->d_changed,
-                graph_slice->d_column_indices,
-                graph_slice->d_row_offsets,
-                this->work_progress,
-                graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-                graph_slice->frontier_elements[selector],// max edge frontier vertices
-                this->expand_kernel_stats);
+                    ExpandPolicy::THREADS >> >(iteration[0],
+                                               queue_index, // queue counter index
+                                               queue_index, // steal counter index
+                                               1, // number of GPUs
+                                               frontier_selector,
+                                               0,
+                                               d_frontier_size,
+                                               d_edge_frontier_size,
+                                               d_done,
+                                               graph_slice->frontier_queues.d_keys[selector ^ 1], // vertex frontier in
+                                               graph_slice->frontier_queues.d_keys[selector], // edge frontier out
+                                               graph_slice->frontier_queues.d_values[selector], // predecessor out
+                                               graph_slice->vertex_list, //
+                                               graph_slice->edge_list,
+                                               NULL,
+                                               graph_slice->d_changed,
+                                               graph_slice->d_column_indices,
+                                               graph_slice->d_row_offsets,
+                                               this->work_progress,
+                                               graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                               graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                               this->expand_kernel_stats);
           }
           else if (Program::expandOverEdges()
-              == EXPAND_IN_EDGES)
+                   == EXPAND_IN_EDGES)
           {
             vertex_centric::expand_atomic::Kernel<ExpandPolicy,
-            Program> << <expand_grid_size,
-            ExpandPolicy::THREADS >> >(iteration[0],
-                queue_index, // queue counter index
-                queue_index,// steal counter index
-                1,// number of GPUs
-                frontier_selector,
-                0,
-                d_frontier_size,
-                d_edge_frontier_size,
-                d_done,
-                graph_slice->frontier_queues.d_keys[selector
-                ^ 1],// vertex frontier in
-                graph_slice->frontier_queues.d_keys[selector],// edge frontier out
-                graph_slice->frontier_queues.d_values[selector],// predecessor out
-                graph_slice->vertex_list,//
-                graph_slice->edge_list,
-                graph_slice->d_edgeCSC_indices,
-                graph_slice->d_changed,
-                graph_slice->d_row_indices,
-                graph_slice->d_column_offsets,
-                this->work_progress,
-                graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-                graph_slice->frontier_elements[selector],// max edge frontier vertices
-                this->expand_kernel_stats);
+                    Program> << <expand_grid_size,
+                    ExpandPolicy::THREADS >> >(iteration[0],
+                                               queue_index, // queue counter index
+                                               queue_index, // steal counter index
+                                               1, // number of GPUs
+                                               frontier_selector,
+                                               0,
+                                               d_frontier_size,
+                                               d_edge_frontier_size,
+                                               d_done,
+                                               graph_slice->frontier_queues.d_keys[selector
+                                               ^ 1], // vertex frontier in
+                                               graph_slice->frontier_queues.d_keys[selector], // edge frontier out
+                                               graph_slice->frontier_queues.d_values[selector], // predecessor out
+                                               graph_slice->vertex_list, //
+                                               graph_slice->edge_list,
+                                               graph_slice->d_edgeCSC_indices,
+                                               graph_slice->d_changed,
+                                               graph_slice->d_row_indices,
+                                               graph_slice->d_column_offsets,
+                                               this->work_progress,
+                                               graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                               graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                               this->expand_kernel_stats);
           }
           else if (Program::expandOverEdges() == EXPAND_ALL_EDGES)
           {
 
             //            printf("Expand_dynamic:Dup:All\n");
             vertex_centric::expand_atomic::Kernel<ExpandPolicy,
-            Program> << <expand_grid_size,
-            ExpandPolicy::THREADS >> >(iteration[0],
-                queue_index,// queue counter index
-                queue_index,// steal counter index
-                1,// number of GPUs
-                frontier_selector,
-                0,
-                d_frontier_size,
-                d_edge_frontier_size,
-                d_done,
-                graph_slice->frontier_queues.d_keys[selector
-                ^ 1],// vertex frontier in
-                graph_slice->frontier_queues.d_keys[selector],// edge frontier out
-                graph_slice->frontier_queues.d_values[selector],// predecessor out
-                graph_slice->vertex_list,//
-                graph_slice->edge_list,
-                NULL,
-                graph_slice->d_changed,
-                graph_slice->d_column_indices,
-                graph_slice->d_row_offsets,
-                this->work_progress,
-                graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-                graph_slice->frontier_elements[selector],// max edge frontier vertices
-                this->expand_kernel_stats);
+                    Program> << <expand_grid_size,
+                    ExpandPolicy::THREADS >> >(iteration[0],
+                                               queue_index, // queue counter index
+                                               queue_index, // steal counter index
+                                               1, // number of GPUs
+                                               frontier_selector,
+                                               0,
+                                               d_frontier_size,
+                                               d_edge_frontier_size,
+                                               d_done,
+                                               graph_slice->frontier_queues.d_keys[selector
+                                               ^ 1], // vertex frontier in
+                                               graph_slice->frontier_queues.d_keys[selector], // edge frontier out
+                                               graph_slice->frontier_queues.d_values[selector], // predecessor out
+                                               graph_slice->vertex_list, //
+                                               graph_slice->edge_list,
+                                               NULL,
+                                               graph_slice->d_changed,
+                                               graph_slice->d_column_indices,
+                                               graph_slice->d_row_offsets,
+                                               this->work_progress,
+                                               graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                               graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                               this->expand_kernel_stats);
 
             int edge_frontier_size1;
             cudaMemcpy(
-                &edge_frontier_size1,
-                &d_edge_frontier_size[frontier_selector],
-                sizeof (int),
-                cudaMemcpyDeviceToHost);
+                       &edge_frontier_size1,
+                       &d_edge_frontier_size[frontier_selector],
+                       sizeof (int),
+                       cudaMemcpyDeviceToHost);
 
             //            cudaDeviceSynchronize();
             //
@@ -2178,30 +2178,30 @@ namespace GASengine
             //            delete [] frontier;
 
             vertex_centric::expand_atomic::Kernel<ExpandPolicy,
-            Program> << <expand_grid_size,
-            ExpandPolicy::THREADS >> >(iteration[0],
-                queue_index,// queue counter index
-                queue_index,// steal counter index
-                1,// number of GPUs
-                frontier_selector,
-                edge_frontier_size1,
-                d_frontier_size,
-                d_edge_frontier_size,
-                d_done,
-                graph_slice->frontier_queues.d_keys[selector
-                ^ 1],// vertex frontier in
-                graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1,// edge frontier out
-                graph_slice->frontier_queues.d_values[selector] + edge_frontier_size1,// predecessor out
-                graph_slice->vertex_list,//
-                graph_slice->edge_list,
-                graph_slice->d_edgeCSC_indices,
-                graph_slice->d_changed,
-                graph_slice->d_row_indices,
-                graph_slice->d_column_offsets,
-                this->work_progress,
-                graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-                graph_slice->frontier_elements[selector],// max edge frontier vertices
-                this->expand_kernel_stats);
+                    Program> << <expand_grid_size,
+                    ExpandPolicy::THREADS >> >(iteration[0],
+                                               queue_index, // queue counter index
+                                               queue_index, // steal counter index
+                                               1, // number of GPUs
+                                               frontier_selector,
+                                               edge_frontier_size1,
+                                               d_frontier_size,
+                                               d_edge_frontier_size,
+                                               d_done,
+                                               graph_slice->frontier_queues.d_keys[selector
+                                               ^ 1], // vertex frontier in
+                                               graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1, // edge frontier out
+                                               graph_slice->frontier_queues.d_values[selector] + edge_frontier_size1, // predecessor out
+                                               graph_slice->vertex_list, //
+                                               graph_slice->edge_list,
+                                               graph_slice->d_edgeCSC_indices,
+                                               graph_slice->d_changed,
+                                               graph_slice->d_row_indices,
+                                               graph_slice->d_column_offsets,
+                                               this->work_progress,
+                                               graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                               graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                               this->expand_kernel_stats);
           }
         }
       }
@@ -2211,36 +2211,36 @@ namespace GASengine
         {
           //            printf("Expand dynamic: expand all\n");
           vertex_centric::expand_atomic_flag::Kernel<ExpandPolicy, Program> << <expand_grid_size, ExpandPolicy::THREADS >> >(
-              iteration[0],
-              queue_index,// queue counter index
-              queue_index,// steal counter index
-              1,// number of GPUs
-              frontier_selector,
-              0,
-              d_frontier_size,
-              d_edge_frontier_size,
-              d_done,
-              graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
-              graph_slice->frontier_queues.d_keys[selector],// edge frontier out
-              graph_slice->frontier_queues.d_values[selector],// predecessor out
-              graph_slice->vertex_list,//
-              graph_slice->edge_list,
-              NULL,
-              graph_slice->d_changed,
-              graph_slice->d_active_flags,
-              graph_slice->d_column_indices,
-              graph_slice->d_row_offsets,
-              this->work_progress,
-              graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-              graph_slice->frontier_elements[selector],// max edge frontier vertices
-              this->expand_kernel_stats);
+                                                                                                                             iteration[0],
+                                                                                                                             queue_index, // queue counter index
+                                                                                                                             queue_index, // steal counter index
+                                                                                                                             1, // number of GPUs
+                                                                                                                             frontier_selector,
+                                                                                                                             0,
+                                                                                                                             d_frontier_size,
+                                                                                                                             d_edge_frontier_size,
+                                                                                                                             d_done,
+                                                                                                                             graph_slice->frontier_queues.d_keys[selector ^ 1], // vertex frontier in
+                                                                                                                             graph_slice->frontier_queues.d_keys[selector], // edge frontier out
+                                                                                                                             graph_slice->frontier_queues.d_values[selector], // predecessor out
+                                                                                                                             graph_slice->vertex_list, //
+                                                                                                                             graph_slice->edge_list,
+                                                                                                                             NULL,
+                                                                                                                             graph_slice->d_changed,
+                                                                                                                             graph_slice->d_active_flags,
+                                                                                                                             graph_slice->d_column_indices,
+                                                                                                                             graph_slice->d_row_offsets,
+                                                                                                                             this->work_progress,
+                                                                                                                             graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                                                                                                             graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                                                                                                             this->expand_kernel_stats);
 
           int edge_frontier_size1;
           cudaMemcpy(
-              &edge_frontier_size1,
-              &d_edge_frontier_size[frontier_selector],
-              sizeof (int),
-              cudaMemcpyDeviceToHost);
+                     &edge_frontier_size1,
+                     &d_edge_frontier_size[frontier_selector],
+                     sizeof (int),
+                     cudaMemcpyDeviceToHost);
 
           //          printf("frontier size1: %d: ", edge_frontier_size1);
           //          int* frontier = new int[edge_frontier_size1];
@@ -2256,36 +2256,36 @@ namespace GASengine
           //          delete [] frontier;
 
           vertex_centric::expand_atomic_flag::Kernel<ExpandPolicy, Program> << <expand_grid_size, ExpandPolicy::THREADS >> >(
-              iteration[0],
-              queue_index,// queue counter index
-              queue_index,// steal counter index
-              1,// number of GPUs
-              frontier_selector,
-              edge_frontier_size1,
-              d_frontier_size,
-              d_edge_frontier_size,
-              d_done,
-              graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
-              graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1,// edge frontier out
-              graph_slice->frontier_queues.d_values[selector] + edge_frontier_size1,// predecessor out
-              graph_slice->vertex_list,//
-              graph_slice->edge_list,
-              graph_slice->d_edgeCSC_indices,
-              graph_slice->d_changed,
-              graph_slice->d_active_flags,
-              graph_slice->d_row_indices,
-              graph_slice->d_column_offsets,
-              this->work_progress,
-              graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-              graph_slice->frontier_elements[selector],// max edge frontier vertices
-              this->expand_kernel_stats);
+                                                                                                                             iteration[0],
+                                                                                                                             queue_index, // queue counter index
+                                                                                                                             queue_index, // steal counter index
+                                                                                                                             1, // number of GPUs
+                                                                                                                             frontier_selector,
+                                                                                                                             edge_frontier_size1,
+                                                                                                                             d_frontier_size,
+                                                                                                                             d_edge_frontier_size,
+                                                                                                                             d_done,
+                                                                                                                             graph_slice->frontier_queues.d_keys[selector ^ 1], // vertex frontier in
+                                                                                                                             graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1, // edge frontier out
+                                                                                                                             graph_slice->frontier_queues.d_values[selector] + edge_frontier_size1, // predecessor out
+                                                                                                                             graph_slice->vertex_list, //
+                                                                                                                             graph_slice->edge_list,
+                                                                                                                             graph_slice->d_edgeCSC_indices,
+                                                                                                                             graph_slice->d_changed,
+                                                                                                                             graph_slice->d_active_flags,
+                                                                                                                             graph_slice->d_row_indices,
+                                                                                                                             graph_slice->d_column_offsets,
+                                                                                                                             this->work_progress,
+                                                                                                                             graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                                                                                                             graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                                                                                                             this->expand_kernel_stats);
 
           int edge_frontier_size2;
           cudaMemcpy(
-              &edge_frontier_size2,
-              &d_edge_frontier_size[frontier_selector],
-              sizeof (int),
-              cudaMemcpyDeviceToHost);
+                     &edge_frontier_size2,
+                     &d_edge_frontier_size[frontier_selector],
+                     sizeof (int),
+                     cudaMemcpyDeviceToHost);
 
           //          printf("frontier size2: %d: ", edge_frontier_size2);
           //          frontier = new int[edge_frontier_size2];
@@ -2336,91 +2336,91 @@ namespace GASengine
 
             //                printf("EXPAND_OUT_EDGES ...\n");
             vertex_centric::expand_atomic_flag::Kernel<ExpandPolicy, Program> << <expand_grid_size, ExpandPolicy::THREADS >> >(
-                iteration[0],
-                queue_index,// queue counter index
-                queue_index,// steal counter index
-                1,// number of GPUs
-                frontier_selector,
-                0,
-                d_frontier_size,
-                d_edge_frontier_size,
-                d_done,
-                graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
-                graph_slice->frontier_queues.d_keys[selector],// edge frontier out
-                graph_slice->frontier_queues.d_values[selector],// predecessor out
-                graph_slice->vertex_list,//
-                graph_slice->edge_list,
-                NULL,
-                graph_slice->d_changed,
-                graph_slice->d_active_flags,
-                graph_slice->d_column_indices,
-                graph_slice->d_row_offsets,
-                this->work_progress,
-                graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-                graph_slice->frontier_elements[selector],// max edge frontier vertices
-                this->expand_kernel_stats);
+                                                                                                                               iteration[0],
+                                                                                                                               queue_index, // queue counter index
+                                                                                                                               queue_index, // steal counter index
+                                                                                                                               1, // number of GPUs
+                                                                                                                               frontier_selector,
+                                                                                                                               0,
+                                                                                                                               d_frontier_size,
+                                                                                                                               d_edge_frontier_size,
+                                                                                                                               d_done,
+                                                                                                                               graph_slice->frontier_queues.d_keys[selector ^ 1], // vertex frontier in
+                                                                                                                               graph_slice->frontier_queues.d_keys[selector], // edge frontier out
+                                                                                                                               graph_slice->frontier_queues.d_values[selector], // predecessor out
+                                                                                                                               graph_slice->vertex_list, //
+                                                                                                                               graph_slice->edge_list,
+                                                                                                                               NULL,
+                                                                                                                               graph_slice->d_changed,
+                                                                                                                               graph_slice->d_active_flags,
+                                                                                                                               graph_slice->d_column_indices,
+                                                                                                                               graph_slice->d_row_offsets,
+                                                                                                                               this->work_progress,
+                                                                                                                               graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                                                                                                               graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                                                                                                               this->expand_kernel_stats);
           }
           else if (Program::expandOverEdges() == EXPAND_IN_EDGES)
           {
             vertex_centric::expand_atomic_flag::Kernel<ExpandPolicy, Program> << <expand_grid_size, ExpandPolicy::THREADS >> >(
-                iteration[0],
-                queue_index, // queue counter index
-                queue_index,// steal counter index
-                1,// number of GPUs
-                frontier_selector,
-                0,
-                d_frontier_size,
-                d_edge_frontier_size,
-                d_done,
-                graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
-                graph_slice->frontier_queues.d_keys[selector],// edge frontier out
-                graph_slice->frontier_queues.d_values[selector],// predecessor out
-                graph_slice->vertex_list,//
-                graph_slice->edge_list,
-                graph_slice->d_edgeCSC_indices,
-                graph_slice->d_changed,
-                graph_slice->d_active_flags,
-                graph_slice->d_row_indices,
-                graph_slice->d_column_offsets,
-                this->work_progress,
-                graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-                graph_slice->frontier_elements[selector],// max edge frontier vertices
-                this->expand_kernel_stats);
+                                                                                                                               iteration[0],
+                                                                                                                               queue_index, // queue counter index
+                                                                                                                               queue_index, // steal counter index
+                                                                                                                               1, // number of GPUs
+                                                                                                                               frontier_selector,
+                                                                                                                               0,
+                                                                                                                               d_frontier_size,
+                                                                                                                               d_edge_frontier_size,
+                                                                                                                               d_done,
+                                                                                                                               graph_slice->frontier_queues.d_keys[selector ^ 1], // vertex frontier in
+                                                                                                                               graph_slice->frontier_queues.d_keys[selector], // edge frontier out
+                                                                                                                               graph_slice->frontier_queues.d_values[selector], // predecessor out
+                                                                                                                               graph_slice->vertex_list, //
+                                                                                                                               graph_slice->edge_list,
+                                                                                                                               graph_slice->d_edgeCSC_indices,
+                                                                                                                               graph_slice->d_changed,
+                                                                                                                               graph_slice->d_active_flags,
+                                                                                                                               graph_slice->d_row_indices,
+                                                                                                                               graph_slice->d_column_offsets,
+                                                                                                                               this->work_progress,
+                                                                                                                               graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                                                                                                               graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                                                                                                               this->expand_kernel_stats);
           }
           else if (Program::expandOverEdges() == EXPAND_ALL_EDGES)
           {
             //            printf("Expand dynamic: expand all\n");
             vertex_centric::expand_atomic_flag::Kernel<ExpandPolicy, Program> << <expand_grid_size, ExpandPolicy::THREADS >> >(
-                iteration[0],
-                queue_index,// queue counter index
-                queue_index,// steal counter index
-                1,// number of GPUs
-                frontier_selector,
-                0,
-                d_frontier_size,
-                d_edge_frontier_size,
-                d_done,
-                graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
-                graph_slice->frontier_queues.d_keys[selector],// edge frontier out
-                graph_slice->frontier_queues.d_values[selector],// predecessor out
-                graph_slice->vertex_list,//
-                graph_slice->edge_list,
-                NULL,
-                graph_slice->d_changed,
-                graph_slice->d_active_flags,
-                graph_slice->d_column_indices,
-                graph_slice->d_row_offsets,
-                this->work_progress,
-                graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-                graph_slice->frontier_elements[selector],// max edge frontier vertices
-                this->expand_kernel_stats);
+                                                                                                                               iteration[0],
+                                                                                                                               queue_index, // queue counter index
+                                                                                                                               queue_index, // steal counter index
+                                                                                                                               1, // number of GPUs
+                                                                                                                               frontier_selector,
+                                                                                                                               0,
+                                                                                                                               d_frontier_size,
+                                                                                                                               d_edge_frontier_size,
+                                                                                                                               d_done,
+                                                                                                                               graph_slice->frontier_queues.d_keys[selector ^ 1], // vertex frontier in
+                                                                                                                               graph_slice->frontier_queues.d_keys[selector], // edge frontier out
+                                                                                                                               graph_slice->frontier_queues.d_values[selector], // predecessor out
+                                                                                                                               graph_slice->vertex_list, //
+                                                                                                                               graph_slice->edge_list,
+                                                                                                                               NULL,
+                                                                                                                               graph_slice->d_changed,
+                                                                                                                               graph_slice->d_active_flags,
+                                                                                                                               graph_slice->d_column_indices,
+                                                                                                                               graph_slice->d_row_offsets,
+                                                                                                                               this->work_progress,
+                                                                                                                               graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                                                                                                               graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                                                                                                               this->expand_kernel_stats);
 
             int edge_frontier_size1;
             cudaMemcpy(
-                &edge_frontier_size1,
-                &d_edge_frontier_size[frontier_selector],
-                sizeof (int),
-                cudaMemcpyDeviceToHost);
+                       &edge_frontier_size1,
+                       &d_edge_frontier_size[frontier_selector],
+                       sizeof (int),
+                       cudaMemcpyDeviceToHost);
 
             //            printf("frontier size1: %d: ", edge_frontier_size1);
             //            int* frontier = new int[edge_frontier_size1];
@@ -2436,36 +2436,36 @@ namespace GASengine
             //            delete [] frontier;
 
             vertex_centric::expand_atomic_flag::Kernel<ExpandPolicy, Program> << <expand_grid_size, ExpandPolicy::THREADS >> >(
-                iteration[0],
-                queue_index,// queue counter index
-                queue_index,// steal counter index
-                1,// number of GPUs
-                frontier_selector,
-                edge_frontier_size1,
-                d_frontier_size,
-                d_edge_frontier_size,
-                d_done,
-                graph_slice->frontier_queues.d_keys[selector ^ 1],// vertex frontier in
-                graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1,// edge frontier out
-                graph_slice->frontier_queues.d_values[selector] + edge_frontier_size1,// predecessor out
-                graph_slice->vertex_list,//
-                graph_slice->edge_list,
-                graph_slice->d_edgeCSC_indices,
-                graph_slice->d_changed,
-                graph_slice->d_active_flags,
-                graph_slice->d_row_indices,
-                graph_slice->d_column_offsets,
-                this->work_progress,
-                graph_slice->frontier_elements[selector ^ 1],// max vertex frontier vertices
-                graph_slice->frontier_elements[selector],// max edge frontier vertices
-                this->expand_kernel_stats);
+                                                                                                                               iteration[0],
+                                                                                                                               queue_index, // queue counter index
+                                                                                                                               queue_index, // steal counter index
+                                                                                                                               1, // number of GPUs
+                                                                                                                               frontier_selector,
+                                                                                                                               edge_frontier_size1,
+                                                                                                                               d_frontier_size,
+                                                                                                                               d_edge_frontier_size,
+                                                                                                                               d_done,
+                                                                                                                               graph_slice->frontier_queues.d_keys[selector ^ 1], // vertex frontier in
+                                                                                                                               graph_slice->frontier_queues.d_keys[selector] + edge_frontier_size1, // edge frontier out
+                                                                                                                               graph_slice->frontier_queues.d_values[selector] + edge_frontier_size1, // predecessor out
+                                                                                                                               graph_slice->vertex_list, //
+                                                                                                                               graph_slice->edge_list,
+                                                                                                                               graph_slice->d_edgeCSC_indices,
+                                                                                                                               graph_slice->d_changed,
+                                                                                                                               graph_slice->d_active_flags,
+                                                                                                                               graph_slice->d_row_indices,
+                                                                                                                               graph_slice->d_column_offsets,
+                                                                                                                               this->work_progress,
+                                                                                                                               graph_slice->frontier_elements[selector ^ 1], // max vertex frontier vertices
+                                                                                                                               graph_slice->frontier_elements[selector], // max edge frontier vertices
+                                                                                                                               this->expand_kernel_stats);
 
             int edge_frontier_size2;
             cudaMemcpy(
-                &edge_frontier_size2,
-                &d_edge_frontier_size[frontier_selector],
-                sizeof (int),
-                cudaMemcpyDeviceToHost);
+                       &edge_frontier_size2,
+                       &d_edge_frontier_size[frontier_selector],
+                       sizeof (int),
+                       cudaMemcpyDeviceToHost);
 
             //            printf("frontier size2: %d: ", edge_frontier_size2);
             //            frontier = new int[edge_frontier_size2];
@@ -2495,15 +2495,15 @@ namespace GASengine
       }
 
       if (util::B40CPerror(cudaThreadSynchronize(), "expand_atomic::Kernel failed ", __FILE__, __LINE__))
-      exit(1);
+        exit(1);
 
     }
 
     template<typename ExpandPolicy,
     typename ContractPolicy>
     cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
-        typename CsrProblem::SizeT* h_row_offsets,
-        int directed, int threshold, int expand_grid_size, int contract_grid_size, int &selector, int &frontier_selector, int pi, int pj, int rank_id)
+                                     typename CsrProblem::SizeT* h_row_offsets,
+                                     int directed, int threshold, int expand_grid_size, int contract_grid_size, int &selector, int &frontier_selector, int pi, int pj, int rank_id)
     {
       typedef typename CsrProblem::SizeT SizeT;
       typedef typename CsrProblem::VertexId VertexId;
@@ -2512,7 +2512,7 @@ namespace GASengine
 
       // Single-gpu graph slice
       typename CsrProblem::GraphSlice *graph_slice =
-      csr_problem.graph_slices[0];
+              csr_problem.graph_slices[0];
 
       DEBUG = cfg.getParameter<int>("verbose");
 
@@ -2596,7 +2596,7 @@ namespace GASengine
       //      return retval;
       //
       ////          SizeT queue_length;
-      VertexId queue_index = 0;// Work stealing/queue index
+      VertexId queue_index = 0; // Work stealing/queue index
       //      int selector = 0;
       //      int frontier_selector = 0;
       //      frontier_size = num_srcs;
@@ -2695,7 +2695,7 @@ namespace GASengine
         //Gather stage
         //
         if (Program::gatherOverEdges() != NO_GATHER_EDGES)
-        gather_mgpu(graph_slice, selector, directed);
+          gather_mgpu(graph_slice, selector, directed);
 
         if (DEBUG)
         {
@@ -2777,19 +2777,19 @@ namespace GASengine
           int nthreads = 256;
           int nblocks = MGPU_DIV_UP(frontier_size, nthreads);
           vertex_centric::mgpukernel::reset_gather_result<ExpandPolicy, Program> << <nblocks, nthreads >> >(iteration[0],
-              frontier_size,
-              graph_slice->frontier_queues.d_keys[selector ^ 1],
-              graph_slice->vertex_list,
-              graph_slice->edge_list,
-              graph_slice->m_gatherTmp,
-              graph_slice->d_visited_mask);
+                                                                                                            frontier_size,
+                                                                                                            graph_slice->frontier_queues.d_keys[selector ^ 1],
+                                                                                                            graph_slice->vertex_list,
+                                                                                                            graph_slice->edge_list,
+                                                                                                            graph_slice->m_gatherTmp,
+                                                                                                            graph_slice->d_visited_mask);
 
           if (DEBUG
               && (retval = util::B40CPerror(
-                      cudaThreadSynchronize(),
-                      "gather::reset_changed Kernel failed ",
-                      __FILE__, __LINE__)))
-          break;
+                                            cudaThreadSynchronize(),
+                                            "gather::reset_changed Kernel failed ",
+                                            __FILE__, __LINE__)))
+            break;
 
           if (DEBUG)
           {
@@ -2819,11 +2819,11 @@ namespace GASengine
           int nthreads = 256;
           int nblocks = MGPU_DIV_UP(graph_slice->nodes, nthreads);
           vertex_centric::mgpukernel::reset_gather_result<
-          ExpandPolicy, Program> << <nblocks, nthreads >> >(iteration[0],
-              graph_slice->nodes, graph_slice->vertex_list,
-              graph_slice->edge_list,
-              graph_slice->m_gatherTmp,
-              graph_slice->d_visited_mask);
+                  ExpandPolicy, Program> << <nblocks, nthreads >> >(iteration[0],
+                                                                    graph_slice->nodes, graph_slice->vertex_list,
+                                                                    graph_slice->edge_list,
+                                                                    graph_slice->m_gatherTmp,
+                                                                    graph_slice->d_visited_mask);
 
           if (DEBUG)
           {
@@ -2889,18 +2889,18 @@ namespace GASengine
           {
             if (retval =
                 util::B40CPerror(cudaEventRecord(throttle_event),
-                    "EnactorVertexCentric cudaEventRecord throttle_event failed",
-                    __FILE__, __LINE__))
-            break;
+                                 "EnactorVertexCentric cudaEventRecord throttle_event failed",
+                                 __FILE__, __LINE__))
+              break;
           }
           else
           {
             if (retval =
                 util::B40CPerror(
-                    cudaEventSynchronize(throttle_event),
-                    "EnactorVertexCentric cudaEventSynchronize throttle_event failed",
-                    __FILE__, __LINE__))
-            break;
+                                 cudaEventSynchronize(throttle_event),
+                                 "EnactorVertexCentric cudaEventSynchronize throttle_event failed",
+                                 __FILE__, __LINE__))
+              break;
           };
 
           // Check if done
@@ -2977,29 +2977,29 @@ namespace GASengine
           //            contract_dynamic<ContractPolicy>(graph_slice, directed, selector, expand_grid_size);
 
           vertex_centric::contract_atomic::Kernel<ContractPolicy,
-          Program> << <contract_grid_size,
-          ContractPolicy::THREADS >> >(0,
-              iteration[0],
-              queue_index,// queue counter index
-              queue_index,// steal counter index
-              1,// number of GPUs
-              frontier_selector,
-              d_frontier_size,
-              d_edge_frontier_size,
-              d_done,
-              graph_slice->frontier_queues.d_keys[selector ^ 1],// filtered edge frontier in
-              graph_slice->frontier_queues.d_keys[selector],// vertex frontier out
-              graph_slice->frontier_queues.d_values[0],// predecessor in
-              graph_slice->m_gatherTmp,
-              graph_slice->vertex_list,
-              graph_slice->edge_list,
-              graph_slice->d_changed,
-              graph_slice->d_bitmap_visited,
-              graph_slice->d_visited_mask,
-              this->work_progress,
-              graph_slice->frontier_elements[selector ^ 1],// max filtered edge frontier vertices
-              graph_slice->frontier_elements[selector],// max vertex frontier vertices
-              this->contract_kernel_stats);
+                  Program> << <contract_grid_size,
+                  ContractPolicy::THREADS >> >(0,
+                                               iteration[0],
+                                               queue_index, // queue counter index
+                                               queue_index, // steal counter index
+                                               1, // number of GPUs
+                                               frontier_selector,
+                                               d_frontier_size,
+                                               d_edge_frontier_size,
+                                               d_done,
+                                               graph_slice->frontier_queues.d_keys[selector ^ 1], // filtered edge frontier in
+                                               graph_slice->frontier_queues.d_keys[selector], // vertex frontier out
+                                               graph_slice->frontier_queues.d_values[0], // predecessor in
+                                               graph_slice->m_gatherTmp,
+                                               graph_slice->vertex_list,
+                                               graph_slice->edge_list,
+                                               graph_slice->d_changed,
+                                               graph_slice->d_bitmap_visited,
+                                               graph_slice->d_visited_mask,
+                                               this->work_progress,
+                                               graph_slice->frontier_elements[selector ^ 1], // max filtered edge frontier vertices
+                                               graph_slice->frontier_elements[selector], // max vertex frontier vertices
+                                               this->contract_kernel_stats);
 
           if (DEBUG)
           {
@@ -3017,9 +3017,9 @@ namespace GASengine
           {
 
             if (retval = util::B40CPerror(cudaMemcpy(&frontier_size, &d_frontier_size[frontier_selector], sizeof (SizeT), cudaMemcpyDeviceToHost),
-                    "CsrProblem cudaMemcpy frontier_size failed", __FILE__,
-                    __LINE__))
-            return retval;
+                                          "CsrProblem cudaMemcpy frontier_size failed", __FILE__,
+                                          __LINE__))
+              return retval;
             //            thrust::sort(graph_slice->frontier_queues.d_keys[selector^1], graph_slice->frontier_queues.d_keys[selector^1] + frontier_size);
 
             printf("Frontier size after contract: %d\n", frontier_size);
@@ -3040,12 +3040,12 @@ namespace GASengine
           //            break;
         }
         if (retval = util::B40CPerror(cudaMemcpy(&frontier_size, &d_frontier_size[frontier_selector], sizeof (SizeT), cudaMemcpyDeviceToHost),
-                "CsrProblem cudaMemcpy frontier_size failed", __FILE__,
-                __LINE__))
-        return retval;
+                                      "CsrProblem cudaMemcpy frontier_size failed", __FILE__,
+                                      __LINE__))
+          return retval;
 
         //convert compacted frontier to bitmap
-        //        if (frontier_size > 0)
+        if (frontier_size > 0)
         {
 
           //          char* test_vid = new char[graph_slice->nodes];
@@ -3099,8 +3099,8 @@ namespace GASengine
           //          return retval;
 
           if (retval = util::B40CPerror(cudaMemset(graph_slice->d_visit_flags, 0, graph_slice->nodes * sizeof (char)),
-                  "Memset d_visit_flags failed", __FILE__, __LINE__))
-          return retval;
+                                        "Memset d_visit_flags failed", __FILE__, __LINE__))
+            return retval;
         }
 
         //        iteration[0]++;
@@ -3142,50 +3142,50 @@ namespace GASengine
     }
 
     cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
-        typename CsrProblem::SizeT* h_row_offsets,
-        int directed, int num_srcs, int* srcs, int iter_num, int threshold, int np, int device_id, int rank_id)
+                                     typename CsrProblem::SizeT* h_row_offsets,
+                                     int directed, int num_srcs, int* srcs, int iter_num, int threshold, int np, int device_id, int rank_id)
     {
       typedef typename CsrProblem::VertexId VertexId;
       typedef typename CsrProblem::SizeT SizeT;
 
       // Expansion kernel config
       typedef vertex_centric::expand_atomic::KernelPolicy<Program,
-      typename CsrProblem::ProblemType, 200,// CUDA_ARCH
-      INSTRUMENT,// INSTRUMENT
-      1,// CTA_OCCUPANCY
-      9,// LOG_THREADS
-      0,// LOG_LOAD_VEC_SIZE
-      0,// LOG_LOADS_PER_TILE
-      5,// LOG_RAKING_THREADS
-      util::io::ld::cg,// QUEUE_READ_MODIFIER,
-      util::io::ld::NONE,// COLUMN_READ_MODIFIER,
-      util::io::ld::NONE,// EDGE_VALUES_READ_MODIFIER,
-      util::io::ld::cg,// ROW_OFFSET_ALIGNED_READ_MODIFIER,
-      util::io::ld::NONE,// ROW_OFFSET_UNALIGNED_READ_MODIFIER,
-      util::io::st::cg,// QUEUE_WRITE_MODIFIER,
-      false,// WORK_STEALING
-      32,// WARP_GATHER_THRESHOLD
-      128 * 4,// CTA_GATHER_THRESHOLD,
-      7 >// LOG_SCHEDULE_GRANULARITY
-      ExpandPolicy;
+              typename CsrProblem::ProblemType, 200, // CUDA_ARCH
+              INSTRUMENT, // INSTRUMENT
+              1, // CTA_OCCUPANCY
+              9, // LOG_THREADS
+              0, // LOG_LOAD_VEC_SIZE
+              0, // LOG_LOADS_PER_TILE
+              5, // LOG_RAKING_THREADS
+              util::io::ld::cg, // QUEUE_READ_MODIFIER,
+              util::io::ld::NONE, // COLUMN_READ_MODIFIER,
+              util::io::ld::NONE, // EDGE_VALUES_READ_MODIFIER,
+              util::io::ld::cg, // ROW_OFFSET_ALIGNED_READ_MODIFIER,
+              util::io::ld::NONE, // ROW_OFFSET_UNALIGNED_READ_MODIFIER,
+              util::io::st::cg, // QUEUE_WRITE_MODIFIER,
+              false, // WORK_STEALING
+              32, // WARP_GATHER_THRESHOLD
+              128 * 4, // CTA_GATHER_THRESHOLD,
+              7 > // LOG_SCHEDULE_GRANULARITY
+              ExpandPolicy;
 
       // Contraction kernel config
       typedef vertex_centric::contract_atomic::KernelPolicy<Program,
-      typename CsrProblem::ProblemType, 200,// CUDA_ARCH
-      INSTRUMENT,// INSTRUMENT
-      0,// SATURATION_QUIT
-      true,// DEQUEUE_PROBLEM_SIZE
-      8,// CTA_OCCUPANCY
-      7,// LOG_THREADS
-      1,// LOG_LOAD_VEC_SIZE
-      0,// LOG_LOADS_PER_TILE
-      5,// LOG_RAKING_THREADS
-      util::io::ld::NONE,// QUEUE_READ_MODIFIER,
-      util::io::st::NONE,// QUEUE_WRITE_MODIFIER,
-      false,// WORK_STEALING
-      -1,// END_BITMASK_CULL 0 to never perform bitmask filtering, -1 to always perform bitmask filtering
-      8 >// LOG_SCHEDULE_GRANULARITY
-      ContractPolicy;
+              typename CsrProblem::ProblemType, 200, // CUDA_ARCH
+              INSTRUMENT, // INSTRUMENT
+              0, // SATURATION_QUIT
+              true, // DEQUEUE_PROBLEM_SIZE
+              8, // CTA_OCCUPANCY
+              7, // LOG_THREADS
+              1, // LOG_LOAD_VEC_SIZE
+              0, // LOG_LOADS_PER_TILE
+              5, // LOG_RAKING_THREADS
+              util::io::ld::NONE, // QUEUE_READ_MODIFIER,
+              util::io::st::NONE, // QUEUE_WRITE_MODIFIER,
+              false, // WORK_STEALING
+              -1, // END_BITMASK_CULL 0 to never perform bitmask filtering, -1 to always perform bitmask filtering
+              8 > // LOG_SCHEDULE_GRANULARITY
+              ContractPolicy;
 
       int expand_occupancy = ExpandPolicy::CTA_OCCUPANCY;
       int expand_grid_size = MaxGridSize(expand_occupancy);
@@ -3195,7 +3195,7 @@ namespace GASengine
       cudaError_t retval = cudaSuccess;
       typename CsrProblem::GraphSlice *graph_slice = csr_problem.graph_slices[0];
 
-      int p = sqrt(np);// assuming that np is squre of an int
+      int p = sqrt(np); // assuming that np is squre of an int
       int pi = rank_id / p;
       int pj = rank_id % p;
 
@@ -3219,31 +3219,30 @@ namespace GASengine
       }
       frontier_size = local_srcs.size();
 
-      int tmp[2] =
-      { frontier_size, 0};
+      int tmp[2] ={frontier_size, 0};
       if (retval = util::B40CPerror(
-              cudaMemcpy(d_frontier_size,
-                  tmp,
-                  2 * sizeof (int),
-                  cudaMemcpyHostToDevice),
-              "CsrProblem cudaMemcpy d_frontier_size failed",
-              __FILE__, __LINE__))
-      return retval;
+                                    cudaMemcpy(d_frontier_size,
+                                               tmp,
+                                               2 * sizeof (int),
+                                               cudaMemcpyHostToDevice),
+                                    "CsrProblem cudaMemcpy d_frontier_size failed",
+                                    __FILE__, __LINE__))
+        return retval;
 
       double max_queue_sizing = cfg.getParameter<double>("max_queue_sizing");
       // Reset data
       if (retval = csr_problem.Reset(GetFrontierType(),
-              max_queue_sizing))
-      return retval;
+                                     max_queue_sizing))
+        return retval;
 
       SYNC_CHECK();
 
       Program::Initialize(directed, graph_slice->nodes, graph_slice->edges, frontier_size, &local_srcs[0],
-          graph_slice->d_row_offsets, graph_slice->d_column_indices, graph_slice->d_column_offsets, graph_slice->d_row_indices,
-          graph_slice->d_edge_values,
-          graph_slice->vertex_list, graph_slice->edge_list,
-          graph_slice->frontier_queues.d_keys,
-          graph_slice->frontier_queues.d_values);
+                          graph_slice->d_row_offsets, graph_slice->d_column_indices, graph_slice->d_column_offsets, graph_slice->d_row_indices,
+                          graph_slice->d_edge_values,
+                          graph_slice->vertex_list, graph_slice->edge_list,
+                          graph_slice->frontier_queues.d_keys,
+                          graph_slice->frontier_queues.d_values);
 
       SYNC_CHECK();
 
@@ -3274,8 +3273,8 @@ namespace GASengine
         MPI::mpikernel::flag2bitmap<Program> << <nblocks, nthreads >> >(graph_slice->nodes, byte_size, graph_slice->d_visit_flags, graph_slice->d_bitmap_visited);
         util::B40CPerror(cudaDeviceSynchronize(), "flag2bitmap", __FILE__, __LINE__);
         if (retval = util::B40CPerror(cudaMemset(graph_slice->d_visit_flags, 0, graph_slice->nodes * sizeof (char)),
-                "Memset d_visit_flags failed", __FILE__, __LINE__))
-        return retval;
+                                      "Memset d_visit_flags failed", __FILE__, __LINE__))
+          return retval;
       }
 
       //      char* test_vid = new char[byte_size];
@@ -3307,8 +3306,8 @@ namespace GASengine
       SYNC_CHECK();
 
       if (retval = Setup(csr_problem, expand_grid_size,
-              contract_grid_size, 0))
-      return retval;
+                         contract_grid_size, 0))
+        return retval;
 
       //          SizeT queue_length;
       //      VertexId queue_index = 0;// Work stealing/queue index
@@ -3326,13 +3325,13 @@ namespace GASengine
       //      printf("\nmyid:%d Wave initiaized time:%lf\n", rank_id, MPI_Wtime());
       int NUM_WARMUP = 100;
       for (int i = 0; i < NUM_WARMUP; i++)
-      { 
-        w.propogate_compressed(graph_slice->d_bitmap_out,graph_slice->d_bitmap_out,graph_slice->d_bitmap_out);
-        w.broadcast_new_frontier_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
+      {
+        //w.propogate_compressed(graph_slice->d_bitmap_out,graph_slice->d_bitmap_out,graph_slice->d_bitmap_out);
+        //w.broadcast_new_frontier_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
         w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
       }
       double start_time, end_time, total_start, total_end;
-      //      SYNC_CHECK();
+      SYNC_CHECK();
 
       //			MPI_Barrier(MPI_COMM_WORLD);
 
@@ -3354,16 +3353,18 @@ namespace GASengine
           MPI::mpikernel::bitmap2flag<Program> << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_in, graph_slice->d_visit_flags);
           util::B40CPerror(cudaDeviceSynchronize(), "bitmap2flag", __FILE__, __LINE__);
 
+          SYNC_CHECK();
           copy_if_mgpu(graph_slice->nodes,
-              graph_slice->d_visit_flags,
-              graph_slice->frontier_queues.d_keys[selector ^ 1],
-              &d_frontier_size[frontier_selector],
-              &frontier_size,
-              m_mgpuContext);
+                       graph_slice->d_visit_flags,
+                       graph_slice->frontier_queues.d_keys[selector ^ 1],
+                       &d_frontier_size[frontier_selector],
+                       &frontier_size,
+                       m_mgpuContext);
 
           if (retval = util::B40CPerror(cudaMemset(graph_slice->d_visit_flags, 0, graph_slice->nodes * sizeof (char)),
-                  "Memset d_visit_flags failed", __FILE__, __LINE__))
-          return retval;
+                                        "Memset d_visit_flags failed", __FILE__, __LINE__))
+            return retval;
+          SYNC_CHECK();
 
           //          printf("Frontier size after bitmap: %d\n", frontier_size);
           //
@@ -3391,7 +3392,7 @@ namespace GASengine
         if (frontier_size > 0)
         {
           retval = EnactIterativeSearch<ExpandPolicy, ContractPolicy > (csr_problem, h_row_offsets, directed, threshold,
-              expand_grid_size, contract_grid_size, selector, frontier_selector, pi, pj, rank_id);
+                                                                        expand_grid_size, contract_grid_size, selector, frontier_selector, pi, pj, rank_id);
         }
         end_time = MPI_Wtime();
         stats->total_GPU_time = end_time - start_time;
@@ -3428,10 +3429,10 @@ namespace GASengine
         //MPI_Barrier(MPI_COMM_WORLD);
         start_time = MPI_Wtime();
 
-       w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-       w.broadcast_new_frontier(graph_slice->d_bitmap_out,graph_slice->d_bitmap_in);
-       // w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-//        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+        w.broadcast_new_frontier_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        //        w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         end_time = MPI_Wtime();
         //MPI_Barrier(MPI_COMM_WORLD);
 
@@ -3520,7 +3521,7 @@ namespace GASengine
         long long tmp_frontier_size = frontier_size;
         //check if done
         MPI_Allreduce(&tmp_frontier_size, &global_frontier_size, 1,
-            MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+                      MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
 
         end_time = MPI_Wtime();
 
@@ -3529,19 +3530,21 @@ namespace GASengine
         //        iter_stat.frontier_size = frontier_size;
 
         //        w.reduce_frontier_GDR(a_d, b_d);
-        double prop, bcast, GPUtime, compression, decompression, compression_ratio;
+        double prop, bcast, GPUtime, compression, decompression, compression_ratio, cr_bcast;
         MPI_Reduce(&w.propagate_time, &prop, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         MPI_Reduce(&w.broadcast_time, &bcast, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        MPI_Reduce(&w.compression_time, &compression, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        MPI_Reduce(&w.decompression_time, &decompression, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        MPI_Reduce(&w.compression_ratio, &compression_ratio, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        //        MPI_Reduce(&w.compression_time, &compression, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        //        MPI_Reduce(&w.decompression_time, &decompression, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        //        MPI_Reduce(&w.compression_ratio_broadcast, &cr_bcast, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         MPI_Reduce(&stats->total_GPU_time, &GPUtime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-
         //
+        //        //
         if (rank_id == 0)
         {
-          printf("\n%d Propagate:%lf Broadcast:%lf GPUtime: %lf compression: %lf decompression: %lf compression_ratio: %lf",
-              iter, prop, bcast, GPUtime, compression, decompression, compression_ratio);
+          //          printf("\n%d Propagate:%lf Broadcast:%lf GPUtime: %lf compression: %lf decompression: %lf compression_ratio: %lf",
+          //              iter, prop, bcast, GPUtime, compression, decompression, compression_ratio);
+          printf("\n%d Propagate:%lf Broadcast:%lf GPUtime: %lf cr_bcast: %lf",
+                 iter, prop, bcast, GPUtime);
         }
         //
         //        //        iter_stat.propagate_time = w.propagate_time;
@@ -3550,7 +3553,7 @@ namespace GASengine
         //
         //        //        printf("pi=%d, pj=%d, iter=%d, global_frontier_size=%lld\n", pi, pj, iter, global_frontier_size);
         if (global_frontier_size == 0)
-        break;
+          break;
       }
       //      stats->wave_setup_time = w.init_time;
       //      //      stats->total_propagate_time = w.propagate_time;
