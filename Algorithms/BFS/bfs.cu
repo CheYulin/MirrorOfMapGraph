@@ -482,7 +482,7 @@ int main(int argc, char **argv)
 else if (graph_random == false )
 	{
 	typedef CooEdgeTuple<VertexId, Value> EdgeTupleType;
-	printf("Reading Edge List from Flat Files");\
+
 	MPI_File sizefile,cFile;
 
 	int i;
@@ -504,17 +504,31 @@ else if (graph_random == false )
 	    			if (rc) {
 				printf( "Unable to open file \"graph%d\"\n",rank_id );fflush(stdout);
 				}
-	int edges[2*numedges];
-	MPI_File_read(cFile, &edges, 2*numedges, MPI_INT, MPI_STATUS_IGNORE);
 
-	EdgeTupleType *coo = (EdgeTupleType*) malloc(sizeof(EdgeTupleType) * numedges);
-	for (SizeT i = 0; i < numedges; i++) {
-	coo[i].row = edges[2*i];
-	coo[i].col = edges[2*i+1];
-	coo[i].val = 1;}
+	int *edges = new int[2*numedges];
+
+
+	MPI_File_read(cFile, edges, 2*numedges, MPI_INT, MPI_STATUS_IGNORE);
+
+	EdgeTupleType *coo = new EdgeTupleType[numedges];
+  	//MPI_Comm_rank(MPI_COMM_WORLD, &rank_id);
+
+
+	for (i = 0; i < numedges; i++) {
+	coo[i].row = (VertexId)edges[2*i];
+	coo[i].col = (VertexId)edges[2*i+1];
+
+	coo[i].val = 1;
+	}
+
+
+	MPI_Barrier(MPI_COMM_WORLD);
 	int p= sqrt(np);
-	int numvert1d = numVertices/p;
-	csr_graph.FromCoo<true>(coo, numvert1d , numedges, !directed);
+	int numvert1d = ceil(numVertices/p);
+
+	csr_graph.FromCoo<true>(coo, numvert1d , numedges, directed);
+	free(coo);
+	
 	}
 
   else
@@ -642,13 +656,25 @@ else if (graph_random == false )
   else
   {
     int src_node = cfg.getParameter<int>("src");
-    int origin = cfg.getParameter<int>("origin");
+    int vert_max_degree = 0;
+     int max_degree = 0;
+      for (int i=0; i<csr_graph.nodes; i++)
+      {
+        if (csr_graph.row_offsets[i + 1] - csr_graph.row_offsets[i] > max_degree)
+        {
+          vert_max_degree = i;
+          max_degree = csr_graph.row_offsets[i + 1] - csr_graph.row_offsets[i];
+        }
+      }
+    
+    src_node = vert_max_degree;
+   // int origin = cfg.getParameter<int>("origin");
     num_srcs = 1;
     srcs = new int[1];
     srcs[0] = src_node;
-    if (origin == 1)
-      srcs[0]--;
-    //    printf("Single source vertex: %d\n", srcs[0]);
+    printf("rank_id=%d, src_node=%d, max_degree=%d\n", rank_id, src_node, max_degree);
+    //if (origin == 1)
+   //   srcs[0]--;
   }
 
   VertexId* reference_labels;
