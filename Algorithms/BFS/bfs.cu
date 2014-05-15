@@ -332,8 +332,6 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
 
 int main(int argc, char **argv)
 {
-
-  sleep(20);
   int device_id;
   int rank_id;
   int np;
@@ -528,6 +526,8 @@ else if (graph_random == false )
 	coo[i].col = (VertexId)edges[2*i+1];
 
 	coo[i].val = 1;
+	
+	printf("\np:%d num1d:%d \n",p,csr_graph.nodes);
 	}
 MPI_Barrier(MPI_COMM_WORLD);
 if(rank_id==0)  
