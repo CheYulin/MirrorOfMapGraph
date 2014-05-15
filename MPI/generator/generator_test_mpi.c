@@ -10,6 +10,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <time.h>
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif
@@ -31,19 +32,21 @@ int main(int argc, char* argv[]) {
   MPI_Init(&argc, &argv);
 
   log_numverts = 16; /* In base 2 */
+  long int edges_per_vert = 16;
   if (argc >= 2) log_numverts = atoi(argv[1]);
-
+  if(argc >= 3) edges_per_vert = atoi(argv[2]);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  if (rank == 0) fprintf(stderr, "Graph size is %" PRId64 " vertices and %" PRId64 " edges\n", INT64_C(1) << log_numverts, INT64_C(16) << log_numverts);
+  if (rank == 0) fprintf(stderr, "Graph size is %" PRId64 " vertices and %" PRId64 " edges\n", INT64_C(1) << log_numverts, edges_per_vert << log_numverts);
 
   /* Start of graph generation timing */
   MPI_Barrier(MPI_COMM_WORLD);
   start = MPI_Wtime();
   int64_t nedges;
+  srand(time(NULL));
   packed_edge* result;
-  make_graph(log_numverts, INT64_C(16) << log_numverts, 1, 2, &nedges, &result);
+  make_graph(log_numverts, edges_per_vert << log_numverts, rand(), 8, &nedges, &result);
   MPI_Barrier(MPI_COMM_WORLD);
   stop = MPI_Wtime();
   /* End of graph generation timing */
@@ -63,6 +66,7 @@ MPI_Barrier(MPI_COMM_WORLD);
   start = MPI_Wtime();
 if(rank ==0)
 fprintf(stderr,"\nFile IO\n");
+//MPI_Status status;
 MPI_File cFile[size];
 
 int length[size],prefix[size];
@@ -126,6 +130,18 @@ if(x_index <p && y_index <p)
 			length[file_index]++;
 }	//if(file_index == 0  ){printf("%d %d \n",edge[0],edge[1]);}
 
+        edge[0] = to % slice_size;
+        edge[1] = from % slice_size;
+
+        x_index = to / slice_size;
+        y_index = from / slice_size;
+	if(x_index <p && y_index <p)
+	{
+                file_index = y_index*p + x_index;
+                length[file_index]++;
+	}
+
+
 	}
 	//send the sizes array to next node
 	if(rank !=size-1) MPI_Send(&length,size,MPI_INT,rank+1,0,MPI_COMM_WORLD);
@@ -158,6 +174,19 @@ if(x_index <p && y_index <p)
 		length[file_index]++;
 }		//write to corresponfing file
 		 //MPI_File_write(cFile[file_index], &edge, 2, MPI_INT, MPI_STATUS_IGNORE);
+
+        edge[0] = to % slice_size;
+        edge[1] = from % slice_size;
+
+        x_index = to / slice_size;
+        y_index = from / slice_size;
+        if(x_index <p && y_index <p)
+        {
+                file_index = y_index*p + x_index;
+                length[file_index]++;
+        }
+
+
 	}
 	//send the sizes array to next node
 	if(rank !=size-1) MPI_Send(&length,size,MPI_INT,rank+1,0,MPI_COMM_WORLD);
@@ -190,11 +219,28 @@ if(x_index <p && y_index <p)
 		length[file_index]++;
 }		//write to corresponfing file
 		// MPI_File_write(cFile[file_index], &edge, 2, MPI_INT, MPI_STATUS_IGNORE);
-	}
-//for(int i=0;i<size;i++)
-	//printf("%d ",length[i]);
 
-	MPI_File_write(sizefile, &length, size, MPI_INT, MPI_STATUS_IGNORE);
+        edge[0] = to % slice_size;
+        edge[1] = from % slice_size;
+
+        x_index = to / slice_size;
+        y_index = from / slice_size;
+        if(x_index <p && y_index <p)
+        {
+                file_index = y_index*p + x_index;
+                length[file_index]++;
+        }
+
+	}
+
+int writelength[size+1];
+for(int i=0;i<size;i++)
+	writelength[i] = length[i];
+writelength[size] = (INT64_C(1) << log_numverts); 
+
+printf("\nnumverts is %d\n",writelength[size]);
+
+	MPI_File_write(sizefile, &writelength, size+1, MPI_INT, MPI_STATUS_IGNORE);
 
 
 }
@@ -241,6 +287,22 @@ if(x_index <p && y_index <p)
 		dup_list[file_index][count[file_index]+1] = edge[1];
 		count[file_index]+=2;
 }
+
+        edge[0] = to % slice_size;
+        edge[1] = from % slice_size;
+
+        x_index = to / slice_size;
+        y_index = from / slice_size;
+	if(x_index <p && y_index <p)
+	{
+                file_index = y_index*p + x_index;
+
+                dup_list[file_index][count[file_index]] = edge[0];
+                dup_list[file_index][count[file_index]+1] = edge[1];
+                count[file_index]+=2;
+	}
+                
+
 	}
 }
 else if(rank < size-1)
@@ -267,6 +329,22 @@ if(x_index <p && y_index <p)
 		dup_list[file_index][count[file_index]+1] = edge[1];
 		count[file_index]+=2;
 }
+
+        edge[0] = to % slice_size;
+        edge[1] = from % slice_size;
+        
+        x_index = to / slice_size;
+        y_index = from / slice_size;
+        if(x_index <p && y_index <p)
+        {
+                file_index = y_index*p + x_index;
+                
+                dup_list[file_index][count[file_index]] = edge[0];
+                dup_list[file_index][count[file_index]+1] = edge[1];
+                count[file_index]+=2;
+        }
+
+
 	}
 
 }
@@ -295,6 +373,21 @@ if(x_index <p && y_index <p)
 		dup_list[file_index][count[file_index]+1] = edge[1];
 		count[file_index]+=2;
 }
+
+        edge[0] = to % slice_size;
+        edge[1] = from % slice_size;
+        
+        x_index = to / slice_size;
+        y_index = from / slice_size;
+        if(x_index <p && y_index <p)
+        {
+                file_index = y_index*p + x_index;
+                
+                dup_list[file_index][count[file_index]] = edge[0];
+                dup_list[file_index][count[file_index]+1] = edge[1];
+                count[file_index]+=2;
+        }
+
 	}
 }
 
