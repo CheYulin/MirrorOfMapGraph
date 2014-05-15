@@ -492,9 +492,11 @@ else if (graph_random == false )
 				printf( "Unable to open file \"Graphsizes\"\n" );fflush(stdout);
     				}
 
-	MPI_File_read(sizefile,&length, np, MPI_INT, MPI_STATUS_IGNORE);
-	int numedges = length[rank_id];	
-	printf("\nThe number of edges is:%d\n",numedges);
+	MPI_File_read(sizefile,&length, np+1, MPI_INT, MPI_STATUS_IGNORE);
+	int numedges = length[rank_id];
+	numVertices = length[np];	
+	//printf("Numvertices is %d\n",numVertices);
+	if(rank_id ==0) printf("\nThe number of edges is:%d\n",numedges);
 	MPI_File_close(&sizefile);
 
 	char filename[10];
@@ -513,22 +515,27 @@ else if (graph_random == false )
 	EdgeTupleType *coo = new EdgeTupleType[numedges];
   	//MPI_Comm_rank(MPI_COMM_WORLD, &rank_id);
 
+        int p= sqrt(np);
+        int numvert1d = ceil(numVertices/p);
 
 	for (i = 0; i < numedges; i++) {
+
+	if(edges[2*i] >= numvert1d || edges[2*i+1] >= numvert1d )	printf("\nNot in range %d %d  should be in %d\n", edges[2*i],edges[2*i+1],numvert1d);
+
 	coo[i].row = (VertexId)edges[2*i];
 	coo[i].col = (VertexId)edges[2*i+1];
 
 	coo[i].val = 1;
 	}
+MPI_Barrier(MPI_COMM_WORLD);
+if(rank_id==0)  
+        printf("\nReading from files finished \n");
 
-
-	MPI_Barrier(MPI_COMM_WORLD);
-	int p= sqrt(np);
-	int numvert1d = ceil(numVertices/p);
 
 	csr_graph.FromCoo<true>(coo, numvert1d , numedges, directed);
 	free(coo);
-	
+if(rank_id==0)	
+	printf("\nReading from files finished and created CSR graph\n");
 	}
 
   else
