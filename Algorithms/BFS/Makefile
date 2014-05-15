@@ -1,8 +1,8 @@
 NVCC = nvcc
 MGPU_PATH = ../../moderngpu2
 GEN_PATH = ../../MPI/generator
-NVCC_OPTS = -O3 -lineinfo -Xcompiler -fopenmp  -I. -I../../ -I$(MGPU_PATH)/include -I/opt/mvapich2/gdr/2.0/gnu/include -L/usr/lib/ -L$(MGPU_PATH) -L$(GEN_PATH)
-LD_OPTIONS =  -O3 -L/usr/lib/ -L$(MGPU_PATH) -L$(GEN_PATH)
+NVCC_OPTS = -g -G -lineinfo -Xcompiler -fopenmp  -I. -I../../ -I$(MGPU_PATH)/include -I/opt/mvapich2/gdr/2.0/gnu/include -L/usr/lib/ -L$(MGPU_PATH) -L$(GEN_PATH)
+LD_OPTIONS = -L/usr/lib/ -L$(MGPU_PATH) -L$(GEN_PATH)
 #NVCC_OPTS = -G -g -Xptxas -v -Xcompiler -fopenmp  -I. -I../../
 #NVCC_ARCHS = -gencode=arch=compute_20,code=sm_20
 #NVCC_ARCHS = -gencode arch=compute_35,code=sm_35

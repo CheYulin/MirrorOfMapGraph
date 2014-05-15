@@ -223,6 +223,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Get_processor_name(processor_name, &namelen);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
   if (myid == 0)
   {
     printf("  We have %d processors\n", numprocs);
@@ -332,6 +333,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
 int main(int argc, char **argv)
 {
 
+  sleep(20);
   int device_id;
   int rank_id;
   int np;
