@@ -56,8 +56,8 @@ using namespace std;
 
 template<typename VertexId, typename Value, typename SizeT>
 void CPUBFS(int test_iteration,
-    const CsrGraph<VertexId, Value, SizeT> &csr_graph,
-    VertexId *source_path, VertexId src)
+            const CsrGraph<VertexId, Value, SizeT> &csr_graph,
+            VertexId *source_path, VertexId src)
 {
   // (Re)initialize distances
   for (VertexId i = 0; i < csr_graph.nodes; i++)
@@ -106,7 +106,7 @@ void CPUBFS(int test_iteration,
   double EndTime = omp_get_wtime();
 
   std::cout << "CPU time took: " << (EndTime - startTime) * 1000 << " ms"
-      << std::endl;
+          << std::endl;
   search_depth++;
 }
 
@@ -117,10 +117,10 @@ bool cudaInit(int device)
 
   if (error_id != cudaSuccess)
   {
-    printf("cudaGetDeviceCount returned %d\n-> %s\n", (int) error_id,
-        cudaGetErrorString(error_id));
+    printf("cudaGetDeviceCount returned %d\n-> %s\n", (int)error_id,
+           cudaGetErrorString(error_id));
     printf("Result = FAIL\n");
-    exit (EXIT_FAILURE);
+    exit(EXIT_FAILURE);
   }
 
   // This function call returns 0 if there are no CUDA capable devices.
@@ -151,16 +151,16 @@ bool cudaInit(int device)
       cudaDriverGetVersion(&driverVersion);
       cudaRuntimeGetVersion(&runtimeVersion);
       printf(
-          "  CUDA Driver Version / Runtime Version          %d.%d / %d.%d\n",
-          driverVersion / 1000, (driverVersion % 100) / 10,
-          runtimeVersion / 1000, (runtimeVersion % 100) / 10);
+             "  CUDA Driver Version / Runtime Version          %d.%d / %d.%d\n",
+             driverVersion / 1000, (driverVersion % 100) / 10,
+             runtimeVersion / 1000, (runtimeVersion % 100) / 10);
       printf("  CUDA Capability Major/Minor version number:    %d.%d\n",
-          deviceProp.major, deviceProp.minor);
+             deviceProp.major, deviceProp.minor);
 
       printf(
-          "  Total amount of global memory:                 %.0f MBytes (%llu bytes)\n",
-          (float) deviceProp.totalGlobalMem / 1048576.0f,
-          (unsigned long long) deviceProp.totalGlobalMem);
+             "  Total amount of global memory:                 %.0f MBytes (%llu bytes)\n",
+             (float)deviceProp.totalGlobalMem / 1048576.0f,
+             (unsigned long long)deviceProp.totalGlobalMem);
 
       break;
     }
@@ -190,15 +190,15 @@ void correctTest(int nodes, int* reference_labels, int* h_labels)
 void printUsageAndExit(char *algo_name)
 {
   std::cout << "Usage: " << algo_name
-      << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-BFS \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
+          << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-BFS \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
   std::cout
-      << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
+          << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
   std::cout << "     -output or -o specify file for output result\n";
   std::cout << "     -sources or -s set starting vertices file\n";
   std::cout << "     -c set the BFS options from the configuration file\n";
   std::cout
-      << "     -parameters (-p) set the options.  Options include the following:\n";
+          << "     -parameters (-p) set the options.  Options include the following:\n";
   Config::printOptions();
 
   exit(0);
@@ -243,14 +243,14 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
     if (devCount == 0)
     {
       sprintf(idstr, "- %-11s %5d %4d NONE", processor_name, rank,
-          devCount);
+              devCount);
     }
     else
     {
       if (devCount >= 1)
       {
         sprintf(idstr, "+ %-11s %5d %4d", processor_name, rank,
-            devCount);
+                devCount);
         idstr2[0] = '\0';
         //        for (int i = 0; i < devCount; ++i)
         {
@@ -266,7 +266,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
         cudaDeviceProp devProp;
         cudaGetDeviceProperties(&devProp, i);
         sprintf(idstr, "%-11s %5d %4d %s", processor_name, rank,
-            devCount, devProp.name);
+                devCount, devProp.name);
       }
     }
     strncat(buff, idstr, BUFSIZE);
@@ -285,7 +285,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
     }
     printf("\n");
     //    MPI_Finalize();
-   
+
   }
   else
   {
@@ -298,14 +298,14 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
     if (devCount == 0)
     {
       sprintf(idstr, "- %-11s %5d %4d NONE", processor_name, rank,
-          devCount);
+              devCount);
     }
     else
     {
       if (devCount >= 1)
       {
         sprintf(idstr, "+ %-11s %5d %4d", processor_name, rank,
-            devCount);
+                devCount);
         idstr2[0] = '\0';
 
         //        for (int i = 0; i < devCount; ++i)
@@ -321,7 +321,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
         cudaDeviceProp devProp;
         cudaGetDeviceProperties(&devProp, device_id);
         sprintf(idstr, "%-11s %5d %4d %s", processor_name, rank,
-            devCount, devProp.name);
+                devCount, devProp.name);
       }
     }
     strncat(buff, idstr, BUFSIZE);
@@ -362,7 +362,7 @@ int main(int argc, char **argv)
     if (strncmp(argv[i], "-help", 100) == 0) // print the usage information
       printUsageAndExit(argv[0]);
     else if (strncmp(argv[i], "-graph", 100) == 0
-        || strncmp(argv[i], "-g", 100) == 0)
+             || strncmp(argv[i], "-g", 100) == 0)
     { //input graph
       i++;
 
@@ -370,21 +370,21 @@ int main(int argc, char **argv)
 
     }
     else if (strncmp(argv[i], "-output", 100) == 0
-        || strncmp(argv[i], "-o", 100) == 0)
+             || strncmp(argv[i], "-o", 100) == 0)
     { //output file name
       i++;
       outFileName = argv[i];
     }
 
     else if (strncmp(argv[i], "-sources", 100) == 0
-        || strncmp(argv[i], "-s", 100) == 0)
+             || strncmp(argv[i], "-s", 100) == 0)
     { //the file containing starting vertices
       i++;
       strcpy(source_file_name, argv[i]);
     }
 
     else if (strncmp(argv[i], "-parameters", 100) == 0
-        || strncmp(argv[i], "-p", 100) == 0)
+             || strncmp(argv[i], "-p", 100) == 0)
     { //The BFS specific options
       i++;
       cfg.parseParameterString(argv[i]);
@@ -428,7 +428,7 @@ int main(int argc, char **argv)
 
     if (rank_id == 0)
     {
-      if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph, false) != 0)
+      if (builder::BuildMarketGraph<g_with_value > (graph_file, csr_graph, false) != 0)
         exit(1);
 
       long long num_vert_per_part_1d = (csr_graph.nodes + num_part_1d - 1) / num_part_1d;
@@ -448,13 +448,13 @@ int main(int argc, char **argv)
       MPI_Request request[2];
       for (int i = 1; i < np; i++)
       {
-        long long buffer[2] = { part_count[i], num_vert_per_part_1d };
-        MPI_Isend(buffer, sizeof(long long) * 2, MPI_CHAR, i, 0, MPI_COMM_WORLD, &request[0]);
-        MPI_Isend(coos[i], sizeof(EdgeTupleType) * part_count[i], MPI_CHAR, i, 0, MPI_COMM_WORLD, &request[1]);
+        long long buffer[2] = {part_count[i], num_vert_per_part_1d};
+        MPI_Isend(buffer, sizeof (long long)* 2, MPI_CHAR, i, 0, MPI_COMM_WORLD, &request[0]);
+        MPI_Isend(coos[i], sizeof (EdgeTupleType) * part_count[i], MPI_CHAR, i, 0, MPI_COMM_WORLD, &request[1]);
       }
 
       //      printf("nodes=%d, num_part_1d=%d, num_vert_per_part_1d=%d\n", csr_graph.nodes, num_part_1d, num_vert_per_part_1d);
-      csr_graph.FromCoo<true>(coos[rank_id], num_vert_per_part_1d, part_count[rank_id], !directed);
+      csr_graph.FromCoo<true > (coos[rank_id], num_vert_per_part_1d, part_count[rank_id], !directed);
       //      csr_graph.DisplayGraph();
     }
     else
@@ -463,86 +463,91 @@ int main(int argc, char **argv)
       MPI_Status status[2];
 
       long long buffer[2];
-      MPI_Irecv(buffer, sizeof(long long) * 2, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &request[0]);
+      MPI_Irecv(buffer, sizeof (long long)* 2, MPI_CHAR, 0, 0, MPI_COMM_WORLD, &request[0]);
       MPI_Wait(&request[0], &status[0]);
       long long part_size = buffer[0];
       long long num_vert_per_part_1d = buffer[1];
 
       EdgeTupleType* coos = new EdgeTupleType[part_size];
-      MPI_Irecv(coos, part_size * sizeof(EdgeTupleType), MPI_CHAR, 0, 0, MPI_COMM_WORLD, &request[1]);
+      MPI_Irecv(coos, part_size * sizeof (EdgeTupleType), MPI_CHAR, 0, 0, MPI_COMM_WORLD, &request[1]);
       MPI_Wait(&request[1], &status[1]);
 
       //      printf("rank_id=%d, part_size=%d, num_vert_per_part_1d=%d\n", rank_id, part_size, num_vert_per_part_1d);
-      csr_graph.FromCoo<true>(coos, num_vert_per_part_1d, part_size, !directed);
+      csr_graph.FromCoo<true > (coos, num_vert_per_part_1d, part_size, !directed);
       //      if(rank_id == 3)
       //        csr_graph.DisplayGraph();
     }
   }
 
-else if (graph_random == false )
-	{
-	typedef CooEdgeTuple<VertexId, Value> EdgeTupleType;
+  else if (graph_random == false)
+  {
+    typedef CooEdgeTuple<VertexId, Value> EdgeTupleType;
 
-	MPI_File sizefile,cFile;
+    MPI_File sizefile, cFile;
 
-	int i;
-	int length[np];
-	int rc = MPI_File_open( MPI_COMM_WORLD,"Graphsizes", MPI_MODE_RDONLY, MPI_INFO_NULL, &sizefile );
-	    			if (rc) {
-				printf( "Unable to open file \"Graphsizes\"\n" );fflush(stdout);
-    				}
+    int i;
+    int length[np];
+    int rc = MPI_File_open(MPI_COMM_WORLD, "Graphsizes", MPI_MODE_RDONLY, MPI_INFO_NULL, &sizefile);
+    if (rc)
+    {
+      printf("Unable to open file \"Graphsizes\"\n");
+      fflush(stdout);
+    }
 
-	MPI_File_read(sizefile,&length, np+1, MPI_INT, MPI_STATUS_IGNORE);
-	int numedges = length[rank_id];
-	numVertices = length[np];	
-	//printf("Numvertices is %d\n",numVertices);
-	if(rank_id ==0) printf("\nThe number of edges is:%d\n",numedges);
-	MPI_File_close(&sizefile);
+    MPI_File_read(sizefile, &length, np + 1, MPI_INT, MPI_STATUS_IGNORE);
+    int numedges = length[rank_id];
+    numVertices = length[np];
+    //printf("Numvertices is %d\n",numVertices);
+    if (rank_id == 0) printf("\nThe number of edges is:%d\n", numedges);
+    MPI_File_close(&sizefile);
 
-	char filename[10];
-	sprintf(filename,"graph%d",rank_id);	
+    char filename[10];
+    sprintf(filename, "graph%d", rank_id);
 
-	rc = MPI_File_open( MPI_COMM_WORLD,filename, MPI_MODE_RDONLY, MPI_INFO_NULL, &cFile );
-	    			if (rc) {
-				printf( "Unable to open file \"graph%d\"\n",rank_id );fflush(stdout);
-				}
+    rc = MPI_File_open(MPI_COMM_WORLD, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, &cFile);
+    if (rc)
+    {
+      printf("Unable to open file \"graph%d\"\n", rank_id);
+      fflush(stdout);
+    }
 
-	int *edges = new int[2*numedges];
-
-
-	MPI_File_read(cFile, edges, 2*numedges, MPI_INT, MPI_STATUS_IGNORE);
-
-	EdgeTupleType *coo = new EdgeTupleType[numedges];
-  	//MPI_Comm_rank(MPI_COMM_WORLD, &rank_id);
-
-        int p= sqrt(np);
-        int numvert1d = ceil(numVertices/p);
-
-	for (i = 0; i < numedges; i++) {
-
-	if(edges[2*i] >= numvert1d || edges[2*i+1] >= numvert1d )	printf("\nNot in range %d %d  should be in %d\n", edges[2*i],edges[2*i+1],numvert1d);
-
-	coo[i].row = (VertexId)edges[2*i];
-	coo[i].col = (VertexId)edges[2*i+1];
-
-	coo[i].val = 1;
-	
-	printf("\np:%d num1d:%d \n",p,csr_graph.nodes);
-	}
-MPI_Barrier(MPI_COMM_WORLD);
-if(rank_id==0)  
-        printf("\nReading from files finished \n");
+    int *edges = new int[2 * numedges];
 
 
-	csr_graph.FromCoo<true>(coo, numvert1d , numedges, directed);
-	free(coo);
-if(rank_id==0)	
-	printf("\nReading from files finished and created CSR graph\n");
-	}
+    MPI_File_read(cFile, edges, 2 * numedges, MPI_INT, MPI_STATUS_IGNORE);
+
+    EdgeTupleType *coo = new EdgeTupleType[numedges];
+    //MPI_Comm_rank(MPI_COMM_WORLD, &rank_id);
+
+    int p = sqrt(np);
+    int numvert1d = ceil(numVertices / p);
+
+    for (i = 0; i < numedges; i++)
+    {
+
+      if (edges[2 * i] >= numvert1d || edges[2 * i + 1] >= numvert1d) printf("\nNot in range %d %d  should be in %d\n", edges[2 * i], edges[2 * i + 1], numvert1d);
+
+      coo[i].row = (VertexId)edges[2 * i];
+      coo[i].col = (VertexId)edges[2 * i + 1];
+
+      coo[i].val = 1;
+
+//      printf("\np:%d num1d:%d \n", p, csr_graph.nodes);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank_id == 0)
+      printf("\nReading from files finished \n");
+
+
+    csr_graph.FromCoo<true > (coo, numvert1d, numedges, directed);
+    free(coo);
+    if (rank_id == 0)
+      printf("\nReading from files finished and created CSR graph\n");
+  }
 
   else
   {
-//printf("\nRandom Graph\n");
+    //printf("\nRandom Graph\n");
     //    typedef CooEdgeTuple<typename bfs::VertexId, typename bfs::DataType> EdgeTupleType;
     //    long long num_part_1d = sqrt(np);
     //
@@ -602,7 +607,7 @@ if(rank_id==0)
     //      //      if(rank_id == 3)
     //      //        csr_graph.DisplayGraph();
     //    }
-    if (builder::BuildRandomGraph<g_with_value>(numVertices, numEdges, csr_graph, false) != 0)
+    if (builder::BuildRandomGraph<g_with_value > (numVertices, numEdges, csr_graph, false) != 0)
       exit(1);
   }
 
@@ -624,7 +629,7 @@ if(rank_id==0)
       num_srcs = cfg.getParameter<int>("num_src");
       srcs = new int[num_srcs];
       printf("Using %d random starting vertices!\n", num_srcs);
-      srand (time(NULL));
+      srand(time(NULL));
       int count = 0;
       while (count < num_srcs)
       {
@@ -665,25 +670,25 @@ if(rank_id==0)
   else
   {
     int src_node = cfg.getParameter<int>("src");
-    int vert_max_degree = 0;
-     int max_degree = 0;
-      for (int i=0; i<csr_graph.nodes; i++)
-      {
-        if (csr_graph.row_offsets[i + 1] - csr_graph.row_offsets[i] > max_degree)
-        {
-          vert_max_degree = i;
-          max_degree = csr_graph.row_offsets[i + 1] - csr_graph.row_offsets[i];
-        }
-      }
-    
-    src_node = vert_max_degree;
-   // int origin = cfg.getParameter<int>("origin");
+//    int vert_max_degree = 0;
+//    int max_degree = 0;
+//    for (int i = 0; i < csr_graph.nodes; i++)
+//    {
+//      if (csr_graph.row_offsets[i + 1] - csr_graph.row_offsets[i] > max_degree)
+//      {
+//        vert_max_degree = i;
+//        max_degree = csr_graph.row_offsets[i + 1] - csr_graph.row_offsets[i];
+//      }
+//    }
+//
+//    src_node = vert_max_degree;
+//    // int origin = cfg.getParameter<int>("origin");
     num_srcs = 1;
     srcs = new int[1];
     srcs[0] = src_node;
-    printf("rank_id=%d, src_node=%d, max_degree=%d\n", rank_id, src_node, max_degree);
-    //if (origin == 1)
-   //   srcs[0]--;
+//    printf("rank_id=%d, src_node=%d, max_degree=%d\n", rank_id, src_node, max_degree);
+    if (origin == 1)
+       srcs[0]--;
   }
 
   VertexId* reference_labels;
@@ -691,8 +696,8 @@ if(rank_id==0)
   int run_CPU = cfg.getParameter<int>("run_CPU");
   if (strcmp(source_file_name, "") == 0 && run_CPU) //Do correctness test only with single starting vertex
   {
-    reference_labels = (VertexId*) malloc(
-        sizeof(VertexId) * csr_graph.nodes);
+    reference_labels = (VertexId*)malloc(
+                                         sizeof (VertexId) * csr_graph.nodes);
     int test_iteration = 1;
     int src = cfg.getParameter<int>("src");
 
@@ -706,13 +711,13 @@ if(rank_id==0)
   // Allocate problem on GPU
   int num_gpus = 1;
   typedef GASengine::CsrProblem<bfs, VertexId, SizeT, Value,
-      g_mark_predecessor, g_with_value> CsrProblem;
+          g_mark_predecessor, g_with_value> CsrProblem;
   CsrProblem csr_problem(cfg);
 
   if (csr_problem.FromHostProblem(g_stream_from_host, csr_graph.nodes,
-      csr_graph.edges, csr_graph.column_indices, csr_graph.row_offsets,
-      csr_graph.edge_values, csr_graph.row_indices,
-      csr_graph.column_offsets, num_gpus, directed, device_id, rank_id))
+                                  csr_graph.edges, csr_graph.column_indices, csr_graph.row_offsets,
+                                  csr_graph.edge_values, csr_graph.row_indices,
+                                  csr_graph.column_offsets, num_gpus, directed, device_id, rank_id))
     exit(1);
 
   const bool INSTRUMENT = true;
@@ -724,17 +729,17 @@ if(rank_id==0)
     int tmpsrcs[1];
     int tmp_num_srcs = 1;
     tmpsrcs[0] = srcs[i];
-//    printf("num_srcs=%d, src=%d, iter_num=%d\n", num_srcs, tmpsrcs[i], iter_num);
-//    int tmp_num_srcs = csr_graph.nodes;
-//    int* tmpsrcs = new int[csr_graph.nodes];
-//    for (int i = 0; i < csr_graph.nodes; i++)
-//      tmpsrcs[i] = i;
+    //    printf("num_srcs=%d, src=%d, iter_num=%d\n", num_srcs, tmpsrcs[i], iter_num);
+    //    int tmp_num_srcs = csr_graph.nodes;
+    //    int* tmpsrcs = new int[csr_graph.nodes];
+    //    for (int i = 0; i < csr_graph.nodes; i++)
+    //      tmpsrcs[i] = i;
 
     cudaError_t retval = cudaSuccess;
 
     retval = vertex_centric.EnactIterativeSearch(csr_problem,
-        csr_graph.row_offsets, directed, tmp_num_srcs, tmpsrcs, iter_num,
-        threshold, np, device_id, rank_id);
+                                                 csr_graph.row_offsets, directed, tmp_num_srcs, tmpsrcs, iter_num,
+                                                 threshold, np, device_id, rank_id);
 
     if (retval && (retval != cudaErrorInvalidDeviceFunction))
     {
@@ -742,7 +747,7 @@ if(rank_id==0)
     }
   }
 
-  Value* h_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
+  Value* h_values = (Value*)malloc(sizeof (Value) * csr_graph.nodes);
   csr_problem.ExtractResults(h_values);
 
   if (strcmp(source_file_name, "") == 0 && run_CPU)

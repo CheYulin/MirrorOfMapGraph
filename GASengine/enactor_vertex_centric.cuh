@@ -3206,20 +3206,20 @@ namespace GASengine
       vector<int> local_srcs;
       local_srcs.reserve(num_srcs);
 
-      //      for (int i = 0; i < num_srcs; i++)
-      //      {
-      //        if (srcs[i] >= vertex_id_start && srcs[i] < vertex_id_end)
-      //        {
-      //          local_srcs.push_back(srcs[i] - vertex_id_start);
-      //        }
-      //      }
       for (int i = 0; i < num_srcs; i++)
       {
-        local_srcs.push_back(srcs[i]);
+        if (srcs[i] >= vertex_id_start && srcs[i] < vertex_id_end)
+        {
+          local_srcs.push_back(srcs[i] - vertex_id_start);
+        }
       }
+      //      for (int i = 0; i < num_srcs; i++)
+      //      {
+      //        local_srcs.push_back(srcs[i]);
+      //      }
       frontier_size = local_srcs.size();
 
-      int tmp[2] ={frontier_size, 0};
+      int tmp[2] = {frontier_size, 0};
       if (retval = util::B40CPerror(
                                     cudaMemcpy(d_frontier_size,
                                                tmp,
@@ -3323,12 +3323,12 @@ namespace GASengine
       wave w(pi, pj, p, graph_slice->nodes, stats);
       MPI_Barrier(MPI_COMM_WORLD);
       //      printf("\nmyid:%d Wave initiaized time:%lf\n", rank_id, MPI_Wtime());
-      int NUM_WARMUP = 100;
+      int NUM_WARMUP = cfg.getParameter<int>("warmup");
       for (int i = 0; i < NUM_WARMUP; i++)
       {
-        //w.propogate_compressed(graph_slice->d_bitmap_out,graph_slice->d_bitmap_out,graph_slice->d_bitmap_out);
-        //w.broadcast_new_frontier_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
-        w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        //        w.propogate(graph_slice->d_bitmap_out,graph_slice->d_bitmap_out,graph_slice->d_bitmap_out);
+        //        w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
+        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
       }
       double start_time, end_time, total_start, total_end;
       SYNC_CHECK();
@@ -3350,6 +3350,7 @@ namespace GASengine
           ////        MPI_Recv(graph_slice->d_bitmap_in, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD, &status);//receive broadcast
           int nthreads = 256;
           int nblocks = (byte_size + nthreads - 1) / nthreads;
+          //          printf("pi=%d, pj=%d, Iteration: %d, byte_size=%d\n", pi, pj, iter, byte_size);
           MPI::mpikernel::bitmap2flag<Program> << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_in, graph_slice->d_visit_flags);
           util::B40CPerror(cudaDeviceSynchronize(), "bitmap2flag", __FILE__, __LINE__);
 
@@ -3429,10 +3430,10 @@ namespace GASengine
         //MPI_Barrier(MPI_COMM_WORLD);
         start_time = MPI_Wtime();
 
-        w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-        w.broadcast_new_frontier_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        //        w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+        //        w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         //        w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-        //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         end_time = MPI_Wtime();
         //MPI_Barrier(MPI_COMM_WORLD);
 
@@ -3530,21 +3531,22 @@ namespace GASengine
         //        iter_stat.frontier_size = frontier_size;
 
         //        w.reduce_frontier_GDR(a_d, b_d);
-        double prop, bcast, GPUtime, compression, decompression, compression_ratio, cr_bcast;
-        MPI_Reduce(&w.propagate_time, &prop, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        MPI_Reduce(&w.broadcast_time, &bcast, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        //        MPI_Reduce(&w.compression_time, &compression, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        //        MPI_Reduce(&w.decompression_time, &decompression, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        //        MPI_Reduce(&w.compression_ratio_broadcast, &cr_bcast, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        double prop, bcast, GPUtime, compression, decompression, compression_ratio, cr_bcast, bcast_sum;
+        //        MPI_Reduce(&w.propagate_time, &prop, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        //        MPI_Reduce(&w.broadcast_time, &bcast, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        //        MPI_Reduce(&w.broadcast_time, &bcast_sum, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        MPI_Reduce(&w.compression_time, &compression, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        MPI_Reduce(&w.decompression_time, &decompression, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        MPI_Reduce(&w.compression_ratio, &compression_ratio, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         MPI_Reduce(&stats->total_GPU_time, &GPUtime, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         //
         //        //
         if (rank_id == 0)
         {
-          //          printf("\n%d Propagate:%lf Broadcast:%lf GPUtime: %lf compression: %lf decompression: %lf compression_ratio: %lf",
-          //              iter, prop, bcast, GPUtime, compression, decompression, compression_ratio);
-          printf("\n%d Propagate:%lf Broadcast:%lf GPUtime: %lf cr_bcast: %lf",
-                 iter, prop, bcast, GPUtime);
+          printf("\n%d Propagate:%lf Broadcast:%lf GPUtime: %lf compression: %lf decompression: %lf compression_ratio: %lf, global_frontier_size: %d",
+                 iter, prop, bcast, GPUtime, compression, decompression, compression_ratio, global_frontier_size);
+          //          printf("\n%d Propagate:%lf Broadcast:%lf GPUtime: %lf bcast_avg: %lf",
+          //                 iter, prop, bcast, GPUtime, bcast_sum / 49);
         }
         //
         //        //        iter_stat.propagate_time = w.propagate_time;
