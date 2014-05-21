@@ -145,6 +145,20 @@ if(x_index <p && y_index <p)
 	}
 	//send the sizes array to next node
 	if(rank !=size-1) MPI_Send(&length,size,MPI_INT,rank+1,0,MPI_COMM_WORLD);
+
+if(size == 1)
+{
+int writelength[size+1];
+for(int i=0;i<size;i++)
+	writelength[i] = length[i];
+writelength[size] = (INT64_C(1) << log_numverts); 
+
+printf("\nnumverts is %d\n",writelength[size]);
+
+	MPI_File_write(sizefile, &writelength, size+1, MPI_INT, MPI_STATUS_IGNORE);
+}
+
+
 }
 else if(rank < size-1)
 {

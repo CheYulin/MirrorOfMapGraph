@@ -436,21 +436,48 @@ public:
     //    comp->compress(out_d, bitmap_compressed);
 
     double starttime, endtime;
+MPI_Barrier(MPI_COMM_WORLD);
     starttime = MPI_Wtime();
-
     MPI_Allreduce(out_d, out_d, mesg_size, MPI_BYTE, MPI_BOR, new_row_comm);
+MPI_Barrier(MPI_COMM_WORLD);
     endtime = MPI_Wtime();
 
     propagate_time = endtime - starttime;
 
-    starttime = MPI_Wtime();
+
     if (pi == pj)
       cudaMemcpy(in_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
 
+MPI_Barrier(MPI_COMM_WORLD);
+    starttime = MPI_Wtime();
     MPI_Bcast(in_d, mesg_size, MPI_CHAR, pj, new_col_comm);
-
+MPI_Barrier(MPI_COMM_WORLD);
     endtime = MPI_Wtime();
     broadcast_time = endtime - starttime;
+
+
+	if(pi==p-1)
+	{
+int count=0;
+char *in_h = (char*)malloc(mesg_size);
+cudaMemcpy(in_h, in_d,mesg_size,cudaMemcpyDeviceToHost);
+//#pragma omp parallel for reduction(+:count)
+	for(int i=0;i<mesg_size;i++)
+	{
+		count += (int) (in_h[i] >> 0 && 1);
+		count += (int) (in_h[i] >> 1 && 1);
+		count += (int) (in_h[i] >> 2 && 1);
+		count += (int) (in_h[i] >> 3 && 1);
+		count += (int) (in_h[i] >> 4 && 1);
+		count += (int) (in_h[i] >> 5 && 1);
+		count += (int) (in_h[i] >> 6 && 1);
+		count += (int) (in_h[i] >> 7 && 1);
+	}
+
+printf(" %d",count);
+
+	}
+
   }
 
   void broadcast_new_frontier(unsigned char* out_d, unsigned char* in_d)
