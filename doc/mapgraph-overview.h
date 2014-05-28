@@ -64,6 +64,9 @@ database platform at <a href="http://www.bigdata.com/blog"
 This work was (partially) funded by the DARPA XDATA program under AFRL
 <tt>Contract #FA8750-13-C-0002</tt>.
 
+This material is based upon work supported by the Defense Advanced
+Research Projects Agency (DARPA) under <tt>Contract No. D14PC00029</tt>.
+
 \subsection performance MapGraph vs Many-Core CPUs
 
 MapGraph is up to two orders of magnitude faster than parallel CPU
