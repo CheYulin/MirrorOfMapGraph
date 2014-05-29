@@ -3262,7 +3262,7 @@ namespace GASengine
       thrust::device_vector<int> d_local_srcs = local_srcs;
       int byte_size = (graph_slice->nodes + 8 - 1) / 8;
 
-printf("\nSOURCE : %d %d",rank_id,local_srcs.size());
+      printf("\nSOURCE : %d %d", rank_id, local_srcs.size());
 
       if (rank_id == 0)
       {
@@ -3332,16 +3332,27 @@ printf("\nSOURCE : %d %d",rank_id,local_srcs.size());
       MPI_Barrier(MPI_COMM_WORLD);
       //      printf("\nmyid:%d Wave initiaized time:%lf\n", rank_id, MPI_Wtime());
       int NUM_WARMUP = cfg.getParameter<int>("warmup");
+      int dummy_frontier_size;
+      int dummy_size = 1000;
+      thrust::device_vector<int> dummy_d_frontier_size(1, 0);
+      thrust::device_vector<int> dummy_d_result(dummy_size, 0);
+      thrust::device_vector<int> dummy_flags(1000, 1);
       for (int i = 0; i < NUM_WARMUP; i++)
       {
         w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
         w.broadcast_new_frontier_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
+        copy_if_mgpu(1000,
+                     thrust::raw_pointer_cast(&dummy_flags[0]),
+                     thrust::raw_pointer_cast(&dummy_d_result[0]),
+                     NULL,
+                     NULL,
+                     m_mgpuContext);
         //        w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
       }
-if(rank_id ==0)
-printf("Warmup Done\n");  
+      if (rank_id == 0)
+        printf("Warmup Done\n");
 
-    double start_time, end_time, total_start, total_end;
+      double start_time, end_time, total_start, total_end;
       SYNC_CHECK();
 
       //			MPI_Barrier(MPI_COMM_WORLD);
@@ -3407,31 +3418,27 @@ printf("Warmup Done\n");
         }
         end_time = MPI_Wtime();
         stats->total_GPU_time = end_time - start_time;
-if(pj==p-1)
-{
-int count=0,mesg_size = (graph_slice->nodes + 8 - 1) / 8;
-char *in_h = (char*)malloc(mesg_size);
-cudaMemcpy(in_h,graph_slice->d_bitmap_out,mesg_size,cudaMemcpyDeviceToHost);
-//#pragma omp parallel for reduction(+:count)
-for(int i=0;i<mesg_size;i++)
-{
-count += (int) (in_h[i] >> 0 && 1);
-count += (int) (in_h[i] >> 1 && 1);
-count += (int) (in_h[i] >> 2 && 1);
-count += (int) (in_h[i] >> 3 && 1);
-count += (int) (in_h[i] >> 4 && 1);
-count += (int) (in_h[i] >> 5 && 1);
-count += (int) (in_h[i] >> 6 && 1);
-count += (int) (in_h[i] >> 7 && 1);
-}
+        if (pj == p - 1)
+        {
+          int count = 0, mesg_size = (graph_slice->nodes + 8 - 1) / 8;
+          char *in_h = (char*)malloc(mesg_size);
+          cudaMemcpy(in_h, graph_slice->d_bitmap_out, mesg_size, cudaMemcpyDeviceToHost);
+          //#pragma omp parallel for reduction(+:count)
+          for (int i = 0; i < mesg_size; i++)
+          {
+            count += (int)(in_h[i] >> 0 && 1);
+            count += (int)(in_h[i] >> 1 && 1);
+            count += (int)(in_h[i] >> 2 && 1);
+            count += (int)(in_h[i] >> 3 && 1);
+            count += (int)(in_h[i] >> 4 && 1);
+            count += (int)(in_h[i] >> 5 && 1);
+            count += (int)(in_h[i] >> 6 && 1);
+            count += (int)(in_h[i] >> 7 && 1);
+          }
 
-printf("\n %d %d",rank_id,count);
+          printf("\n %d %d", rank_id, count);
 
-}
-
-
-
-
+        }
         //        iter_stat.GPU_time = end_time - start_time;
         //
         iteration[0]++;
@@ -3466,7 +3473,7 @@ printf("\n %d %d",rank_id,count);
         start_time = MPI_Wtime();
 
         w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-        w.broadcast_new_frontier_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         //        w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         end_time = MPI_Wtime();
