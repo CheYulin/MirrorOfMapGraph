@@ -3262,7 +3262,7 @@ namespace GASengine
       thrust::device_vector<int> d_local_srcs = local_srcs;
       int byte_size = (graph_slice->nodes + 8 - 1) / 8;
 
-      printf("\nSOURCE : %d %d", rank_id, local_srcs.size());
+      printf("SOURCE : %d %d %d\n", rank_id, local_srcs.size(), local_srcs[0]);
 
       if (rank_id == 0)
       {
@@ -3332,6 +3332,7 @@ namespace GASengine
       MPI_Barrier(MPI_COMM_WORLD);
       //      printf("\nmyid:%d Wave initiaized time:%lf\n", rank_id, MPI_Wtime());
       int NUM_WARMUP = cfg.getParameter<int>("warmup");
+      int compressed = cfg.getParameter<int>("compressed");
       int dummy_frontier_size;
       int dummy_size = 1000;
       thrust::device_vector<int> dummy_d_frontier_size(1, 0);
@@ -3339,15 +3340,19 @@ namespace GASengine
       thrust::device_vector<int> dummy_flags(1000, 1);
       for (int i = 0; i < NUM_WARMUP; i++)
       {
-        w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
-        w.broadcast_new_frontier_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
-        copy_if_mgpu(1000,
-                     thrust::raw_pointer_cast(&dummy_flags[0]),
-                     thrust::raw_pointer_cast(&dummy_d_result[0]),
-                     NULL,
-                     NULL,
-                     m_mgpuContext);
-        //        w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        if (compressed)
+        {
+          w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
+          w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
+        }
+        else
+          w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        //        copy_if_mgpu(1000,
+        //                     thrust::raw_pointer_cast(&dummy_flags[0]),
+        //                     thrust::raw_pointer_cast(&dummy_d_result[0]),
+        //                     NULL,
+        //                     NULL,
+        //                     m_mgpuContext);
       }
       if (rank_id == 0)
         printf("Warmup Done\n");
@@ -3472,9 +3477,13 @@ namespace GASengine
         //MPI_Barrier(MPI_COMM_WORLD);
         start_time = MPI_Wtime();
 
-        w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-        w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-        //        w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        if (compressed)
+        {
+          w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+          w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        }
+        else
+          w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         end_time = MPI_Wtime();
         //MPI_Barrier(MPI_COMM_WORLD);

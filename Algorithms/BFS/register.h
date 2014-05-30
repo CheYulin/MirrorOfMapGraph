@@ -40,4 +40,5 @@ inline void registerParameters() {
   Config::registerParameter<double>("max_queue_sizing","The frontier queue size is this value times the number of vertices in the graph (default 1.5)", 1.5); //frontier queue size
   Config::registerParameter<int>("threshold","When frontier size is larger than threshold, two-phase strategy is used otherwise dynamic scheduling it used (default 10000)", 10000);
   Config::registerParameter<int>("warmup","Run wave several times to warm up", 100);
+  Config::registerParameter<int>("compressed","Run compressed wave", 1);
 }
