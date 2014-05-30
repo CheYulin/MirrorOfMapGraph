@@ -3262,12 +3262,9 @@ namespace GASengine
       thrust::device_vector<int> d_local_srcs = local_srcs;
       int byte_size = (graph_slice->nodes + 8 - 1) / 8;
 
-      printf("SOURCE : %d %d %d\n", rank_id, local_srcs.size(), local_srcs[0]);
+      //      printf("SOURCE : %d %d %d\n", rank_id, local_srcs.size(), local_srcs[0]);
 
-      if (rank_id == 0)
-      {
-        printf("Iter Propagate_Max Propagate_min Propagate_avg Broadcast_max Broadcast_min Broadcast_avg GPUtime_max GPUtime_min GPUtime_avg");
-      }
+
 
       if (local_srcs.size() > 0)
       {
@@ -3357,6 +3354,11 @@ namespace GASengine
       if (rank_id == 0)
         printf("Warmup Done\n");
 
+      if (rank_id == 0)
+      {
+        printf("Iter Propagate_Max Propagate_min Propagate_avg Broadcast_max Broadcast_min Broadcast_avg GPUtime_max GPUtime_min GPUtime_avg frontier_size");
+      }
+
       double start_time, end_time, total_start, total_end;
       SYNC_CHECK();
 
@@ -3423,9 +3425,11 @@ namespace GASengine
         }
         end_time = MPI_Wtime();
         stats->total_GPU_time = end_time - start_time;
+        
+        int count = 0;
         if (pj == p - 1)
         {
-          int count = 0, mesg_size = (graph_slice->nodes + 8 - 1) / 8;
+          int mesg_size = (graph_slice->nodes + 8 - 1) / 8;
           char *in_h = (char*)malloc(mesg_size);
           cudaMemcpy(in_h, graph_slice->d_bitmap_out, mesg_size, cudaMemcpyDeviceToHost);
           //#pragma omp parallel for reduction(+:count)
@@ -3441,7 +3445,7 @@ namespace GASengine
             count += (int)(in_h[i] >> 7 && 1);
           }
 
-          printf("\n %d %d", rank_id, count);
+//          printf("iter %d rand_id %d, frontiersize %d\n", iter, rank_id, count);
 
         }
         //        iter_stat.GPU_time = end_time - start_time;
@@ -3611,14 +3615,18 @@ namespace GASengine
         bcast_avg = bcast_avg / (float)np;
         GPUtime_avg = GPUtime_avg / (float)np;
 
+        int total_size;
+        
+        MPI_Reduce(&count, &total_size, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+        
         //
         //        //
         if (rank_id == 0)
         {
           //          printf("\n%d Propagate:%lf Broadcast:%lf GPUtime: %lf compression: %lf decompression: %lf compression_ratio: %lf",
-          //              iter, prop, bcast, GPUtime, compression, decompression, compression_ratio);
-          printf("\n%d %lf %lf %lf %lf %lf %lf %lf %lf %lf",
-                 iter, prop_max, prop_min, prop_avg, bcast_max, bcast_min, bcast_avg, GPUtime_max, GPUtime_min, GPUtime_avg);
+          //                 iter, prop, bcast, GPUtime, compression, decompression, compression_ratio);
+          printf("\n%d %lf %lf %lf %lf %lf %lf %lf %lf %lf %d",
+                 iter, prop_max, prop_min, prop_avg, bcast_max, bcast_min, bcast_avg, GPUtime_max, GPUtime_min, GPUtime_avg, total_size);
         }
         //
         //        //        iter_stat.propagate_time = w.propagate_time;
