@@ -42,6 +42,8 @@ struct Statistics
     double propagate_time;
     double broadcast_time;
     double wave_time;
+double copy_time;
+double bitunion_time;
     double allreduce_time;
     double update_time; // update visited bitmap and label time
   };

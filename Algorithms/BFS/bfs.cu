@@ -534,7 +534,7 @@ int main(int argc, char **argv)
 
       //printf("\np:%d num1d:%d \n",p,csr_graph.nodes);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+//    MPI_Barrier(MPI_COMM_WORLD);
     if (rank_id == 0)
       printf("\nReading from files finished \n");
     
@@ -763,6 +763,10 @@ int main(int argc, char **argv)
     //      tmpsrcs[i] = i;
 
     cudaError_t retval = cudaSuccess;
+
+
+MPI_Barrier(MPI_COMM_WORLD);
+printf("\nBarrier 0");
 
     retval = vertex_centric.EnactIterativeSearch(csr_problem,
                                                  csr_graph.row_offsets, directed, tmp_num_srcs, tmpsrcs, iter_num,

@@ -3326,7 +3326,7 @@ namespace GASengine
       //			wave w1(pi, pj, p, graph_slice->nodes, stats);
 
       wave w(pi, pj, p, graph_slice->nodes, stats);
-      MPI_Barrier(MPI_COMM_WORLD);
+      //MPI_Barrier(MPI_COMM_WORLD);
       //      printf("\nmyid:%d Wave initiaized time:%lf\n", rank_id, MPI_Wtime());
       int NUM_WARMUP = cfg.getParameter<int>("warmup");
       int compressed = cfg.getParameter<int>("compressed");
@@ -3339,7 +3339,7 @@ namespace GASengine
       {
         if (compressed)
         {
-          w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
+          w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
           w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
         }
         else
@@ -3363,7 +3363,7 @@ namespace GASengine
       double start_time, end_time, total_start, total_end;
       SYNC_CHECK();
 
-      MPI_Barrier(MPI_COMM_WORLD);
+      //MPI_Barrier(MPI_COMM_WORLD);
 
       int iter;
       total_start = MPI_Wtime();
@@ -3402,41 +3402,50 @@ namespace GASengine
 //        stats->total_GPU_time += end_time - start_time;
         iter_stat.GPU_time = end_time - start_time;
 
-        //        int count = 0;
-        //        if (pj == p - 1)
-        //        {
-        //          int mesg_size = (graph_slice->nodes + 8 - 1) / 8;
-        //          char *in_h = (char*)malloc(mesg_size);
-        //          cudaMemcpy(in_h, graph_slice->d_bitmap_out, mesg_size, cudaMemcpyDeviceToHost);
-        //          //#pragma omp parallel for reduction(+:count)
-        //          for (int i = 0; i < mesg_size; i++)
-        //          {
-        //            count += (int)(in_h[i] >> 0 && 1);
-        //            count += (int)(in_h[i] >> 1 && 1);
-        //            count += (int)(in_h[i] >> 2 && 1);
-        //            count += (int)(in_h[i] >> 3 && 1);
-        //            count += (int)(in_h[i] >> 4 && 1);
-        //            count += (int)(in_h[i] >> 5 && 1);
-        //            count += (int)(in_h[i] >> 6 && 1);
-        //            count += (int)(in_h[i] >> 7 && 1);
-        //          }
-        //        }
+                long long count = 0;
+/*                if (pj == p - 1)
+                {
+                  int mesg_size = (graph_slice->nodes + 8 - 1) / 8;
+                  char *in_h = (char*)malloc(mesg_size);
+                  cudaMemcpy(in_h, graph_slice->d_bitmap_out, mesg_size, cudaMemcpyDeviceToHost);
+                  //#pragma omp parallel for reduction(+:count)
+                  for (int i = 0; i < mesg_size; i++)
+                  {
+                    count += (int)(in_h[i] >> 0 && 1);
+                    count += (int)(in_h[i] >> 1 && 1);
+                    count += (int)(in_h[i] >> 2 && 1);
+                    count += (int)(in_h[i] >> 3 && 1);
+                    count += (int)(in_h[i] >> 4 && 1);
+                    count += (int)(in_h[i] >> 5 && 1);
+                    count += (int)(in_h[i] >> 6 && 1);
+                    count += (int)(in_h[i] >> 7 && 1);
+                  }
+                }
+*/
+	iter_stat.frontier_size = count;
 
         iteration[0]++;
-
+        start_time = MPI_Wtime();
         if (compressed)
         {
-          w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+          w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
           w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         }
         else
           w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
 
+        end_time = MPI_Wtime();
+	
+	iter_stat.wave_time = end_time - start_time;
+	
         iter_stat.propagate_time = w.propagate_time;
         iter_stat.broadcast_time = w.broadcast_time;
-        start_time = MPI_Wtime();
+	 iter_stat.copy_time = w.copy_time;
+	 iter_stat.bitunion_time = w.bitunion_time;
 
+
+	start_time = MPI_Wtime();
         //update bitmap_visited
         int nthreads = 256;
         int nblocks = (byte_size + nthreads - 1) / nthreads;
@@ -3449,6 +3458,9 @@ namespace GASengine
           int nblocks = (graph_slice->nodes + nthreads - 1) / nthreads;
           update_BFS_labels<Program> << <nblocks, nthreads >> >(iteration[0], graph_slice->nodes, graph_slice->d_bitmap_out, graph_slice->vertex_list);
         }
+	end_time = MPI_Wtime();
+
+	iter_stat.update_time = end_time - start_time;
 
         start_time = MPI_Wtime();
         long long tmp_frontier_size = frontier_size;
@@ -3464,7 +3476,7 @@ namespace GASengine
         if (global_frontier_size == 0)
           break;
       }
-
+/*
       for (int i = 0; i < stats->iter_stats.size(); i++)
       {
         double prop_max, prop_min, prop_avg, bcast_max, bcast_min, bcast_avg, GPUtime_max, GPUtime_min, GPUtime_avg, compression, decompression, compression_ratio, cr_bcast;
@@ -3480,6 +3492,24 @@ namespace GASengine
                  i, prop_max, prop_min, prop_avg / 49.0, bcast_max, bcast_min, bcast_avg / 49.0, GPUtime_max, GPUtime_min, GPUtime_avg / 49.0);
         }
       }
+*/
+
+for (int i = 0; i < stats->iter_stats.size(); i++)
+{
+
+printf("\n%d %d %lld %lf %lf %lf %lf %lf %lf %lf %lf",
+            i, rank_id, stats->iter_stats[i].frontier_size,
+			stats->iter_stats[i].GPU_time,
+			stats->iter_stats[i].propagate_time,
+			stats->iter_stats[i].broadcast_time,
+			stats->iter_stats[i].wave_time,
+			stats->iter_stats[i].allreduce_time,
+			stats->iter_stats[i].update_time,
+			stats->iter_stats[i].copy_time,
+			stats->iter_stats[i].bitunion_time);
+
+}
+
       //      stats->wave_setup_time = w.init_time;
       //      //      stats->total_propagate_time = w.propagate_time;
       //      //      stats->total_broadcast_time = w.broadcast_time;

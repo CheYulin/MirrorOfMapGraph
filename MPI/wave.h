@@ -43,7 +43,7 @@ public:
   MPI_Group orig_group, new_row_group, new_col_group;
   MPI_Comm new_row_comm, new_col_comm;
   int new_row_rank, new_col_rank;
-  double init_time, propagate_time, broadcast_time, compression_time,
+  double init_time, propagate_time, broadcast_time, compression_time, copy_time, bitunion_time,
   decompression_time;
   Statistics* stats;
   unsigned int *bitmap_compressed;
@@ -96,11 +96,12 @@ public:
     MPI_Group_rank(new_row_group, &new_row_rank);
     MPI_Group_rank(new_col_group, &new_col_rank);
     endtime = MPI_Wtime();
-    MPI_Barrier(new_row_comm);
-    MPI_Barrier(new_col_comm);
+    //MPI_Barrier(new_row_comm);
+    //MPI_Barrier(new_col_comm);
     init_time = endtime - starttime;
     propagate_time = 0;
     broadcast_time = 0;
+copy_time=0; bitunion_time=0;
 
     util::B40CPerror(
                      cudaMalloc((void**)&bitmap_compressed,
@@ -129,81 +130,78 @@ public:
 
   }
 
-  void propogate(unsigned char* out_d, unsigned char* assigned_d,
-                 unsigned char* prefix_d)
-  //wave propogation, in sequential from top to bottom of the column
-  {
-    double starttime, endtime;
-    starttime = MPI_Wtime();
-    unsigned int mesg_size = ceil(n / 8.0);
-    int myid = pi * p + pj;
-    //int lastid = pi*p+p-1;
-    int numthreads = 512;
-    int byte_size = (n + 8 - 1) / 8;
-    int numblocks = min(512, (byte_size + numthreads - 1) / numthreads);
+void propogate(unsigned char* out_d, unsigned char* assigned_d,
+         unsigned char* prefix_d)
+//wave propogation, in sequential from top to bottom of the column
+{
+	double starttime, endtime;
 
-    //    char *out_h = (char*)malloc(mesg_size);
-    //    char *prefix_h = (char*)malloc(mesg_size);
-    //    if(cudaMemcpy(out_h, out_d, mesg_size, cudaMemcpyDeviceToHost))printf("cudaMemcpy Error: line %d\n", __LINE__);
-    //    
-    //    if(cudaMalloc((void**)&out_d, mesg_size)) printf("cudaMalloc Error: line %d\n", __LINE__);
-    //    if(cudaMalloc((void**)&prefix_d, mesg_size)) printf("cudaMalloc Error: line %d\n", __LINE__);
+	unsigned int mesg_size = ceil(n / 8.0);
+	int myid = pi * p + pj;
 
-    MPI_Request request[2];
-    MPI_Status status[2];
-    if (p > 1)
-    {
-      //if first one in the column, initiate the wave propogation
-      if (pj == 0)
-      {
-        MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi,
-                  MPI_COMM_WORLD, &request[1]);
-        MPI_Wait(&request[1], &status[1]);
-        //free(out_h);
-      }
-        //else if not the last one, receive bitmap from top, process and send to next one
-      else if (pj != p - 1)
-      {
-        // char *prefix_h = (char*)malloc(mesg_size);
-        MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi,
-                  MPI_COMM_WORLD, &request[0]);
-        MPI_Wait(&request[0], &status[0]);
+	int numthreads = 512;
+	int byte_size = (n + 8 - 1) / 8;
+	int numblocks = min(512, (byte_size + numthreads - 1) / numthreads);
 
-        //cudaMemcpy(prefix_d, prefix_h, mesg_size, cudaMemcpyHostToDevice);
-        //mpikernel::bitsubstract << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, assigned_d);
-        //cudaDeviceSynchronize();
-        mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d,
-                                                           prefix_d, out_d);
-        //char *out_h = (char*)malloc(mesg_size);
-        cudaDeviceSynchronize();
-        //cudaMemcpy(out_h, out_d, mesg_size, cudaMemcpyDeviceToHost);
 
-        MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi,
-                  MPI_COMM_WORLD, &request[1]);
-        //f//ree(prefix_h);
+	MPI_Request request[2];
+	MPI_Status status[2];
+	if (p > 1)
+	{
+		
+		if (pj == 0)
+		{
+			starttime = MPI_Wtime();
+			MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi,
+				  MPI_COMM_WORLD, &request[1]);
+			MPI_Wait(&request[1], &status[1]);
 
-        MPI_Wait(&request[1], &status[1]);
-        //free(out_h);
-      }
-        //else receive from the previous and then broadcast to the broadcast group
-      else
-      {
-        //char *prefix_h = (char*)malloc(mesg_size);
-        MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi,
-                  MPI_COMM_WORLD, &request[0]);
-        MPI_Wait(&request[0], &status[0]);
-        //cudaMemcpy(prefix_d, prefix_h, mesg_size, cudaMemcpyHostToDevice);
-        //mpikernel::bitsubstract << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, assigned_d);
-        //cudaDeviceSynchronize();
-        mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d,
-                                                           prefix_d, out_d);
-        cudaDeviceSynchronize();
-      }
-    }
 
-    endtime = MPI_Wtime();
-    propagate_time = endtime - starttime;
-  }
+			endtime = MPI_Wtime();
+			propagate_time = endtime - starttime;
+		}
+
+		else if (pj != p - 1)
+		{
+			starttime = MPI_Wtime();
+
+			MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi, MPI_COMM_WORLD, &request[0]);
+			MPI_Wait(&request[0], &status[0]);
+			endtime = MPI_Wtime();
+			propagate_time = endtime - starttime;
+
+			starttime = MPI_Wtime();
+			mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
+			cudaDeviceSynchronize();
+			endtime = MPI_Wtime();
+			bitunion_time = endtime - starttime;
+
+			starttime = MPI_Wtime();
+			MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi, MPI_COMM_WORLD, &request[1]);
+
+
+			MPI_Wait(&request[1], &status[1]);
+
+			endtime = MPI_Wtime();
+			propagate_time += endtime - starttime;
+		}
+
+		else
+		{
+			starttime = MPI_Wtime();
+
+			MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi,
+				  MPI_COMM_WORLD, &request[0]);
+			MPI_Wait(&request[0], &status[0]);
+
+			   endtime = MPI_Wtime();
+			propagate_time = endtime - starttime;
+			mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
+			cudaDeviceSynchronize();
+		}
+	}
+
+}
 
   void correct_test(unsigned char* tmp1_h, unsigned char* tmp2_h, int mesg_size)
   {
@@ -596,33 +594,26 @@ public:
   void broadcast_new_frontier(unsigned char* out_d, unsigned char* in_d)
   {
     double starttime, endtime;
-    MPI_Barrier(MPI_COMM_WORLD);
-    starttime = MPI_Wtime();
+    //MPI_Barrier(MPI_COMM_WORLD);
+
 
     unsigned int mesg_size = ceil(n / (8.0));
-
-    //    char *out_h = (char*)malloc(mesg_size);
-    //    char *in_h = (char*)malloc(mesg_size);
-
-    //    if (pj == p - 1)
-    //      cudaMemcpy(out_h, out_d, mesg_size, cudaMemcpyDeviceToHost);
-
+    starttime = MPI_Wtime();
     MPI_Bcast(out_d, mesg_size, MPI_CHAR, p - 1, new_row_comm);
-    //    cudaMemcpy(out_d, out_h, mesg_size, cudaMemcpyHostToDevice);
-
-    if (pi == pj)
-      cudaMemcpy(in_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
-
-    MPI_Bcast(in_d, mesg_size, MPI_CHAR, pj, new_col_comm);
-
-    //    cudaMemcpy(out_d, out_h, mesg_size, cudaMemcpyHostToDevice);
-    //    cudaMemcpy(in_d, in_h, mesg_size, cudaMemcpyHostToDevice);
-
-    //    cudaDeviceSynchronize();
-    //    free(in_h);
-    //    free(out_h);/
     endtime = MPI_Wtime();
     broadcast_time = endtime - starttime;
+
+	starttime = MPI_Wtime();
+    if (pi == pj)
+      cudaMemcpy(in_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
+	endtime = MPI_Wtime();
+	copy_time = endtime - starttime;
+
+    starttime = MPI_Wtime();
+    MPI_Bcast(in_d, mesg_size, MPI_CHAR, pj, new_col_comm);
+    endtime = MPI_Wtime();
+    broadcast_time += endtime - starttime;
+
   }
 };
 
