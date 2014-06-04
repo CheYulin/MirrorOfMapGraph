@@ -51,6 +51,7 @@ public:
   Compressor* comp;
   double compression_ratio_broadcast;
   double compression_ratio;
+  unsigned int compressed_size;
 public:
 
   wave(int l_pi, int l_pj, int l_p, int l_n, Statistics* l_stats)
@@ -130,7 +131,7 @@ public:
     //    comp = new Compressor(186);
 
   }
-
+/*
   void propogate(unsigned char* out_d, unsigned char* assigned_d,
                  unsigned char* prefix_d)
   //wave propogation, in sequential from top to bottom of the column
@@ -202,6 +203,79 @@ public:
       }
     }
 
+  } */
+
+void propogate(unsigned char* out_d, unsigned char* assigned_d,
+                 unsigned char* prefix_d)
+  //wave propogation, in sequential from top to bottom of the column
+  {
+    double starttime, endtime;
+
+    unsigned int mesg_size = ceil(n / 8.0);
+    int myid = pi * p + pj;
+
+    int numthreads = 512;
+    int byte_size = (n + 8 - 1) / 8;
+    int numblocks = min(512, (byte_size + numthreads - 1) / numthreads);
+
+
+    MPI_Request request[2];
+    MPI_Status status[2];
+    if (p > 1)
+    {
+
+      if (pj == 0)
+      {
+        starttime = MPI_Wtime();
+        MPI_Send(out_d, mesg_size, MPI_CHAR, myid + 1, pi,
+                  MPI_COMM_WORLD);
+        //MPI_Wait(&request[1], &status[1]);
+
+
+        endtime = MPI_Wtime();
+        propagate_time = endtime - starttime;
+      }
+
+      else if (pj != p - 1)
+      {
+        starttime = MPI_Wtime();
+
+        MPI_Recv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi, MPI_COMM_WORLD, &status[1]);
+        //MPI_Wait(&request[0], &status[0]);
+        endtime = MPI_Wtime();
+        propagate_time = endtime - starttime;
+
+        starttime = MPI_Wtime();
+        mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
+        cudaDeviceSynchronize();
+        endtime = MPI_Wtime();
+        bitunion_time = endtime - starttime;
+
+        starttime = MPI_Wtime();
+        MPI_Send(out_d, mesg_size, MPI_CHAR, myid + 1, pi, MPI_COMM_WORLD);
+
+
+        //MPI_Wait(&request[1], &status[1]);
+
+        endtime = MPI_Wtime();
+        propagate_time += endtime - starttime;
+      }
+
+      else
+      {
+        starttime = MPI_Wtime();
+
+        MPI_Recv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi,
+                  MPI_COMM_WORLD, &status[1]);
+        //MPI_Wait(&request[0], &status[0]);
+
+        endtime = MPI_Wtime();
+        propagate_time = endtime - starttime;
+        mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
+        cudaDeviceSynchronize();
+      }
+    }
+
   }
 
   void correct_test(unsigned char* tmp1_h, unsigned char* tmp2_h, int mesg_size)
@@ -230,7 +304,7 @@ public:
   {
     double starttime, endtime;
 
-    unsigned int compressed_size; //byte number, NOT int number
+     //byte number, NOT int number
     unsigned int decompressed_size;
 
     //    MPI_Barrier(MPI_COMM_WORLD);
@@ -306,10 +380,12 @@ public:
 
         starttime = MPI_Wtime();
         int word_size = (n + 30) / 31;
-        MPI_Recv(bitmap_compressed, word_size * sizeof (unsigned int),
+        MPI_Probe(myid-1, tag, MPI_COMM_WORLD, &status[0]);
+        MPI_Get_count(&status[0], MPI_BYTE, (int*)&compressed_size);
+        MPI_Recv(bitmap_compressed, compressed_size,
                  MPI_BYTE, myid - 1, tag, MPI_COMM_WORLD, &status[0]);
         //        MPI_Wait(&request[0], &status[0]);
-        MPI_Get_count(&status[0], MPI_BYTE, (int*)&compressed_size);
+        //MPI_Get_count(&status[0], MPI_BYTE, (int*)&compressed_size);
         endtime = MPI_Wtime();
         propagate_time = endtime - starttime;
 
@@ -363,11 +439,17 @@ public:
       {
         //        char *prefix_h = (char*)malloc(mesg_size);
         starttime = MPI_Wtime();
-        int word_size = (n + 30) / 31;
-        MPI_Recv(bitmap_compressed, word_size * sizeof (unsigned int),
+
+        MPI_Probe(myid-1, tag, MPI_COMM_WORLD, &status[0]);
+        MPI_Get_count(&status[0], MPI_BYTE, (int*)&compressed_size);
+        MPI_Recv(bitmap_compressed, compressed_size,
                  MPI_BYTE, myid - 1, tag, MPI_COMM_WORLD, &status[0]);
 
-        MPI_Get_count(&status[0], MPI_BYTE, (int*)&compressed_size);
+        //int word_size = (n + 30) / 31;
+        //MPI_Recv(bitmap_compressed, word_size * sizeof (unsigned int),
+        //         MPI_BYTE, myid - 1, tag, MPI_COMM_WORLD, &status[0]);
+
+        //MPI_Get_count(&status[0], MPI_BYTE, (int*)&compressed_size);
         endtime = MPI_Wtime();
         propagate_time = endtime - starttime;
 
@@ -386,6 +468,7 @@ public:
         cudaDeviceSynchronize();
         endtime = MPI_Wtime();
         bitunion_time = endtime - starttime;
+	compressed_size = 0;
       }
     }
 

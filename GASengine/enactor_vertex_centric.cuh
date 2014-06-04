@@ -3345,7 +3345,10 @@ namespace GASengine
           w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
         }
         else
-          w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+	{
+          w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+          w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+	}
         //        copy_if_mgpu(1000,
         //                     thrust::raw_pointer_cast(&dummy_flags[0]),
         //                     thrust::raw_pointer_cast(&dummy_d_result[0]),
@@ -3359,7 +3362,7 @@ namespace GASengine
       Statistics::stats_per_iter iter_stat;
       double start_time, end_time, total_start, total_end;
       
-      //MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Barrier(MPI_COMM_WORLD);
 
       int iter;
       total_start = MPI_Wtime();
@@ -3428,7 +3431,11 @@ namespace GASengine
           w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         }
         else
-          w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+	{
+          w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+          w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);	
+	}
+        //  w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
 
         end_time = MPI_Wtime();
@@ -3440,7 +3447,7 @@ namespace GASengine
         iter_stat.copy_time = w.copy_time;
         iter_stat.bitunion_time = w.bitunion_time;
         iter_stat.compression_time = w.compression_time;
-
+	 iter_stat.compressed_size = w.compressed_size;
 
         start_time = MPI_Wtime();
         //update bitmap_visited
@@ -3500,7 +3507,7 @@ namespace GASengine
       for (int i = 0; i < stats->iter_stats.size(); i++)
       {
 
-        printf("%d %d %lld %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
+        printf("%d %d %lld %lf %lf %lf %lf %lf %lf %lf %lf %lf %d\n",
                i, rank_id, stats->iter_stats[i].frontier_size,
                stats->iter_stats[i].GPU_time,
                stats->iter_stats[i].propagate_time,
@@ -3510,7 +3517,8 @@ namespace GASengine
                stats->iter_stats[i].update_time,
                stats->iter_stats[i].copy_time,
                stats->iter_stats[i].bitunion_time,
-               stats->iter_stats[i].compression_time);
+               stats->iter_stats[i].compression_time,
+		 stats->iter_stats[i].compressed_size);
         fflush(stdout);
         MPI_Barrier(MPI_COMM_WORLD);
 

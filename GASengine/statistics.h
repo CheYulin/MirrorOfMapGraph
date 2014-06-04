@@ -45,6 +45,8 @@ struct Statistics
 double copy_time;
 double bitunion_time;
     double allreduce_time;
+double compression_time;
+int compressed_size;
     double update_time; // update visited bitmap and label time
   };
 
