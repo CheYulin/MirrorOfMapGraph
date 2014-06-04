@@ -3335,11 +3335,13 @@ namespace GASengine
       thrust::device_vector<int> dummy_d_frontier_size(1, 0);
       thrust::device_vector<int> dummy_d_result(dummy_size, 0);
       thrust::device_vector<int> dummy_flags(1000, 1);
+      
+      SYNC_CHECK();
       for (int i = 0; i < NUM_WARMUP; i++)
       {
         if (compressed)
         {
-          w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
+          w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
           w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
         }
         else
@@ -3354,15 +3356,9 @@ namespace GASengine
       if (rank_id == 0)
         printf("Warmup Done\n");
 
-      if (rank_id == 0)
-      {
-        printf("Iter Propagate_Max Propagate_min Propagate_avg Broadcast_max Broadcast_min Broadcast_avg GPUtime_max GPUtime_min GPUtime_avg frontier_size\n");
-      }
-
       Statistics::stats_per_iter iter_stat;
       double start_time, end_time, total_start, total_end;
-      SYNC_CHECK();
-
+      
       //MPI_Barrier(MPI_COMM_WORLD);
 
       int iter;
@@ -3399,36 +3395,36 @@ namespace GASengine
                                                                         expand_grid_size, contract_grid_size, selector, frontier_selector, pi, pj, rank_id);
         }
         end_time = MPI_Wtime();
-//        stats->total_GPU_time += end_time - start_time;
+        //        stats->total_GPU_time += end_time - start_time;
         iter_stat.GPU_time = end_time - start_time;
 
-                long long count = 0;
-/*                if (pj == p - 1)
-                {
-                  int mesg_size = (graph_slice->nodes + 8 - 1) / 8;
-                  char *in_h = (char*)malloc(mesg_size);
-                  cudaMemcpy(in_h, graph_slice->d_bitmap_out, mesg_size, cudaMemcpyDeviceToHost);
-                  //#pragma omp parallel for reduction(+:count)
-                  for (int i = 0; i < mesg_size; i++)
-                  {
-                    count += (int)(in_h[i] >> 0 && 1);
-                    count += (int)(in_h[i] >> 1 && 1);
-                    count += (int)(in_h[i] >> 2 && 1);
-                    count += (int)(in_h[i] >> 3 && 1);
-                    count += (int)(in_h[i] >> 4 && 1);
-                    count += (int)(in_h[i] >> 5 && 1);
-                    count += (int)(in_h[i] >> 6 && 1);
-                    count += (int)(in_h[i] >> 7 && 1);
-                  }
-                }
-*/
-	iter_stat.frontier_size = count;
+        long long count = 0;
+        //                       if (pj == p - 1)
+        //                        {
+        //                          int mesg_size = (graph_slice->nodes + 8 - 1) / 8;
+        //                          char *in_h = (char*)malloc(mesg_size);
+        //                          cudaMemcpy(in_h, graph_slice->d_bitmap_out, mesg_size, cudaMemcpyDeviceToHost);
+        //                          //#pragma omp parallel for reduction(+:count)
+        //                          for (int i = 0; i < mesg_size; i++)
+        //                          {
+        //                            count += (int)(in_h[i] >> 0 && 1);
+        //                            count += (int)(in_h[i] >> 1 && 1);
+        //                            count += (int)(in_h[i] >> 2 && 1);
+        //                            count += (int)(in_h[i] >> 3 && 1);
+        //                            count += (int)(in_h[i] >> 4 && 1);
+        //                            count += (int)(in_h[i] >> 5 && 1);
+        //                            count += (int)(in_h[i] >> 6 && 1);
+        //                            count += (int)(in_h[i] >> 7 && 1);
+        //                          }
+        //                        }
+        //         
+        iter_stat.frontier_size = count;
 
         iteration[0]++;
         start_time = MPI_Wtime();
         if (compressed)
         {
-          w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+          w.propogate_compressed(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
           w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         }
         else
@@ -3436,16 +3432,17 @@ namespace GASengine
         //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
 
         end_time = MPI_Wtime();
-	
-	iter_stat.wave_time = end_time - start_time;
-	
+
+        iter_stat.wave_time = end_time - start_time;
+
         iter_stat.propagate_time = w.propagate_time;
         iter_stat.broadcast_time = w.broadcast_time;
-	 iter_stat.copy_time = w.copy_time;
-	 iter_stat.bitunion_time = w.bitunion_time;
+        iter_stat.copy_time = w.copy_time;
+        iter_stat.bitunion_time = w.bitunion_time;
+        iter_stat.compression_time = w.compression_time;
 
 
-	start_time = MPI_Wtime();
+        start_time = MPI_Wtime();
         //update bitmap_visited
         int nthreads = 256;
         int nblocks = (byte_size + nthreads - 1) / nthreads;
@@ -3458,9 +3455,9 @@ namespace GASengine
           int nblocks = (graph_slice->nodes + nthreads - 1) / nthreads;
           update_BFS_labels<Program> << <nblocks, nthreads >> >(iteration[0], graph_slice->nodes, graph_slice->d_bitmap_out, graph_slice->vertex_list);
         }
-	end_time = MPI_Wtime();
+        end_time = MPI_Wtime();
 
-	iter_stat.update_time = end_time - start_time;
+        iter_stat.update_time = end_time - start_time;
 
         start_time = MPI_Wtime();
         long long tmp_frontier_size = frontier_size;
@@ -3472,43 +3469,52 @@ namespace GASengine
 
         iter_stat.allreduce_time = end_time - start_time;
         stats->iter_stats.push_back(iter_stat);
-        
+
         if (global_frontier_size == 0)
           break;
       }
-/*
+      /*
+            for (int i = 0; i < stats->iter_stats.size(); i++)
+            {
+              double prop_max, prop_min, prop_avg, bcast_max, bcast_min, bcast_avg, GPUtime_max, GPUtime_min, GPUtime_avg, compression, decompression, compression_ratio, cr_bcast;
+              MPI_Reduce(&stats->iter_stats[i].propagate_time, &prop_max, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+              MPI_Reduce(&stats->iter_stats[i].broadcast_time, &bcast_max, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+              MPI_Reduce(&stats->iter_stats[i].propagate_time, &prop_min, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+              MPI_Reduce(&stats->iter_stats[i].broadcast_time, &bcast_min, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+              MPI_Reduce(&stats->iter_stats[i].propagate_time, &prop_avg, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+              MPI_Reduce(&stats->iter_stats[i].broadcast_time, &bcast_avg, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+              if (rank_id == 0)
+              {
+                printf("%d %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
+                       i, prop_max, prop_min, prop_avg / 49.0, bcast_max, bcast_min, bcast_avg / 49.0, GPUtime_max, GPUtime_min, GPUtime_avg / 49.0);
+              }
+            }
+       */
+
+      if (rank_id == 0)
+      {
+        printf("Iter Rank_id frontier_size GPU_time Propagate Broadcast wave termination_check update_vertices copy_time bitunion_time compression_time\n");
+        fflush(stdout);
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
       for (int i = 0; i < stats->iter_stats.size(); i++)
       {
-        double prop_max, prop_min, prop_avg, bcast_max, bcast_min, bcast_avg, GPUtime_max, GPUtime_min, GPUtime_avg, compression, decompression, compression_ratio, cr_bcast;
-        MPI_Reduce(&stats->iter_stats[i].propagate_time, &prop_max, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        MPI_Reduce(&stats->iter_stats[i].broadcast_time, &bcast_max, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        MPI_Reduce(&stats->iter_stats[i].propagate_time, &prop_min, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-        MPI_Reduce(&stats->iter_stats[i].broadcast_time, &bcast_min, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-        MPI_Reduce(&stats->iter_stats[i].propagate_time, &prop_avg, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-        MPI_Reduce(&stats->iter_stats[i].broadcast_time, &bcast_avg, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-        if (rank_id == 0)
-        {
-          printf("%d %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
-                 i, prop_max, prop_min, prop_avg / 49.0, bcast_max, bcast_min, bcast_avg / 49.0, GPUtime_max, GPUtime_min, GPUtime_avg / 49.0);
-        }
+
+        printf("%d %d %lld %lf %lf %lf %lf %lf %lf %lf %lf %lf\n",
+               i, rank_id, stats->iter_stats[i].frontier_size,
+               stats->iter_stats[i].GPU_time,
+               stats->iter_stats[i].propagate_time,
+               stats->iter_stats[i].broadcast_time,
+               stats->iter_stats[i].wave_time,
+               stats->iter_stats[i].allreduce_time,
+               stats->iter_stats[i].update_time,
+               stats->iter_stats[i].copy_time,
+               stats->iter_stats[i].bitunion_time,
+               stats->iter_stats[i].compression_time);
+        fflush(stdout);
+        MPI_Barrier(MPI_COMM_WORLD);
+
       }
-*/
-
-for (int i = 0; i < stats->iter_stats.size(); i++)
-{
-
-printf("\n%d %d %lld %lf %lf %lf %lf %lf %lf %lf %lf",
-            i, rank_id, stats->iter_stats[i].frontier_size,
-			stats->iter_stats[i].GPU_time,
-			stats->iter_stats[i].propagate_time,
-			stats->iter_stats[i].broadcast_time,
-			stats->iter_stats[i].wave_time,
-			stats->iter_stats[i].allreduce_time,
-			stats->iter_stats[i].update_time,
-			stats->iter_stats[i].copy_time,
-			stats->iter_stats[i].bitunion_time);
-
-}
 
       //      stats->wave_setup_time = w.init_time;
       //      //      stats->total_propagate_time = w.propagate_time;

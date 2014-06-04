@@ -101,7 +101,8 @@ public:
     init_time = endtime - starttime;
     propagate_time = 0;
     broadcast_time = 0;
-copy_time=0; bitunion_time=0;
+    copy_time = 0;
+    bitunion_time = 0;
 
     util::B40CPerror(
                      cudaMalloc((void**)&bitmap_compressed,
@@ -130,78 +131,78 @@ copy_time=0; bitunion_time=0;
 
   }
 
-void propogate(unsigned char* out_d, unsigned char* assigned_d,
-         unsigned char* prefix_d)
-//wave propogation, in sequential from top to bottom of the column
-{
-	double starttime, endtime;
+  void propogate(unsigned char* out_d, unsigned char* assigned_d,
+                 unsigned char* prefix_d)
+  //wave propogation, in sequential from top to bottom of the column
+  {
+    double starttime, endtime;
 
-	unsigned int mesg_size = ceil(n / 8.0);
-	int myid = pi * p + pj;
+    unsigned int mesg_size = ceil(n / 8.0);
+    int myid = pi * p + pj;
 
-	int numthreads = 512;
-	int byte_size = (n + 8 - 1) / 8;
-	int numblocks = min(512, (byte_size + numthreads - 1) / numthreads);
-
-
-	MPI_Request request[2];
-	MPI_Status status[2];
-	if (p > 1)
-	{
-		
-		if (pj == 0)
-		{
-			starttime = MPI_Wtime();
-			MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi,
-				  MPI_COMM_WORLD, &request[1]);
-			MPI_Wait(&request[1], &status[1]);
+    int numthreads = 512;
+    int byte_size = (n + 8 - 1) / 8;
+    int numblocks = min(512, (byte_size + numthreads - 1) / numthreads);
 
 
-			endtime = MPI_Wtime();
-			propagate_time = endtime - starttime;
-		}
+    MPI_Request request[2];
+    MPI_Status status[2];
+    if (p > 1)
+    {
 
-		else if (pj != p - 1)
-		{
-			starttime = MPI_Wtime();
-
-			MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi, MPI_COMM_WORLD, &request[0]);
-			MPI_Wait(&request[0], &status[0]);
-			endtime = MPI_Wtime();
-			propagate_time = endtime - starttime;
-
-			starttime = MPI_Wtime();
-			mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
-			cudaDeviceSynchronize();
-			endtime = MPI_Wtime();
-			bitunion_time = endtime - starttime;
-
-			starttime = MPI_Wtime();
-			MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi, MPI_COMM_WORLD, &request[1]);
+      if (pj == 0)
+      {
+        starttime = MPI_Wtime();
+        MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi,
+                  MPI_COMM_WORLD, &request[1]);
+        MPI_Wait(&request[1], &status[1]);
 
 
-			MPI_Wait(&request[1], &status[1]);
+        endtime = MPI_Wtime();
+        propagate_time = endtime - starttime;
+      }
 
-			endtime = MPI_Wtime();
-			propagate_time += endtime - starttime;
-		}
+      else if (pj != p - 1)
+      {
+        starttime = MPI_Wtime();
 
-		else
-		{
-			starttime = MPI_Wtime();
+        MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi, MPI_COMM_WORLD, &request[0]);
+        MPI_Wait(&request[0], &status[0]);
+        endtime = MPI_Wtime();
+        propagate_time = endtime - starttime;
 
-			MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi,
-				  MPI_COMM_WORLD, &request[0]);
-			MPI_Wait(&request[0], &status[0]);
+        starttime = MPI_Wtime();
+        mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
+        cudaDeviceSynchronize();
+        endtime = MPI_Wtime();
+        bitunion_time = endtime - starttime;
 
-			   endtime = MPI_Wtime();
-			propagate_time = endtime - starttime;
-			mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
-			cudaDeviceSynchronize();
-		}
-	}
+        starttime = MPI_Wtime();
+        MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi, MPI_COMM_WORLD, &request[1]);
 
-}
+
+        MPI_Wait(&request[1], &status[1]);
+
+        endtime = MPI_Wtime();
+        propagate_time += endtime - starttime;
+      }
+
+      else
+      {
+        starttime = MPI_Wtime();
+
+        MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi,
+                  MPI_COMM_WORLD, &request[0]);
+        MPI_Wait(&request[0], &status[0]);
+
+        endtime = MPI_Wtime();
+        propagate_time = endtime - starttime;
+        mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
+        cudaDeviceSynchronize();
+      }
+    }
+
+  }
 
   void correct_test(unsigned char* tmp1_h, unsigned char* tmp2_h, int mesg_size)
   {
@@ -232,8 +233,8 @@ void propogate(unsigned char* out_d, unsigned char* assigned_d,
     unsigned int compressed_size; //byte number, NOT int number
     unsigned int decompressed_size;
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    starttime = MPI_Wtime();
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    starttime = MPI_Wtime();
     unsigned int mesg_size = ceil(n / 8.0);
     int myid = pi * p + pj;
     //int lastid = pi*p+p-1;
@@ -241,8 +242,8 @@ void propogate(unsigned char* out_d, unsigned char* assigned_d,
     int byte_size = (n + 8 - 1) / 8;
     int numblocks = min(512, (byte_size + numthreads - 1) / numthreads);
 
-    unsigned char *tmp1_h = (unsigned char*)malloc(mesg_size);
-    unsigned char *tmp2_h = (unsigned char*)malloc(mesg_size);
+//    unsigned char *tmp1_h = (unsigned char*)malloc(mesg_size);
+//    unsigned char *tmp2_h = (unsigned char*)malloc(mesg_size);
     double compress_start;
     double compress_end;
     compression_time = 0.0;
@@ -255,12 +256,12 @@ void propogate(unsigned char* out_d, unsigned char* assigned_d,
       //if first one in the column, initiate the wave propogation
       if (pj == 0)
       {
-        cudaMemcpy(tmp1_h, out_d, mesg_size, cudaMemcpyDeviceToHost);
+        //        cudaMemcpy(tmp1_h, out_d, mesg_size, cudaMemcpyDeviceToHost);
 
         compress_start = MPI_Wtime();
         comp->compress(out_d, bitmap_compressed, compressed_size);
         compress_end = MPI_Wtime();
-        compression_time += compress_end - compress_start;
+        compression_time = compress_end - compress_start;
 
         //        if (myid == 0)
         //        {
@@ -276,8 +277,11 @@ void propogate(unsigned char* out_d, unsigned char* assigned_d,
         //
         //        printf("myid=%d, compressed_size=%d, n=%d\n", myid, compressed_size, n);
 
+        starttime = MPI_Wtime();
         MPI_Send(bitmap_compressed, compressed_size, MPI_BYTE, myid + 1,
                  tag, MPI_COMM_WORLD);
+        endtime = MPI_Wtime();
+        propagate_time = endtime - starttime;
 
         //        comp->decompress(compressed_size, bitmap_compressed,
         //                         out_d, decompressed_size);
@@ -300,30 +304,38 @@ void propogate(unsigned char* out_d, unsigned char* assigned_d,
         //                                    (n + 31 - 1) / 31 * sizeof (unsigned int)),
         //                         "Memset bitmap_compressed failed", __FILE__, __LINE__);
 
+        starttime = MPI_Wtime();
         int word_size = (n + 30) / 31;
         MPI_Recv(bitmap_compressed, word_size * sizeof (unsigned int),
                  MPI_BYTE, myid - 1, tag, MPI_COMM_WORLD, &status[0]);
         //        MPI_Wait(&request[0], &status[0]);
         MPI_Get_count(&status[0], MPI_BYTE, (int*)&compressed_size);
+        endtime = MPI_Wtime();
+        propagate_time = endtime - starttime;
 
         //        printf("myid=%d, compressed_size=%d, n=%d\n", myid, compressed_size, n);
 
         compress_start = MPI_Wtime();
         comp->decompress(compressed_size, bitmap_compressed,
                          bitmap_decompressed, decompressed_size);
+        cudaDeviceSynchronize();
         compress_end = MPI_Wtime();
-        compression_time += compress_end - compress_start;
+        compression_time = compress_end - compress_start;
 
         //        cudaMemcpy(prefix_d, prefix_h, mesg_size, cudaMemcpyHostToDevice);
         //        mpikernel::bitsubstract << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, assigned_d);
         //        cudaDeviceSynchronize();
+        starttime = MPI_Wtime();
         mpikernel::bitunion << <numblocks, numthreads >> >(byte_size, out_d,
                                                            bitmap_decompressed, out_d);
         cudaDeviceSynchronize();
+        endtime = MPI_Wtime();
+        bitunion_time = endtime - starttime;
         //cudaMemcpy(out_h, out_d, mesg_size, cudaMemcpyDeviceToHost);
 
         compress_start = MPI_Wtime();
         comp->compress(out_d, bitmap_compressed, compressed_size);
+        cudaDeviceSynchronize();
         compress_end = MPI_Wtime();
         compression_time += compress_end - compress_start;
 
@@ -336,8 +348,11 @@ void propogate(unsigned char* out_d, unsigned char* assigned_d,
         //
         //        correct_test(tmp1_h, tmp2_h, mesg_size);
 
+        starttime = MPI_Wtime();
         MPI_Send(bitmap_compressed, compressed_size, MPI_BYTE, myid + 1,
                  tag, MPI_COMM_WORLD);
+        endtime = MPI_Wtime();
+        propagate_time += endtime - starttime;
         //f//ree(prefix_h);
 
         //        MPI_Wait(&request[1], &status[1]);
@@ -347,27 +362,35 @@ void propogate(unsigned char* out_d, unsigned char* assigned_d,
       else
       {
         //        char *prefix_h = (char*)malloc(mesg_size);
+        starttime = MPI_Wtime();
         int word_size = (n + 30) / 31;
         MPI_Recv(bitmap_compressed, word_size * sizeof (unsigned int),
                  MPI_BYTE, myid - 1, tag, MPI_COMM_WORLD, &status[0]);
 
         MPI_Get_count(&status[0], MPI_BYTE, (int*)&compressed_size);
+        endtime = MPI_Wtime();
+        propagate_time = endtime - starttime;
+
         compress_start = MPI_Wtime();
         comp->decompress(compressed_size, bitmap_compressed, bitmap_decompressed, decompressed_size);
+        cudaDeviceSynchronize();
         compress_end = MPI_Wtime();
-        compression_time += compress_end - compress_start;
+        compression_time = compress_end - compress_start;
         //        MPI_Wait(&request[0], &status[0]);
         //cudaMemcpy(prefix_d, prefix_h, mesg_size, cudaMemcpyHostToDevice);
         //mpikernel::bitsubstract << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, assigned_d);
         //cudaDeviceSynchronize();
+        starttime = MPI_Wtime();
         mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d,
                                                            (unsigned char*)bitmap_decompressed, out_d);
         cudaDeviceSynchronize();
+        endtime = MPI_Wtime();
+        bitunion_time = endtime - starttime;
       }
     }
 
-    endtime = MPI_Wtime();
-    propagate_time = endtime - starttime - compression_time;
+    //    endtime = MPI_Wtime();
+    //    propagate_time = endtime - starttime - compression_time;
   }
 
   void broadcast_new_frontier_compressed(unsigned char* out_d,
@@ -547,7 +570,7 @@ void propogate(unsigned char* out_d, unsigned char* assigned_d,
     //    comp->compress(out_d, bitmap_compressed);
 
     double starttime, endtime;
-    MPI_Barrier(MPI_COMM_WORLD);
+//    MPI_Barrier(MPI_COMM_WORLD);
     starttime = MPI_Wtime();
     MPI_Allreduce(out_d, out_d, mesg_size, MPI_BYTE, MPI_BOR, new_row_comm);
     //		MPI_Allreduce(out_d, out_d, mesg_size, MPI_BYTE, MPI_BOR, MPI_COMM_WORLD);
@@ -560,7 +583,7 @@ void propogate(unsigned char* out_d, unsigned char* assigned_d,
     if (pi == pj)
       cudaMemcpy(in_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
 
-    MPI_Barrier(MPI_COMM_WORLD);
+//    MPI_Barrier(MPI_COMM_WORLD);
     starttime = MPI_Wtime();
     MPI_Bcast(in_d, mesg_size, MPI_CHAR, pj, new_col_comm);
     //		MPI_Bcast(in_d, mesg_size, MPI_CHAR, pj, MPI_COMM_WORLD);
@@ -595,19 +618,17 @@ void propogate(unsigned char* out_d, unsigned char* assigned_d,
   {
     double starttime, endtime;
     //MPI_Barrier(MPI_COMM_WORLD);
-
-
     unsigned int mesg_size = ceil(n / (8.0));
     starttime = MPI_Wtime();
     MPI_Bcast(out_d, mesg_size, MPI_CHAR, p - 1, new_row_comm);
     endtime = MPI_Wtime();
     broadcast_time = endtime - starttime;
 
-	starttime = MPI_Wtime();
+    starttime = MPI_Wtime();
     if (pi == pj)
       cudaMemcpy(in_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
-	endtime = MPI_Wtime();
-	copy_time = endtime - starttime;
+    endtime = MPI_Wtime();
+    copy_time = endtime - starttime;
 
     starttime = MPI_Wtime();
     MPI_Bcast(in_d, mesg_size, MPI_CHAR, pj, new_col_comm);
