@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
   MPI_Barrier(MPI_COMM_WORLD);
   start = MPI_Wtime();
   int64_t nedges;
-  srand(time(NULL));
+  srand(128);
   packed_edge* result;
   make_graph(log_numverts, edges_per_vert << log_numverts, rand(), 8, &nedges, &result);
   MPI_Barrier(MPI_COMM_WORLD);
