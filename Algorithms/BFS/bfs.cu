@@ -748,26 +748,17 @@ int main(int argc, char **argv)
     exit(1);
 
   const bool INSTRUMENT = true;
-
   GASengine::EnactorVertexCentric<CsrProblem, bfs, INSTRUMENT> vertex_centric(cfg, g_verbose);
-
+  MPI_Barrier(MPI_COMM_WORLD);
+  double starttime = MPI_Wtime();
   for (int i = 0; i < num_srcs; i++)
   {
     int tmpsrcs[1];
     int tmp_num_srcs = 1;
     tmpsrcs[0] = srcs[i];
-    //    printf("num_srcs=%d, src=%d, iter_num=%d\n", num_srcs, tmpsrcs[i], iter_num);
-    //    int tmp_num_srcs = csr_graph.nodes;
-    //    int* tmpsrcs = new int[csr_graph.nodes];
-    //    for (int i = 0; i < csr_graph.nodes; i++)
-    //      tmpsrcs[i] = i;
 
     cudaError_t retval = cudaSuccess;
-
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    //printf("\nBarrier 0");
-
+    
     retval = vertex_centric.EnactIterativeSearch(csr_problem,
                                                  csr_graph.row_offsets, directed, tmp_num_srcs, tmpsrcs, iter_num,
                                                  threshold, np, device_id, rank_id);
@@ -777,56 +768,76 @@ int main(int argc, char **argv)
       exit(1);
     }
   }
+  MPI_Barrier(MPI_COMM_WORLD);
+  double endtime = MPI_Wtime();
 
   int p = sqrt(np); // assuming that np is squre of an int
   int pi = rank_id / p;
   int pj = rank_id % p;
   long long local_traversed_edge = 0;
   long long global_traversed_edge = 0;
+  Value* h_values = (Value*)malloc(sizeof (Value) * csr_graph.nodes);
+
   if (pj == p - 1)
   {
-    Value* h_values = (Value*)malloc(sizeof (Value) * csr_graph.nodes);
     csr_problem.ExtractResults(h_values);
+  }
 
-    for (int i = 0; i < csr_graph.nodes; i++)
+  MPI_Group orig_group, new_row_group, new_col_group;
+  MPI_Comm new_row_comm, new_col_comm;
+  int new_row_rank, new_col_rank;
+  MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
+  int *row_indices = new int[p];
+  for (int i = 0; i < p; i++)
+    row_indices[i] = pi * p + i;
+  
+  MPI_Group_incl(orig_group, p, row_indices, &new_row_group);
+
+  MPI_Comm_create(MPI_COMM_WORLD, new_row_group, &new_row_comm);
+
+  MPI_Group_rank(new_row_group, &new_row_rank);
+
+  MPI_Bcast(h_values, csr_graph.nodes, MPI_INT, p - 1, new_row_comm);
+
+  for (int i = 0; i < csr_graph.nodes; i++)
+  {
+    if (h_values[i] > -1)
     {
-      if(h_values[i] > -1)
-      {
-        int num_nbs = csr_graph.row_offsets[i+1] - csr_graph.row_offsets[i];
-        local_traversed_edge += num_nbs;
-      }
+      int num_nbs = csr_graph.row_offsets[i + 1] - csr_graph.row_offsets[i];
+      local_traversed_edge += num_nbs;
     }
   }
-  
-  MPI_Reduce( &local_traversed_edge, &global_traversed_edge, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD );
-   
-  if(rank_id == 0)
-  {
-    printf("global_traversed_edge %lld\n", global_traversed_edge);
-  }
-  
-  
-//  if (strcmp(source_file_name, "") == 0 && run_CPU)
-//  {
-//    correctTest(csr_graph.nodes, reference_labels, h_values);
-//    free(reference_labels);
-//  }
 
-//  if (outFileName)
-//  {
-//    string fn_str(outFileName);
-//    ostringstream convert; // stream used for the conversion
-//    convert << rank_id;
-//    string buff = convert.str();
-//    fn_str += buff;
-//    FILE* f = fopen(fn_str.c_str(), "w");
-//    for (int i = 0; i < csr_graph.nodes; ++i)
-//    {
-//      fprintf(f, "%d\n", h_values[i]);
-//    }
-//
-//    fclose(f);
-//  }
+
+  MPI_Reduce(&local_traversed_edge, &global_traversed_edge, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  if (rank_id == 0)
+  {
+    printf("global_traversed_edge %lld, total_time %lf\n", global_traversed_edge, endtime - starttime);
+  }
+
+
+  //  if (strcmp(source_file_name, "") == 0 && run_CPU)
+  //  {
+  //    correctTest(csr_graph.nodes, reference_labels, h_values);
+  //    free(reference_labels);
+  //  }
+
+  if (outFileName)
+  {
+    string fn_str(outFileName);
+    ostringstream convert; // stream used for the conversion
+    convert << rank_id;
+    string buff = convert.str();
+    fn_str += buff;
+    FILE* f = fopen(fn_str.c_str(), "w");
+    for (int i = 0; i < csr_graph.nodes; ++i)
+    {
+      fprintf(f, "%d\n", h_values[i]);
+    }
+
+    fclose(f);
+  }
 
   MPI_Finalize();
   return 0;
