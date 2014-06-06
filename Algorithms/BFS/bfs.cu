@@ -534,10 +534,10 @@ int main(int argc, char **argv)
 
       //printf("\np:%d num1d:%d \n",p,csr_graph.nodes);
     }
-//    MPI_Barrier(MPI_COMM_WORLD);
+    //    MPI_Barrier(MPI_COMM_WORLD);
     if (rank_id == 0)
       printf("\nReading from files finished \n");
-    
+
     csr_graph.FromCoo<true > (coo, numvert1d, numedges, directed);
     free(coo);
     if (rank_id == 0)
@@ -765,8 +765,8 @@ int main(int argc, char **argv)
     cudaError_t retval = cudaSuccess;
 
 
-MPI_Barrier(MPI_COMM_WORLD);
-printf("\nBarrier 0");
+    MPI_Barrier(MPI_COMM_WORLD);
+    //printf("\nBarrier 0");
 
     retval = vertex_centric.EnactIterativeSearch(csr_problem,
                                                  csr_graph.row_offsets, directed, tmp_num_srcs, tmpsrcs, iter_num,
@@ -778,30 +778,55 @@ printf("\nBarrier 0");
     }
   }
 
-  Value* h_values = (Value*)malloc(sizeof (Value) * csr_graph.nodes);
-  csr_problem.ExtractResults(h_values);
-
-  if (strcmp(source_file_name, "") == 0 && run_CPU)
+  int p = sqrt(np); // assuming that np is squre of an int
+  int pi = rank_id / p;
+  int pj = rank_id % p;
+  long long local_traversed_edge = 0;
+  long long global_traversed_edge = 0;
+  if (pj == p - 1)
   {
-    correctTest(csr_graph.nodes, reference_labels, h_values);
-    free(reference_labels);
-  }
+    Value* h_values = (Value*)malloc(sizeof (Value) * csr_graph.nodes);
+    csr_problem.ExtractResults(h_values);
 
-  if (outFileName)
-  {
-    string fn_str(outFileName);
-    ostringstream convert; // stream used for the conversion
-    convert << rank_id;
-    string buff = convert.str();
-    fn_str += buff;
-    FILE* f = fopen(fn_str.c_str(), "w");
-    for (int i = 0; i < csr_graph.nodes; ++i)
+    for (int i = 0; i < csr_graph.nodes; i++)
     {
-      fprintf(f, "%d\n", h_values[i]);
+      if(h_values[i] > -1)
+      {
+        int num_nbs = csr_graph.row_offsets[i+1] - csr_graph.row_offsets[i];
+        local_traversed_edge += num_nbs;
+      }
     }
-
-    fclose(f);
   }
+  
+  MPI_Reduce( &local_traversed_edge, &global_traversed_edge, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD );
+   
+  if(rank_id == 0)
+  {
+    printf("global_traversed_edge %lld\n", global_traversed_edge);
+  }
+  
+  
+//  if (strcmp(source_file_name, "") == 0 && run_CPU)
+//  {
+//    correctTest(csr_graph.nodes, reference_labels, h_values);
+//    free(reference_labels);
+//  }
+
+//  if (outFileName)
+//  {
+//    string fn_str(outFileName);
+//    ostringstream convert; // stream used for the conversion
+//    convert << rank_id;
+//    string buff = convert.str();
+//    fn_str += buff;
+//    FILE* f = fopen(fn_str.c_str(), "w");
+//    for (int i = 0; i < csr_graph.nodes; ++i)
+//    {
+//      fprintf(f, "%d\n", h_values[i]);
+//    }
+//
+//    fclose(f);
+//  }
 
   MPI_Finalize();
   return 0;
