@@ -42,12 +42,19 @@ struct Statistics
     double propagate_time;
     double broadcast_time;
     double wave_time;
-double copy_time;
-double bitunion_time;
+    double copy_time;
+    double bitunion_time;
     double allreduce_time;
-double compression_time;
-int compressed_size;
+    double compression_time;
+    int compressed_size;
     double update_time; // update visited bitmap and label time
+    double iter_total;
+
+    stats_per_iter() :
+    frontier_size(0), GPU_time(0.0), propagate_time(0.0), broadcast_time(0.0), wave_time(0.0),
+    copy_time(0.0), bitunion_time(0.0), allreduce_time(0.0), compression_time(0.0), compressed_size(0), update_time(0.0), iter_total(0.0)
+    {
+    }
   };
 
   vector<stats_per_iter> iter_stats;
@@ -60,8 +67,8 @@ int compressed_size;
   double total_iter;
 
   Statistics(int rank_id, int num_procs) :
-      total_GPU_time(0.0), total_propagate_time(0.0), wave_setup_time(0.0), total_broadcast_time(0.0),
-          total_wave_time(0.0), total_update_time(0.0), total_allreduce_time(0.0), total_time(0.0), rank_id(rank_id), num_procs(num_procs)
+  total_GPU_time(0.0), total_propagate_time(0.0), wave_setup_time(0.0), total_broadcast_time(0.0),
+  total_wave_time(0.0), total_update_time(0.0), total_allreduce_time(0.0), total_time(0.0), rank_id(rank_id), num_procs(num_procs)
   {
     iter_stats.reserve(8000);
   }
@@ -81,11 +88,11 @@ int compressed_size;
     double l_update_time; // update visited bitmap and label time
     double l_total_time;
 
-//    for (int i = 0; i < iter_stats.size(); i++)
-//    {
-//      total_propagate_time += iter_stats[i].propagate_time;
-//      total_broadcast_time += iter_stats[i].broadcast_time;
-//    }
+    //    for (int i = 0; i < iter_stats.size(); i++)
+    //    {
+    //      total_propagate_time += iter_stats[i].propagate_time;
+    //      total_broadcast_time += iter_stats[i].broadcast_time;
+    //    }
 
     MPI_Reduce(&total_GPU_time, &l_GPU_time, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&total_propagate_time, &l_propagate_time, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -145,63 +152,63 @@ int compressed_size;
       //      fclose(f);
     }
 
-//		l_propagate_time /= 49;
-//		l_broadcast_time /= 49;
+    //		l_propagate_time /= 49;
+    //		l_broadcast_time /= 49;
 
-//    FILE* f;
+    //    FILE* f;
 
-//    if (rank_id == 0)
-//    {
-//      f = fopen(csv_file_name, "w+");
-//    }
-//    for (int i = 0; i < iter_stats.size(); i++)
-//    {
-//      double iter_GPU_time;
-//      double iter_wave_time;
-//      double iter_allreduce_time;
-//      double iter_update_time; // update visited bitmap and label time
-//      double iter_propagate_time;
-//      double iter_broadcast_time;
-//
-//
-//      MPI_Reduce(&iter_stats[i].GPU_time, &iter_GPU_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-//      MPI_Reduce(&iter_stats[i].wave_time, &iter_wave_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-//      MPI_Reduce(&iter_stats[i].propagate_time, &iter_propagate_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-//      MPI_Reduce(&iter_stats[i].broadcast_time, &iter_broadcast_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-//      MPI_Reduce(&iter_stats[i].allreduce_time, &iter_allreduce_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-//      MPI_Reduce(&iter_stats[i].update_time, &iter_update_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-//
-//      //			cout << "iter: " << i << " rank_id: " << rank_id << " propagate_time: " << iter_stats[i].propagate_time << endl;
-//      //			MPI_Barrier(MPI_COMM_WORLD);
-//      //			cout << "iter: " << i << " rank_id: " << rank_id << " broadcast_time: " << iter_stats[i].broadcast_time << endl;
-//      //			MPI_Barrier(MPI_COMM_WORLD);
-//      //			cout << "iter: " << i << " rank_id: " << rank_id << " wave_time: " << iter_stats[i].wave_time << endl;
-//      //			MPI_Barrier(MPI_COMM_WORLD);
-//
-//      if (rank_id == 0)
-//      {
-//        cout << "iter: " << i << " rank_id: " << rank_id << " propagate_time: " << iter_stats[i].propagate_time << endl;
-//
-//        cout << "iter: " << i << " rank_id: " << rank_id << " broadcast_time: " << iter_stats[i].broadcast_time << endl;
-//
-//        cout << "iter: " << i << " rank_id: " << rank_id << " wave_time: " << iter_stats[i].wave_time << endl;
-//
-//
-//        fprintf(f,
-//                "iter,%lld\nfrontier_size,%lld\nGPU_time,%lf\npropagate_time,%lf\nbroadcast_time,%lf\nwave_time,%lf\nallreduce_time,%lf\nupdate_time,%lf\n",
-//                i, iter_stats[i].frontier_size, iter_GPU_time, iter_propagate_time, iter_broadcast_time, iter_wave_time, iter_allreduce_time, iter_update_time);
-//
-//
-//        cout << "iter " << i << ": "
-//                << "frontier_size: " << iter_stats[i].frontier_size
-//                << ", GPU_time: " << iter_GPU_time
-//                << ", propagate_time: " << iter_propagate_time
-//                << ", broadcast_time: " << iter_broadcast_time
-//                << ", wave_time: " << iter_wave_time
-//                << ", allreduce_time: " << iter_allreduce_time
-//                << ", update_time: " << iter_update_time << endl;
-//      }
-//    }
+    //    if (rank_id == 0)
+    //    {
+    //      f = fopen(csv_file_name, "w+");
+    //    }
+    //    for (int i = 0; i < iter_stats.size(); i++)
+    //    {
+    //      double iter_GPU_time;
+    //      double iter_wave_time;
+    //      double iter_allreduce_time;
+    //      double iter_update_time; // update visited bitmap and label time
+    //      double iter_propagate_time;
+    //      double iter_broadcast_time;
+    //
+    //
+    //      MPI_Reduce(&iter_stats[i].GPU_time, &iter_GPU_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    //      MPI_Reduce(&iter_stats[i].wave_time, &iter_wave_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    //      MPI_Reduce(&iter_stats[i].propagate_time, &iter_propagate_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    //      MPI_Reduce(&iter_stats[i].broadcast_time, &iter_broadcast_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    //      MPI_Reduce(&iter_stats[i].allreduce_time, &iter_allreduce_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    //      MPI_Reduce(&iter_stats[i].update_time, &iter_update_time, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    //
+    //      //			cout << "iter: " << i << " rank_id: " << rank_id << " propagate_time: " << iter_stats[i].propagate_time << endl;
+    //      //			MPI_Barrier(MPI_COMM_WORLD);
+    //      //			cout << "iter: " << i << " rank_id: " << rank_id << " broadcast_time: " << iter_stats[i].broadcast_time << endl;
+    //      //			MPI_Barrier(MPI_COMM_WORLD);
+    //      //			cout << "iter: " << i << " rank_id: " << rank_id << " wave_time: " << iter_stats[i].wave_time << endl;
+    //      //			MPI_Barrier(MPI_COMM_WORLD);
+    //
+    //      if (rank_id == 0)
+    //      {
+    //        cout << "iter: " << i << " rank_id: " << rank_id << " propagate_time: " << iter_stats[i].propagate_time << endl;
+    //
+    //        cout << "iter: " << i << " rank_id: " << rank_id << " broadcast_time: " << iter_stats[i].broadcast_time << endl;
+    //
+    //        cout << "iter: " << i << " rank_id: " << rank_id << " wave_time: " << iter_stats[i].wave_time << endl;
+    //
+    //
+    //        fprintf(f,
+    //                "iter,%lld\nfrontier_size,%lld\nGPU_time,%lf\npropagate_time,%lf\nbroadcast_time,%lf\nwave_time,%lf\nallreduce_time,%lf\nupdate_time,%lf\n",
+    //                i, iter_stats[i].frontier_size, iter_GPU_time, iter_propagate_time, iter_broadcast_time, iter_wave_time, iter_allreduce_time, iter_update_time);
+    //
+    //
+    //        cout << "iter " << i << ": "
+    //                << "frontier_size: " << iter_stats[i].frontier_size
+    //                << ", GPU_time: " << iter_GPU_time
+    //                << ", propagate_time: " << iter_propagate_time
+    //                << ", broadcast_time: " << iter_broadcast_time
+    //                << ", wave_time: " << iter_wave_time
+    //                << ", allreduce_time: " << iter_allreduce_time
+    //                << ", update_time: " << iter_update_time << endl;
+    //      }
+    //    }
   }
 };
 

@@ -3250,21 +3250,17 @@ namespace GASengine
       vertex_id_start = VERT_PER_NODE * pi;
       vertex_id_end = vertex_id_start + VERT_PER_NODE;
 
-      //      local_srcs.clear();
-      //      for (int i = 0; i < num_srcs; i++)
-      //      {
-      //        if (srcs[i] >= vertex_id_start && srcs[i] < vertex_id_end)
-      //        {
-      //          local_srcs.push_back(srcs[i] - vertex_id_start);
-      //        }
-      //      }
+      local_srcs.clear();
+      for (int i = 0; i < num_srcs; i++)
+      {
+        if (srcs[i] >= vertex_id_start && srcs[i] < vertex_id_end)
+        {
+          local_srcs.push_back(srcs[i] - vertex_id_start);
+        }
+      }
 
       thrust::device_vector<int> d_local_srcs = local_srcs;
       int byte_size = (graph_slice->nodes + 8 - 1) / 8;
-
-      //      printf("SOURCE : %d %d %d\n", rank_id, local_srcs.size(), local_srcs[0]);
-
-
 
       if (local_srcs.size() > 0)
       {
@@ -3335,7 +3331,7 @@ namespace GASengine
       thrust::device_vector<int> dummy_d_frontier_size(1, 0);
       thrust::device_vector<int> dummy_d_result(dummy_size, 0);
       thrust::device_vector<int> dummy_flags(1000, 1);
-      
+
       SYNC_CHECK();
       for (int i = 0; i < NUM_WARMUP; i++)
       {
@@ -3345,10 +3341,10 @@ namespace GASengine
           w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
         }
         else
-	{
+        {
           w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
           w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-	}
+        }
         //        copy_if_mgpu(1000,
         //                     thrust::raw_pointer_cast(&dummy_flags[0]),
         //                     thrust::raw_pointer_cast(&dummy_d_result[0]),
@@ -3361,13 +3357,13 @@ namespace GASengine
 
       Statistics::stats_per_iter iter_stat;
       double start_time, end_time, total_start, total_end;
-      
-      MPI_Barrier(MPI_COMM_WORLD);
 
+      MPI_Barrier(MPI_COMM_WORLD);
+      double total_run_time_start = MPI_Wtime();
       int iter;
-      total_start = MPI_Wtime();
       for (iter = 0; iter < iter_num; iter++)
       {
+        total_start = MPI_Wtime();
         if (iter > 0)
         {
           int byte_size = (graph_slice->nodes + 8 - 1) / 8;
@@ -3431,10 +3427,10 @@ namespace GASengine
           w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         }
         else
-	{
+        {
           w.propogate(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-          w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);	
-	}
+          w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        }
         //  w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
 
@@ -3447,7 +3443,7 @@ namespace GASengine
         iter_stat.copy_time = w.copy_time;
         iter_stat.bitunion_time = w.bitunion_time;
         iter_stat.compression_time = w.compression_time;
-	 iter_stat.compressed_size = w.compressed_size;
+        iter_stat.compressed_size = w.compressed_size;
 
         start_time = MPI_Wtime();
         //update bitmap_visited
@@ -3475,11 +3471,16 @@ namespace GASengine
         end_time = MPI_Wtime();
 
         iter_stat.allreduce_time = end_time - start_time;
+
+        total_end = MPI_Wtime();
+        iter_stat.iter_total = total_end - total_start;
         stats->iter_stats.push_back(iter_stat);
 
         if (global_frontier_size == 0)
           break;
       }
+      MPI_Barrier(MPI_COMM_WORLD);
+      double total_run_time_end = MPI_Wtime();
       /*
             for (int i = 0; i < stats->iter_stats.size(); i++)
             {
@@ -3500,14 +3501,14 @@ namespace GASengine
 
       if (rank_id == 0)
       {
-        printf("Iter Rank_id frontier_size GPU_time Propagate Broadcast wave termination_check update_vertices copy_time bitunion_time compression_time\n");
+        printf("Iter Rank_id frontier_size GPU_time Propagate Broadcast wave termination_check update_vertices copy_time bitunion_time compression_time compressed_size iter_total_time\n");
         fflush(stdout);
       }
       MPI_Barrier(MPI_COMM_WORLD);
       for (int i = 0; i < stats->iter_stats.size(); i++)
       {
 
-        printf("%d %d %lld %lf %lf %lf %lf %lf %lf %lf %lf %lf %d\n",
+        printf("%d %d %lld %lf %lf %lf %lf %lf %lf %lf %lf %lf %d %lf\n",
                i, rank_id, stats->iter_stats[i].frontier_size,
                stats->iter_stats[i].GPU_time,
                stats->iter_stats[i].propagate_time,
@@ -3518,11 +3519,15 @@ namespace GASengine
                stats->iter_stats[i].copy_time,
                stats->iter_stats[i].bitunion_time,
                stats->iter_stats[i].compression_time,
-		 stats->iter_stats[i].compressed_size);
+               stats->iter_stats[i].compressed_size,
+               stats->iter_stats[i].iter_total);
         fflush(stdout);
         MPI_Barrier(MPI_COMM_WORLD);
 
       }
+
+      if (rank_id == 0)
+        printf("total_run_time %lf\n", total_run_time_end);
 
       //      stats->wave_setup_time = w.init_time;
       //      //      stats->total_propagate_time = w.propagate_time;
