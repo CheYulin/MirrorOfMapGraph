@@ -520,7 +520,7 @@ int main(int argc, char **argv)
     //MPI_Comm_rank(MPI_COMM_WORLD, &rank_id);
 
     int p = sqrt(np);
-    int numvert1d = ceil(numVertices / p);
+    int numvert1d = ceil(numVertices / (double)p);
 
     for (i = 0; i < numedges; i++)
     {
@@ -758,7 +758,7 @@ int main(int argc, char **argv)
     tmpsrcs[0] = srcs[i];
 
     cudaError_t retval = cudaSuccess;
-    
+
     retval = vertex_centric.EnactIterativeSearch(csr_problem,
                                                  csr_graph.row_offsets, directed, tmp_num_srcs, tmpsrcs, iter_num,
                                                  threshold, np, device_id, rank_id);
@@ -778,35 +778,58 @@ int main(int argc, char **argv)
   long long global_traversed_edge = 0;
   Value* h_values = (Value*)malloc(sizeof (Value) * csr_graph.nodes);
 
-  if (pj == p - 1)
+  //  if (pj == p - 1)
   {
     csr_problem.ExtractResults(h_values);
   }
+
+  Value* h_values2 = (Value*)malloc(sizeof (Value) * csr_graph.nodes);
+  if (pi == pj) memcpy(h_values2, h_values, sizeof (Value) * csr_graph.nodes);
+
+  int *row_indices = new int[p];
+  int *col_indices = new int[p];
+
+  for (int i = 0; i < p; i++)
+    row_indices[i] = pi * p + i;
+  /*		for(int i=0;i<=pi-1;i++)
+   row_indices[i+p] = i*p+pi;
+   for(int i=pi+1;i<p;i++)
+   row_indices[i+p-1] = i*p+pi;
+   */for (int i = 0; i < p; i++)
+    col_indices[i] = i * p + pj;
+  /*              for(int i=0;i<=pj-1;i++)
+   col_indices[i] = i*p+pj;
+   for(int i=pj+1;i<p;i++)
+   col_indices[i-1] = i*p+pj;
+   col_indices[p-1] = pj*p+p-1;
+   */
 
   MPI_Group orig_group, new_row_group, new_col_group;
   MPI_Comm new_row_comm, new_col_comm;
   int new_row_rank, new_col_rank;
   MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
-  int *row_indices = new int[p];
-  for (int i = 0; i < p; i++)
-    row_indices[i] = pi * p + i;
-  
   MPI_Group_incl(orig_group, p, row_indices, &new_row_group);
-
+  MPI_Group_incl(orig_group, p, col_indices, &new_col_group);
   MPI_Comm_create(MPI_COMM_WORLD, new_row_group, &new_row_comm);
-
+  MPI_Comm_create(MPI_COMM_WORLD, new_col_group, &new_col_comm);
   MPI_Group_rank(new_row_group, &new_row_rank);
+  MPI_Group_rank(new_col_group, &new_col_rank);
 
-  MPI_Bcast(h_values, csr_graph.nodes, MPI_INT, p - 1, new_row_comm);
+  MPI_Bcast(h_values2, csr_graph.nodes * sizeof (Value), MPI_BYTE, pj, new_col_comm);
 
   for (int i = 0; i < csr_graph.nodes; i++)
   {
-    if (h_values[i] > -1)
+
+    if (h_values2[i] > -1)
     {
       int num_nbs = csr_graph.row_offsets[i + 1] - csr_graph.row_offsets[i];
       local_traversed_edge += num_nbs;
+//      if (rank_id == 1)
+//        printf("rank_id=%d, h_values2[%d]=%d, num_nbs=%d\n", rank_id, i, h_values2[i], local_traversed_edge);
     }
   }
+
+  //  printf("rank_id=%d, local_traversed_edge=%d\n", rank_id, local_traversed_edge);
 
 
   MPI_Reduce(&local_traversed_edge, &global_traversed_edge, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);

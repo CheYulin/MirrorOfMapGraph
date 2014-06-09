@@ -58,13 +58,13 @@ namespace MPI
 
             if (f == 1)
             {
-              char mask_byte = 1 << j;
+              unsigned char mask_byte = 1 << j;
               bitmap[byte_offset] |= mask_byte;
 //                printf("v=%d, byte_offset=%d, mask_byte=%d, bitmap[byte_offset]=%d\n", v, byte_offset, mask_byte, bitmap[byte_offset]);
             }
             else
             {
-              char mask_byte = ~(1 << j);
+              unsigned char mask_byte = ~(1 << j);
               bitmap[byte_offset] &= mask_byte;
             }
           }
@@ -80,8 +80,8 @@ namespace MPI
 
       for (int i = tidx; i < byte_size; i += gridDim.x * blockDim.x)
       {
-        char b = bitmap[i];
-        char mask;
+        unsigned char b = bitmap[i];
+        unsigned char mask;
         for (int j = 0; j < 8; j++)
         {
           mask = 1;
@@ -103,8 +103,8 @@ namespace MPI
 
       for (int i = tidx; i < byte_size; i += gridDim.x * blockDim.x)
       {
-        char tmpa = a[i];
-        char tmpb = b[i];
+        unsigned char tmpa = a[i];
+        unsigned char tmpb = b[i];
         c[i] = (~tmpb) & tmpa;
       }
     }
@@ -116,8 +116,8 @@ namespace MPI
 
       for (int i = tidx; i < byte_size; i += gridDim.x * blockDim.x)
       {
-        char tmpa = a[i];
-        char tmpb = b[i];
+        unsigned char tmpa = a[i];
+        unsigned char tmpb = b[i];
         c[i] = tmpb | tmpa;
       }
     }
@@ -130,8 +130,8 @@ namespace MPI
       {
         int byte_id = i / 8;
         int bit_off = i % 8;
-        char mask = 1 << bit_off;
-        if(bitmap[byte_id] & mask)
+        unsigned char mask = 1 << bit_off;
+        if( (bitmap[byte_id] & mask) && vertex_list.d_labels[i] == -1)
         {
           vertex_list.d_labels[i] = iter;
         }

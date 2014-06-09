@@ -18,7 +18,7 @@ AFRL Contract #FA8750-13-C-0002.
 
 This material is based upon work supported by the Defense Advanced
 Research Projects Agency (DARPA) under Contract No. D14PC00029.
-*/
+ */
 
 #ifndef BFS_H_
 #define BFS_H_
@@ -43,7 +43,7 @@ struct bfs
     int edges;
 
     VertexType() :
-        d_labels(NULL), nodes(0), edges(0)
+    d_labels(NULL), nodes(0), edges(0)
     {
     }
   };
@@ -54,15 +54,15 @@ struct bfs
     int edges; // #of edges.
 
     EdgeType() :
-        nodes(0), edges(0)
+    nodes(0), edges(0)
     {
     }
   };
 
   static void Initialize(const int directed, const int nodes, const int edges, int num_srcs,
-      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, int* d_edge_values,
-      VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
-      MiscType* d_frontier_values[3])
+                         int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, int* d_edge_values,
+                         VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
+                         MiscType * d_frontier_values[3])
   {
     vertex_list.nodes = nodes;
     vertex_list.edges = edges;
@@ -77,51 +77,51 @@ struct bfs
       h_init_labels[srcs[i]] = 0;
     }
 
-    b40c::util::B40CPerror(cudaMalloc((void**) &vertex_list.d_labels, nodes * sizeof(int)), "cudaMalloc VertexType::d_labels failed", __FILE__, __LINE__);
+    b40c::util::B40CPerror(cudaMalloc((void**)&vertex_list.d_labels, nodes * sizeof (int)), "cudaMalloc VertexType::d_labels failed", __FILE__, __LINE__);
 
     // Initialize d_labels
     if (b40c::util::B40CPerror(
-        cudaMemcpy(vertex_list.d_labels, h_init_labels, nodes * sizeof(DataType),
-            cudaMemcpyHostToDevice),
-        "CsrProblem cudaMemcpy d_labels failed", __FILE__,
-        __LINE__))
+                               cudaMemcpy(vertex_list.d_labels, h_init_labels, nodes * sizeof (DataType),
+                                          cudaMemcpyHostToDevice),
+                               "CsrProblem cudaMemcpy d_labels failed", __FILE__,
+                               __LINE__))
       exit(0);
 
     delete[] h_init_labels;
 
-//    printf("Starting vertex: ");
-//    for (int i = 0; i < num_srcs; i++)
-//      printf("%d ", srcs[i]);
-//    printf("\n");
+    //    printf("Starting vertex: ");
+    //    for (int i = 0; i < num_srcs; i++)
+    //      printf("%d ", srcs[i]);
+    //    printf("\n");
 
     if (b40c::util::B40CPerror(
-        cudaMemcpy(d_frontier_keys[0], srcs, num_srcs * sizeof(int),
-            cudaMemcpyHostToDevice),
-        "CsrProblem cudaMemcpy d_frontier_keys failed", __FILE__,
-        __LINE__))
+                               cudaMemcpy(d_frontier_keys[0], srcs, num_srcs * sizeof (int),
+                                          cudaMemcpyHostToDevice),
+                               "CsrProblem cudaMemcpy d_frontier_keys failed", __FILE__,
+                               __LINE__))
       exit(0);
 
     if (b40c::util::B40CPerror(
-        cudaMemcpy(d_frontier_keys[1], srcs, num_srcs * sizeof(int),
-            cudaMemcpyHostToDevice),
-        "CsrProblem cudaMemcpy d_frontier_keys failed", __FILE__,
-        __LINE__))
+                               cudaMemcpy(d_frontier_keys[1], srcs, num_srcs * sizeof (int),
+                                          cudaMemcpyHostToDevice),
+                               "CsrProblem cudaMemcpy d_frontier_keys failed", __FILE__,
+                               __LINE__))
       exit(0);
 
-//    int init_value[1] = { 0 };
-//    if (b40c::util::B40CPerror(
-//        cudaMemcpy(d_frontier_values[0], init_value,
-//            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
-//        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
-//        __LINE__))
-//      exit(0);
-//
-//    if (b40c::util::B40CPerror(
-//        cudaMemcpy(d_frontier_values[1], init_value,
-//            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
-//        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
-//        __LINE__))
-//      exit(0);
+    //    int init_value[1] = { 0 };
+    //    if (b40c::util::B40CPerror(
+    //        cudaMemcpy(d_frontier_values[0], init_value,
+    //            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
+    //        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
+    //        __LINE__))
+    //      exit(0);
+    //
+    //    if (b40c::util::B40CPerror(
+    //        cudaMemcpy(d_frontier_values[1], init_value,
+    //            num_srcs * sizeof(int), cudaMemcpyHostToDevice),
+    //        "CsrProblem cudaMemcpy d_frontier_values failed", __FILE__,
+    //        __LINE__))
+    //      exit(0);
 
   }
 
@@ -155,6 +155,7 @@ struct bfs
    */
   struct gather_sum
   {
+
     __device__
     GatherType operator()(GatherType left, GatherType right)
     {
@@ -167,9 +168,10 @@ struct bfs
    */
   struct gather_vertex
   {
+
     __device__
-    void operator()(const int vertex_id, const GatherType final_value,
-        VertexType &vertex_list, EdgeType &edge_list)
+            void operator()(const int vertex_id, const GatherType final_value,
+                            VertexType &vertex_list, EdgeType & edge_list)
     {
 
     }
@@ -177,9 +179,10 @@ struct bfs
 
   struct gather_edge
   {
+
     __device__
-    void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
-        VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
+            void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
+                            VertexType &vertex_list, EdgeType &edge_list, GatherType & new_value)
     {
 
     }
@@ -187,9 +190,10 @@ struct bfs
 
   struct apply
   {
+
     __device__
-    void operator()(const int vertex_id, const int iteration, GatherType gathervalue,
-        VertexType& vertex_list, EdgeType& edge_list, char& changed)
+            void operator()(const int vertex_id, const int iteration, GatherType gathervalue,
+                            VertexType& vertex_list, EdgeType& edge_list, char& changed)
     {
       changed = 1;
     }
@@ -198,16 +202,18 @@ struct bfs
   /** post-apply function (invoked after threads in apply() synchronize at a memory barrier). */
   struct post_apply
   {
+
     __device__
-    void operator()(const int vertex_id, VertexType& vertex_list, EdgeType& edge_list, GatherType* gather_tmp)
+            void operator()(const int vertex_id, VertexType& vertex_list, EdgeType& edge_list, GatherType * gather_tmp)
     {
     }
   };
 
   struct expand_vertex
   {
+
     __device__
-    bool operator()(const int vertex_id, const char changed, VertexType &vertex_list, EdgeType& edge_list)
+            bool operator()(const int vertex_id, const char changed, VertexType &vertex_list, EdgeType & edge_list)
     {
       return true;
     }
@@ -215,58 +221,60 @@ struct bfs
 
   struct expand_edge
   {
+
     __device__
-    void operator()(const bool changed, const int iteration,
-        const int vertex_id, const int neighbor_id_in, const int edge_id,
-        VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
+            void operator()(const bool changed, const int iteration,
+                            const int vertex_id, const int neighbor_id_in, const int edge_id,
+                            VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
     {
-//      misc_value = vertex_id;
-//      if(neighbor_id_in == 4120 || neighbor_id_in == 4480 || vertex_id == 4096)
-//        printf("Expand: vertex_id=%d, neighbor_id_in = %d\n", vertex_id, neighbor_id_in);
+      //      misc_value = vertex_id;
+      //      if(neighbor_id_in == 4120 || neighbor_id_in == 4480 || vertex_id == 4096)
+      //        printf("Expand: vertex_id=%d, neighbor_id_in = %d\n", vertex_id, neighbor_id_in);
       frontier = neighbor_id_in;
     }
   };
 
   struct contract
   {
+
     __device__
-    void operator()(const int iteration, unsigned char *d_bitmap_visited, int &vertex_id,
-        VertexType &vertex_list, EdgeType &edge_list, GatherType* gather_tmp, int& misc_value)
+            void operator()(const int iteration, unsigned char *d_bitmap_visited, int &vertex_id,
+                            VertexType &vertex_list, EdgeType &edge_list, GatherType* gather_tmp, int& misc_value)
     {
       int row_id = vertex_id;
       int byte_id = row_id / 8;
       int bit_off = row_id % 8;
-      char mask = 1 << bit_off;
-      char is_visited = d_bitmap_visited[byte_id] & mask;
-//      if(row_id == 4120 || row_id == 4480)
-//          printf("row_id=%d, mask=%d, is_visited=%d\n", row_id, mask, is_visited);
-      if(is_visited != 0 )
-        vertex_id = -1;
-//      // Load label of node
-//      int row_id = vertex_id;
-//      int label;
-//      label = vertex_list.d_labels[row_id];
-////      printf("row_id=%d, label=%d, iteration=%d\n", row_id, label, iteration);
-//
-//      if (label != -1)
-//      {
-//
-//        // Seen it
+      unsigned char mask = 1 << bit_off;
+      unsigned char is_visited = d_bitmap_visited[byte_id] & mask;
+      //      if (row_id == 4120 || row_id == 4480)
+//      printf("iteration=%d, row_id=%d, mask=%d, is_visited=%d\n", iteration, row_id, mask, is_visited);
+//      if (is_visited != 0)
 //        vertex_id = -1;
-//
-//      }
-//      else
-//      {
-//
-//        // Update label with current iteration
-//        vertex_list.d_labels[row_id] = iteration + 1;
-//      }
+      //      // Load label of node
+      //      int row_id = vertex_id;
+      //      int label;
+      //      label = vertex_list.d_labels[row_id];
+      ////      printf("row_id=%d, label=%d, iteration=%d\n", row_id, label, iteration);
+      //
+      //      if (label != -1)
+      //      {
+      //
+      //        // Seen it
+      //        vertex_id = -1;
+      //
+      //      }
+      //      else
+      //      {
+      //
+      //        // Update label with current iteration
+      //        vertex_list.d_labels[row_id] = iteration + 1;
+      //      }
     }
   };
 
-  static void extractResult(VertexType& vertex_list, DataType* h_output)
+  static void extractResult(VertexType& vertex_list, DataType * h_output)
   {
-    cudaMemcpy(h_output, vertex_list.d_labels, sizeof(DataType) * vertex_list.nodes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_output, vertex_list.d_labels, sizeof (DataType) * vertex_list.nodes, cudaMemcpyDeviceToHost);
   }
 
 };
