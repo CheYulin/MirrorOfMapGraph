@@ -131,8 +131,8 @@ namespace MPI
         int byte_id = i / 8;
         int bit_off = i % 8;
         unsigned char mask = 1 << bit_off;
-//        if( (bitmap[byte_id] & mask) && vertex_list.d_labels[i] == -1)
-        if(bitmap[byte_id] & mask)
+        if( (bitmap[byte_id] & mask) && vertex_list.d_labels[i] == -1)
+//        if(bitmap[byte_id] & mask)
         {
           vertex_list.d_labels[i] = iter;
         }

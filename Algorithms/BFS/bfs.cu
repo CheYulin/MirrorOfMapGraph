@@ -691,7 +691,7 @@ int main(int argc, char **argv)
 
       for (int i = 0; i < numvert1d; i++)
       {
-        random_node = rand() % numvert1d;
+        random_node = rand() % 16;
         if (csr_graph.row_offsets[random_node + 1] - csr_graph.row_offsets[random_node] > 1)
         {
           src_node = random_node;

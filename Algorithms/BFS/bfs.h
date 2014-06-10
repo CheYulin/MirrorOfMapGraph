@@ -249,8 +249,8 @@ struct bfs
       //      if (row_id == 4120 || row_id == 4480)
 //      if(rank_id == 1) 
 //        printf("rank_id=%d, iteration=%d, row_id=%d, mask=%d, is_visited=%d\n", rank_id, iteration, row_id, mask, is_visited);
-      if (is_visited != 0)
-        vertex_id = -1;
+//      if (is_visited != 0)
+//        vertex_id = -1;
       //      // Load label of node
       //      int row_id = vertex_id;
       //      int label;
