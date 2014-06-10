@@ -238,7 +238,7 @@ struct bfs
   {
 
     __device__
-            void operator()(const int iteration, unsigned char *d_bitmap_visited, int &vertex_id,
+            void operator()(const int rank_id, const int iteration, unsigned char *d_bitmap_visited, int &vertex_id,
                             VertexType &vertex_list, EdgeType &edge_list, GatherType* gather_tmp, int& misc_value)
     {
       int row_id = vertex_id;
@@ -247,9 +247,10 @@ struct bfs
       unsigned char mask = 1 << bit_off;
       unsigned char is_visited = d_bitmap_visited[byte_id] & mask;
       //      if (row_id == 4120 || row_id == 4480)
-//      printf("iteration=%d, row_id=%d, mask=%d, is_visited=%d\n", iteration, row_id, mask, is_visited);
-//      if (is_visited != 0)
-//        vertex_id = -1;
+//      if(rank_id == 1) 
+//        printf("rank_id=%d, iteration=%d, row_id=%d, mask=%d, is_visited=%d\n", rank_id, iteration, row_id, mask, is_visited);
+      if (is_visited != 0)
+        vertex_id = -1;
       //      // Load label of node
       //      int row_id = vertex_id;
       //      int label;

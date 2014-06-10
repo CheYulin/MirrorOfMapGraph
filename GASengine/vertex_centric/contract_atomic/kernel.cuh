@@ -41,7 +41,7 @@ AFRL Contract #FA8750-13-C-0002.
 
 This material is based upon work supported by the Defense Advanced
 Research Projects Agency (DARPA) under Contract No. D14PC00029.
-*/
+ */
 
 #pragma once
 
@@ -68,7 +68,7 @@ namespace GASengine
       struct SweepPass
       {
 
-        static __device__ __forceinline__ void Invoke(typename KernelPolicy::VertexId &iteration,
+        static __device__ __forceinline__ void Invoke(int& rank_id, typename KernelPolicy::VertexId &iteration,
                                                       typename Program::VertexId &queue_index,
                                                       typename Program::VertexId &steal_index,
                                                       int &num_gpus,
@@ -99,8 +99,8 @@ namespace GASengine
           }
 
           // CTA processing abstraction
-          Cta cta(iteration, queue_index, num_gpus, selector, d_frontier_size, smem_storage, d_edge_frontier, 
-                  d_vertex_frontier, d_predecessor, m_gatherTmp, vertex_list, edge_list, 
+          Cta cta(rank_id, iteration, queue_index, num_gpus, selector, d_frontier_size, smem_storage, d_edge_frontier,
+                  d_vertex_frontier, d_predecessor, m_gatherTmp, vertex_list, edge_list,
                   d_bitmap_visited, d_visited_mask, work_progress,
                   max_vertex_frontier);
 
@@ -222,7 +222,8 @@ namespace GASengine
         typedef typename Program::MiscType MiscType;
         typedef typename Program::GatherType GatherType;
 
-        static __device__ __forceinline__ void Kernel(VertexId &src,
+        static __device__ __forceinline__ void Kernel(int &rank_id, 
+                                                      VertexId &src,
                                                       VertexId &iteration,
                                                       VertexId &queue_index,
                                                       VertexId &steal_index,
@@ -352,7 +353,7 @@ namespace GASengine
           // Barrier to protect work decomposition
           __syncthreads();
 
-          SweepPass<KernelPolicy, Program, KernelPolicy::WORK_STEALING>::Invoke(iteration, queue_index, steal_index, num_gpus, selector, d_frontier_size, d_edge_frontier, d_vertex_frontier,
+          SweepPass<KernelPolicy, Program, KernelPolicy::WORK_STEALING>::Invoke(rank_id, iteration, queue_index, steal_index, num_gpus, selector, d_frontier_size, d_edge_frontier, d_vertex_frontier,
                                                                                 d_predecessor, m_gatherTmp, vertex_list, edge_list, d_bitmap_visited, d_visited_mask, work_progress, smem_storage.state.work_decomposition, max_vertex_frontier, smem_storage);
 
         }
@@ -375,7 +376,8 @@ namespace GASengine
       template<typename KernelPolicy, typename Program>
       __launch_bounds__(KernelPolicy::THREADS, KernelPolicy::CTA_OCCUPANCY)
       __global__
-      void Kernel(typename KernelPolicy::VertexId src, // Source vertex (may be -1 if iteration != 0)
+      void Kernel(int rank_id,
+                  typename KernelPolicy::VertexId src, // Source vertex (may be -1 if iteration != 0)
                   typename KernelPolicy::VertexId iteration, // Current BFS iteration
                   typename KernelPolicy::VertexId queue_index, // Current frontier queue counter index
                   typename KernelPolicy::VertexId steal_index, // Current workstealing counter index
@@ -398,7 +400,7 @@ namespace GASengine
                   typename KernelPolicy::SizeT max_vertex_frontier, // Maximum number of elements we can place into the outgoing vertex frontier
                   util::KernelRuntimeStats kernel_stats) // Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
       {
-        Dispatch<KernelPolicy, Program>::Kernel(src, iteration, queue_index, steal_index, num_gpus, selector, d_frontier_size, d_edge_frontier_size, d_done, d_edge_frontier, d_vertex_frontier,
+        Dispatch<KernelPolicy, Program>::Kernel(rank_id, src, iteration, queue_index, steal_index, num_gpus, selector, d_frontier_size, d_edge_frontier_size, d_done, d_edge_frontier, d_vertex_frontier,
                                                 d_predecessor, m_gatherTmp, vertex_list, edge_list,
                                                 d_changed, d_bitmap_visited,
                                                 d_visited_mask, work_progress, max_edge_frontier, max_vertex_frontier, kernel_stats);

@@ -116,6 +116,7 @@ namespace GASengine
         VisitedMask *d_visited_mask; // Mask for detecting visited status
 
         // Work progress
+        int rank_id;
         VertexId iteration; // Current BFS iteration
         VertexId queue_index; // Current frontier queue counter index
         util::CtaWorkProgress &work_progress; // Atomic workstealing and queueing counters
@@ -271,7 +272,7 @@ namespace GASengine
               if (tile->vertex_id[LOAD][VEC] != -1)
               {
                 typename Program::contract contract_functor;
-                contract_functor(cta->iteration, cta->d_bitmap_visited, tile->vertex_id[LOAD][VEC], cta->vertex_list, cta->edge_list, cta->m_gatherTmp, tile->predecessor_id[LOAD][VEC]);
+                contract_functor(cta->rank_id, cta->iteration, cta->d_bitmap_visited, tile->vertex_id[LOAD][VEC], cta->vertex_list, cta->edge_list, cta->m_gatherTmp, tile->predecessor_id[LOAD][VEC]);
               }
 
               // Next
@@ -473,7 +474,7 @@ namespace GASengine
         /**
          * Constructor
          */
-        __device__ __forceinline__ Cta(
+        __device__ __forceinline__ Cta(int rank_id,
                                        VertexId iteration,
                                        VertexId queue_index,
                                        int num_gpus,
@@ -490,7 +491,7 @@ namespace GASengine
                                        VisitedMask *d_visited_mask,
                                        util::CtaWorkProgress &work_progress,
                                        SizeT max_vertex_frontier) :
-
+        rank_id(rank_id),
         iteration(iteration),
         queue_index(queue_index),
         num_gpus(num_gpus),

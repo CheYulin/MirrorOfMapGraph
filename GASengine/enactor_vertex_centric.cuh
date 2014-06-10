@@ -2978,7 +2978,8 @@ namespace GASengine
 
           vertex_centric::contract_atomic::Kernel<ContractPolicy,
                   Program> << <contract_grid_size,
-                  ContractPolicy::THREADS >> >(0,
+                  ContractPolicy::THREADS >> >(rank_id,
+                                               0,
                                                iteration[0],
                                                queue_index, // queue counter index
                                                queue_index, // steal counter index
@@ -3065,42 +3066,47 @@ namespace GASengine
           int nblocks = (frontier_size + nthreads - 1) / nthreads;
           MPI::mpikernel::frontier2flag<Program> << <nblocks, nthreads >> >(frontier_size, graph_slice->nodes, graph_slice->frontier_queues.d_keys[selector^1], graph_slice->d_visit_flags);
           util::B40CPerror(cudaDeviceSynchronize(), "frontier2flag", __FILE__, __LINE__);
-          int byte_size = (graph_slice->nodes + 8 - 1) / 8;
-          nblocks = (byte_size + nthreads - 1) / nthreads;
-          MPI::mpikernel::flag2bitmap<Program> << <nblocks, nthreads >> >(graph_slice->nodes, byte_size, graph_slice->d_visit_flags, graph_slice->d_bitmap_out);
-          util::B40CPerror(cudaDeviceSynchronize(), "flag2bitmap", __FILE__, __LINE__);
+        }
 
-          if (DEBUG)
-          {
+        int nthreads = 256;
+        int byte_size = (graph_slice->nodes + 8 - 1) / 8;
+        int nblocks = (byte_size + nthreads - 1) / nthreads;
+        MPI::mpikernel::flag2bitmap<Program> << <nblocks, nthreads >> >(graph_slice->nodes, byte_size, graph_slice->d_visit_flags, graph_slice->d_bitmap_out);
+        util::B40CPerror(cudaDeviceSynchronize(), "flag2bitmap", __FILE__, __LINE__);
 
-            //            if(rank_id == 0)
-            //            {
-            //              int bitmap_cout = 0;
-            //              int byte_size = (graph_slice->nodes + 8 - 1) / 8;
-            //              char* test_vid = new char[byte_size];
-            //              cudaMemcpy(test_vid, graph_slice->d_bitmap_out, byte_size, cudaMemcpyDeviceToHost);
-            //              printf("bitmap after contract: ");
-            //              for (int i = 0; i < byte_size; ++i)
-            //              {
-            //                for (int j = 0; j < 8; j++)
-            //                {
-            //                  if (test_vid[i] & (1 << j))
-            //                  {
-            //                    printf("%d, ", i * 8 + j);
-            //                    bitmap_cout++;
-            //                  }
-            //                }
-            //              }
-            //              printf("\n");
-            //              printf("bitmap_cout=%d\n", bitmap_cout);
-            //              delete[] test_vid;
-            //            }
-          }
+        if (DEBUG)
+        {
 
-          //          if (retval = util::B40CPerror(cudaMemset(graph_slice->d_bitmap_out, 0, (graph_slice->nodes + 8 - 1) / 8),
-          //                  "Memset d_bitmap_out failed", __FILE__, __LINE__))
-          //          return retval;
+          //            if(rank_id == 0)
+          //            {
+          //              int bitmap_cout = 0;
+          //              int byte_size = (graph_slice->nodes + 8 - 1) / 8;
+          //              char* test_vid = new char[byte_size];
+          //              cudaMemcpy(test_vid, graph_slice->d_bitmap_out, byte_size, cudaMemcpyDeviceToHost);
+          //              printf("bitmap after contract: ");
+          //              for (int i = 0; i < byte_size; ++i)
+          //              {
+          //                for (int j = 0; j < 8; j++)
+          //                {
+          //                  if (test_vid[i] & (1 << j))
+          //                  {
+          //                    printf("%d, ", i * 8 + j);
+          //                    bitmap_cout++;
+          //                  }
+          //                }
+          //              }
+          //              printf("\n");
+          //              printf("bitmap_cout=%d\n", bitmap_cout);
+          //              delete[] test_vid;
+          //            }
+        }
 
+        //          if (retval = util::B40CPerror(cudaMemset(graph_slice->d_bitmap_out, 0, (graph_slice->nodes + 8 - 1) / 8),
+        //                  "Memset d_bitmap_out failed", __FILE__, __LINE__))
+        //          return retval;
+
+        if (frontier_size > 0)
+        {
           if (retval = util::B40CPerror(cudaMemset(graph_slice->d_visit_flags, 0, graph_slice->nodes * sizeof (char)),
                                         "Memset d_visit_flags failed", __FILE__, __LINE__))
             return retval;
@@ -3281,18 +3287,18 @@ namespace GASengine
 
       }
 
-      //      if (rank_id == 0)
-      //      {
-      //        unsigned char* test_vid = new unsigned char[byte_size];
-      //        cudaMemcpy(test_vid, graph_slice->d_bitmap_visited, byte_size * sizeof (unsigned char), cudaMemcpyDeviceToHost);
-      //        printf("pi=%d, pj=%d, initial d_bitmap_visited: ", pi, pj);
-      //        for (int i = 0; i < byte_size; ++i)
-      //        {
-      //          printf("%d, ", test_vid[i]);
-      //        }
-      //        printf("\n");
-      //        delete[] test_vid;
-      //      }
+//      if (rank_id == 1)
+//      {
+//        unsigned char* test_vid = new unsigned char[byte_size];
+//        cudaMemcpy(test_vid, graph_slice->d_bitmap_visited, byte_size * sizeof (unsigned char), cudaMemcpyDeviceToHost);
+//        printf("pi=%d, pj=%d, initial d_bitmap_visited: ", pi, pj);
+//        for (int i = 0; i < byte_size; ++i)
+//        {
+//          printf("%d, ", test_vid[i]);
+//        }
+//        printf("\n");
+//        delete[] test_vid;
+//      }
 
       SYNC_CHECK();
       if (pj == p - 1)
@@ -3485,24 +3491,24 @@ namespace GASengine
         //        usleep(200);
         //        MPI_Barrier(MPI_COMM_WORLD);
 
-        //        if (rank_id == 1)
-        //        {
-        //          unsigned char* test_vid3 = new unsigned char[1];
-        //          cudaMemcpy(test_vid3, graph_slice->d_bitmap_visited, 1, cudaMemcpyDeviceToHost);
-        //          //        printf("pi=%d, pj=%d, iter=%d, d_bitmap_visited: %d ", pi, pj, iteration[0], test_vid3[0]);
-        //          //        for (int i = 0; i < 1; ++i)
-        //          //        {
-        //          //          bitset < 8 > b(test_vid3[i]);
-        //          //          cout << b;
-        //          //        }
-        //          bitset < 8 > b(test_vid3[0]);
-        //          cout << "pi=" << pi << " pj=" << pj << " iter=" << iter << " d_bitmap_visited=" << b << endl;
-        //          //        printf("\n");
-        //          delete[] test_vid3;
-        //        }
-        //        fflush(stdout);
-        //        usleep(200);
-        //        MPI_Barrier(MPI_COMM_WORLD);
+//        if (rank_id == 1)
+//        {
+//          unsigned char* test_vid3 = new unsigned char[1];
+//          cudaMemcpy(test_vid3, graph_slice->d_bitmap_visited, 1, cudaMemcpyDeviceToHost);
+//          //        printf("pi=%d, pj=%d, iter=%d, d_bitmap_visited: %d ", pi, pj, iteration[0], test_vid3[0]);
+//          //        for (int i = 0; i < 1; ++i)
+//          //        {
+//          //          bitset < 8 > b(test_vid3[i]);
+//          //          cout << b;
+//          //        }
+//          bitset < 8 > b(test_vid3[0]);
+//          cout << "pi=" << pi << " pj=" << pj << " iter=" << iter << " d_bitmap_visited=" << b << endl;
+//          //        printf("\n");
+//          delete[] test_vid3;
+//        }
+//        fflush(stdout);
+//        usleep(200);
+//        MPI_Barrier(MPI_COMM_WORLD);
 
         end_time = MPI_Wtime();
 
@@ -3525,12 +3531,12 @@ namespace GASengine
         if (global_frontier_size == 0)
           break;
       }
-      
-//      fflush(stdout);
-//      usleep(200);
+
+      //      fflush(stdout);
+      //      usleep(200);
       MPI_Barrier(MPI_COMM_WORLD);
       double total_run_time_end = MPI_Wtime();
-      
+
       /*
             for (int i = 0; i < stats->iter_stats.size(); i++)
             {
