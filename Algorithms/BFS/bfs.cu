@@ -538,7 +538,7 @@ int main(int argc, char **argv)
     if (rank_id == 0)
       printf("\nReading from files finished \n");
 
-    csr_graph.FromCoo<true > (coo, numvert1d, numedges, directed);
+    csr_graph.FromCoo<true > (coo, numvert1d, numedges, !directed);
     free(coo);
     if (rank_id == 0)
       printf("\nReading from files finished and created CSR graph\n");
@@ -679,26 +679,26 @@ int main(int argc, char **argv)
         }
       }
      */
-    int p = sqrt(np);
-    int numvert1d = ceil(numVertices / p);
-    if (rank_id == 0)
-      printf("\nnumvert1d:%d", numvert1d);
-
-    if (rank_id == 0)
-    {
-      srand(rank_id);
-      int random_node;
-
-      for (int i = 0; i < numvert1d; i++)
-      {
-        random_node = rand() % 16;
-        if (csr_graph.row_offsets[random_node + 1] - csr_graph.row_offsets[random_node] > 1)
-        {
-          src_node = random_node;
-          break;
-        }
-      }
-    }
+//    int p = sqrt(np);
+//    int numvert1d = ceil(numVertices / p);
+//    if (rank_id == 0)
+//      printf("\nnumvert1d:%d", numvert1d);
+//
+//    if (rank_id == 0)
+//    {
+//      srand(rank_id);
+//      int random_node;
+//
+//      for (int i = 0; i < numvert1d; i++)
+//      {
+//        random_node = rand() % 16;
+//        if (csr_graph.row_offsets[random_node + 1] - csr_graph.row_offsets[random_node] > 1)
+//        {
+//          src_node = random_node;
+//          break;
+//        }
+//      }
+//    }
 
     MPI_Bcast(&src_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -836,7 +836,7 @@ int main(int argc, char **argv)
 
   if (rank_id == 0)
   {
-    printf("global_traversed_edge %lld, total_time %lf\n", global_traversed_edge, endtime - starttime);
+    printf("global_traversed_edge %lld total_time %lf\n", global_traversed_edge, endtime - starttime);
   }
 
 
