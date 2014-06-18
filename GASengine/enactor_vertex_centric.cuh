@@ -3027,17 +3027,17 @@ namespace GASengine
           }
 
 
-          //          printf("iter=%d, rank_id=%d, Frontier size after contract: %d\n", iteration[0], rank_id, frontier_size);
-          //
-          //          VertexId* test_vid = new VertexId[frontier_size];
-          //          cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector^1], frontier_size * sizeof (VertexId), cudaMemcpyDeviceToHost);
-          //          //          printf("Frontier after contract: ");
-          //          for (int i = 0; i < frontier_size; ++i)
-          //          {
-          //            printf("%d, ", test_vid[i]);
-          //          }
-          //          printf("\n");
-          //          delete[] test_vid;
+          //                    printf("iter=%d, rank_id=%d, Frontier size after contract: %d\n", iteration[0], rank_id, frontier_size);
+          //          
+          //                    VertexId* test_vid = new VertexId[frontier_size];
+          //                    cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector^1], frontier_size * sizeof (VertexId), cudaMemcpyDeviceToHost);
+          //                    //          printf("Frontier after contract: ");
+          //                    for (int i = 0; i < frontier_size; ++i)
+          //                    {
+          //                      printf("%d, ", test_vid[i]);
+          //                    }
+          //                    printf("\n");
+          //                    delete[] test_vid;
 
           // Check if done
           //          if (done[0] == 0)
@@ -3052,15 +3052,30 @@ namespace GASengine
         if (frontier_size > 0)
         {
 
-          //          char* test_vid = new char[graph_slice->nodes];
-          //          cudaMemcpy(test_vid, graph_slice->d_visit_flags, graph_slice->nodes * sizeof (char), cudaMemcpyDeviceToHost);
-          //          printf("pi=%d, pj=%d, d_visit_flags before: ", pi, pj);
-          //          for (int i = 0; i < graph_slice->nodes; ++i)
-          //          {
-          //            printf("%d, ", test_vid[i]);
-          //          }
-          //          printf("\n");
-          //          delete[] test_vid;
+//          if (rank_id == 0)
+//          {
+//            printf("iter=%d, rank_id=%d, Frontier size after contract: %d\n", iteration[0], rank_id, frontier_size);
+//
+//            VertexId* test_vid = new VertexId[frontier_size];
+//            cudaMemcpy(test_vid, graph_slice->frontier_queues.d_keys[selector^1], frontier_size * sizeof (VertexId), cudaMemcpyDeviceToHost);
+//            //          printf("Frontier after contract: ");
+//            for (int i = 0; i < frontier_size; ++i)
+//            {
+//              printf("%d, ", test_vid[i]);
+//            }
+//            printf("\n");
+//            delete[] test_vid;
+//
+//            test_vid = new int[graph_slice->nodes];
+//            cudaMemcpy(test_vid, graph_slice->m_gatherTmp, graph_slice->nodes * sizeof (int), cudaMemcpyDeviceToHost);
+//            printf("pi=%d, pj=%d, m_gatherTmp: ", pi, pj);
+//            for (int i = 0; i < graph_slice->nodes; ++i)
+//            {
+//              printf("%d, ", test_vid[i]);
+//            }
+//            printf("\n");
+//            delete[] test_vid;
+//          }
 
           int nthreads = 256;
           int nblocks = (frontier_size + nthreads - 1) / nthreads;
@@ -3138,7 +3153,7 @@ namespace GASengine
 
       //          delete[] srcs;
       //      cudaFree (graph_slice->m_gatherMapTmp);
-      //      cudaFree (graph_slice->graph_slice->m_gatherTmp);
+      //      cudaFree (graph_slice->m_gatherTmp);
       //      if ( (Program::gatherOverEdges() == GATHER_ALL_EDGES || directed == 0) && Program::gatherOverEdges() == NO_GATHER_EDGES)
       //      {
       //        cudaFree (graph_slice->graph_slice->m_gatherTmp1);
@@ -3414,25 +3429,25 @@ namespace GASengine
         iter_stat.GPU_time = end_time - start_time;
 
         long long count = 0;
-//        if (pj == p - 1)
-//        {
-//          int mesg_size = (graph_slice->nodes + 8 - 1) / 8;
-//          char *in_h = (char*)malloc(mesg_size);
-//          cudaMemcpy(in_h, graph_slice->d_bitmap_out, mesg_size, cudaMemcpyDeviceToHost);
-//          //#pragma omp parallel for reduction(+:count)
-//          for (int i = 0; i < mesg_size; i++)
-//          {
-//            count += (int)(in_h[i] >> 0 & 1);
-//            count += (int)(in_h[i] >> 1 & 1);
-//            count += (int)(in_h[i] >> 2 & 1);
-//            count += (int)(in_h[i] >> 3 & 1);
-//            count += (int)(in_h[i] >> 4 & 1);
-//            count += (int)(in_h[i] >> 5 & 1);
-//            count += (int)(in_h[i] >> 6 & 1);
-//            count += (int)(in_h[i] >> 7 & 1);
-//          }
-//          free(in_h);
-//        }
+        //        if (pj == p - 1)
+        //        {
+        //          int mesg_size = (graph_slice->nodes + 8 - 1) / 8;
+        //          char *in_h = (char*)malloc(mesg_size);
+        //          cudaMemcpy(in_h, graph_slice->d_bitmap_out, mesg_size, cudaMemcpyDeviceToHost);
+        //          //#pragma omp parallel for reduction(+:count)
+        //          for (int i = 0; i < mesg_size; i++)
+        //          {
+        //            count += (int)(in_h[i] >> 0 & 1);
+        //            count += (int)(in_h[i] >> 1 & 1);
+        //            count += (int)(in_h[i] >> 2 & 1);
+        //            count += (int)(in_h[i] >> 3 & 1);
+        //            count += (int)(in_h[i] >> 4 & 1);
+        //            count += (int)(in_h[i] >> 5 & 1);
+        //            count += (int)(in_h[i] >> 6 & 1);
+        //            count += (int)(in_h[i] >> 7 & 1);
+        //          }
+        //          free(in_h);
+        //        }
         //         
         iter_stat.frontier_size = count;
 
@@ -3582,10 +3597,10 @@ namespace GASengine
         fflush(stdout);
         usleep(200);
         MPI_Barrier(MPI_COMM_WORLD);
-        
-//        MPI_Reduce(&stats->iter_stats[i].frontier_size, &global_size, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-//        if (rank_id == 0)
-//          printf("%d %lld\n", i, global_size);
+
+        //        MPI_Reduce(&stats->iter_stats[i].frontier_size, &global_size, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        //        if (rank_id == 0)
+        //          printf("%d %lld\n", i, global_size);
 
       }
 

@@ -246,6 +246,7 @@ struct bfs
       int bit_off = row_id % 8;
       unsigned char mask = 1 << bit_off;
       unsigned char is_visited = d_bitmap_visited[byte_id] & mask;
+      gather_tmp[vertex_id] = misc_value;
       //      if (row_id == 4120 || row_id == 4480)
       //      if(rank_id == 1) 
       //        printf("rank_id=%d, iteration=%d, row_id=%d, mask=%d, is_visited=%d\n", rank_id, iteration, row_id, mask, is_visited);
