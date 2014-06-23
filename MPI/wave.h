@@ -44,7 +44,7 @@ public:
   MPI_Comm new_row_comm, new_col_comm;
   int new_row_rank, new_col_rank;
   double init_time, propagate_time, broadcast_time, compression_time, copy_time, bitunion_time,
-  decompression_time;
+  decompression_time, propagate_wait, broadcast_wait;
   Statistics* stats;
   unsigned int *bitmap_compressed;
   unsigned char *bitmap_decompressed;
@@ -58,7 +58,9 @@ public:
   init_time(0.0),
   compressed_size(0),
   propagate_time(0.0),
+  propagate_wait(0.0),
   broadcast_time(0.0),
+  broadcast_wait(0.0),
   compression_time(0.0),
   copy_time(0.0),
   bitunion_time(0.0)
@@ -110,7 +112,9 @@ public:
     //MPI_Barrier(new_col_comm);
     init_time = endtime - starttime;
     propagate_time = 0;
-    broadcast_time = 0;
+    propagate_wait = 0;
+    broadcast_time = 0; 
+    broadcast_wait = 0;
     copy_time = 0;
     bitunion_time = 0;
 
@@ -218,12 +222,13 @@ public:
   void propogate_tree(unsigned char* out_d, unsigned char* assigned_d,
                       unsigned char* prefix_d)
   {
-
+//printf("tree");
     int distance = 1;
     bitunion_time = 0.0;
     unsigned int mesg_size = ceil(n / 8.0);
     int rank_id = pi * p + pj;
     double starttime, endtime;
+    double waitstart, waitend;
     int numthreads = 256;
     int numblocks = (mesg_size + numthreads - 1) / numthreads;
     MPI_Request request;
@@ -243,18 +248,27 @@ public:
     //    }
 
     //    cudaMemcpy(assigned_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
-
+    propagate_wait=0.0;
     starttime = MPI_Wtime();
     while (distance < p)
     {
       if ((pj + distance) < p)
         //        MPI_Send(out_d, mesg_size, MPI_CHAR, rank_id + distance, pi, MPI_COMM_WORLD);
+	{
         MPI_Isend(out_d, mesg_size, MPI_CHAR, rank_id + distance, pi, MPI_COMM_WORLD, &request);
+		       waitstart = MPI_Wtime(); 
+			MPI_Wait(&request, &status);
+			waitend = MPI_Wtime();
+			propagate_wait += waitend - waitstart;
+	}
       if ((pj - distance) >= 0)
       {
 //        MPI_Recv(prefix_d, mesg_size, MPI_CHAR, rank_id - distance, pi, MPI_COMM_WORLD, &status);
         MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, rank_id - distance, pi, MPI_COMM_WORLD, &request);
-        MPI_Wait(&request, &status);
+		       waitstart = MPI_Wtime(); 
+			MPI_Wait(&request, &status);
+			waitend = MPI_Wtime();
+			propagate_wait += waitend - waitstart;
         //        value += x;
 //        starttime = MPI_Wtime();
         mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
@@ -286,7 +300,6 @@ public:
   //wave propogation, in sequential from top to bottom of the column
   {
     double starttime, endtime;
-
     unsigned int mesg_size = ceil(n / 8.0);
     int myid = pi * p + pj;
 
@@ -306,8 +319,6 @@ public:
         starttime = MPI_Wtime();
         MPI_Send(out_d, mesg_size, MPI_CHAR, myid + 1, pi,
                  MPI_COMM_WORLD);
-        //MPI_Wait(&request[1], &status[1]);
-
         endtime = MPI_Wtime();
         propagate_time = endtime - starttime;
       }
@@ -773,7 +784,52 @@ public:
 
   }
 
-  void broadcast_new_frontier(unsigned char* out_d, unsigned char* in_d)
+  void broadcast_new_frontier_nonblocking(unsigned char* out_d, unsigned char* in_d)
+  {
+//printf("In Broadcast");
+    double starttime, endtime, waitstart, waitend;
+    MPI_Request request[2];
+    MPI_Status status[2];
+    broadcast_time = 0.0;
+    broadcast_wait = 0.0;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    unsigned int mesg_size = ceil(n / (8.0));
+    starttime = MPI_Wtime();
+    MPI_Ibcast(out_d, mesg_size, MPI_CHAR, p - 1, new_row_comm, &request[0]);
+
+    if (pi == pj)
+	{
+	waitstart = MPI_Wtime(); 
+	MPI_Wait(&request[0], &status[0]);
+	waitend = MPI_Wtime();
+	broadcast_wait += waitend - waitstart;
+
+	starttime = MPI_Wtime();
+	cudaMemcpy(in_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
+	endtime = MPI_Wtime();
+	copy_time = endtime - starttime;
+	MPI_Ibcast(in_d, mesg_size, MPI_CHAR, pj, new_col_comm,&request[1]);
+	waitstart = MPI_Wtime(); 
+	MPI_Wait(&request[1], &status[1]);
+	waitend = MPI_Wtime();
+	broadcast_wait += waitend - waitstart;
+	}
+   else
+	{
+    MPI_Ibcast(in_d, mesg_size, MPI_CHAR, pj, new_col_comm,&request[1]);
+		       waitstart = MPI_Wtime(); 
+			MPI_Wait(&request[0], &status[0]);
+			MPI_Wait(&request[1], &status[1]);
+			waitend = MPI_Wtime();
+			broadcast_wait += waitend - waitstart;
+	}
+
+    endtime = MPI_Wtime();
+    broadcast_time += endtime - starttime;
+
+  }
+
+ void broadcast_new_frontier(unsigned char* out_d, unsigned char* in_d)
   {
     double starttime, endtime;
     //    MPI_Barrier(MPI_COMM_WORLD);
@@ -795,6 +851,7 @@ public:
     broadcast_time += endtime - starttime;
 
   }
+
 };
 
 #endif /* WAVE_H_ */

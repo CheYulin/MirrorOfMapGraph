@@ -41,6 +41,8 @@ struct Statistics
     double GPU_time;
     double propagate_time;
     double broadcast_time;
+    double propagate_wait;
+    double broadcast_wait;
     double wave_time;
     double copy_time;
     double bitunion_time;
