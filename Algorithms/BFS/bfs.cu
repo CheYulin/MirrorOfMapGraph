@@ -608,8 +608,8 @@ int main(int argc, char **argv)
       exit(1);
   }
 
-//  if (rank_id == 0)
-//    csr_graph.DisplayGraph();
+  //  if (rank_id == 0)
+  //    csr_graph.DisplayGraph();
   int num_srcs = 0;
   int* srcs = NULL;
   int origin = cfg.getParameter<int>("origin");
@@ -769,30 +769,30 @@ int main(int argc, char **argv)
     }
   }
 
-//  delete csr_problem;
-//  typedef GASengine::CsrProblem<bfs_pred, VertexId, SizeT, Value,
-//          g_mark_predecessor, g_with_value> CsrProblem_pred;
-//  CsrProblem_pred csr_problem_pred(cfg);
-//
-//  if (csr_problem_pred.FromHostProblem(g_stream_from_host, csr_graph.nodes,
-//                                  csr_graph.edges, csr_graph.column_indices, csr_graph.row_offsets,
-//                                  csr_graph.edge_values, csr_graph.row_indices,
-//                                  csr_graph.column_offsets, num_gpus, directed, device_id, rank_id))
-//    exit(1);
-//  typename CsrProblem::GraphSlice *graph_slice = csr_problem.graph_slices[0];
-//
-//  int tmpsrcs[1];
-//  int tmp_num_srcs = 1;
-//  tmpsrcs[0] = srcs[0];
-//  GASengine::EnactorVertexCentric<CsrProblem, bfs_pred, INSTRUMENT> vertex_centric_pred(cfg, g_verbose);
-//  retval = vertex_centric_pred.EnactIterativeSearch(csr_problem,
-//                                                    csr_graph.row_offsets, directed, tmp_num_srcs, tmpsrcs, iter_num,
-//                                                    threshold, np, device_id, rank_id);
-//
-//  if (retval && (retval != cudaErrorInvalidDeviceFunction))
-//  {
-//    exit(1);
-//  }
+  //  delete csr_problem;
+  //  typedef GASengine::CsrProblem<bfs_pred, VertexId, SizeT, Value,
+  //          g_mark_predecessor, g_with_value> CsrProblem_pred;
+  //  CsrProblem_pred csr_problem_pred(cfg);
+  //
+  //  if (csr_problem_pred.FromHostProblem(g_stream_from_host, csr_graph.nodes,
+  //                                  csr_graph.edges, csr_graph.column_indices, csr_graph.row_offsets,
+  //                                  csr_graph.edge_values, csr_graph.row_indices,
+  //                                  csr_graph.column_offsets, num_gpus, directed, device_id, rank_id))
+  //    exit(1);
+  //  typename CsrProblem::GraphSlice *graph_slice = csr_problem.graph_slices[0];
+  //
+  //  int tmpsrcs[1];
+  //  int tmp_num_srcs = 1;
+  //  tmpsrcs[0] = srcs[0];
+  //  GASengine::EnactorVertexCentric<CsrProblem, bfs_pred, INSTRUMENT> vertex_centric_pred(cfg, g_verbose);
+  //  retval = vertex_centric_pred.EnactIterativeSearch(csr_problem,
+  //                                                    csr_graph.row_offsets, directed, tmp_num_srcs, tmpsrcs, iter_num,
+  //                                                    threshold, np, device_id, rank_id);
+  //
+  //  if (retval && (retval != cudaErrorInvalidDeviceFunction))
+  //  {
+  //    exit(1);
+  //  }
 
   MPI_Barrier(MPI_COMM_WORLD);
   double endtime = MPI_Wtime();
@@ -866,41 +866,42 @@ int main(int argc, char **argv)
   }
 
 
-//Begin Validation
-/*
-the BFS tree is a tree and does not contain cycles, (construct tree?)
-each tree edge connects vertices whose BFS levels differ by exactly one, (needs tree)
-every edge in the input list has vertices with levels that differ by at most one or that both are not in the BFS tree,
-the BFS tree spans an entire connected component's vertices,(needs tree) and 
-a node and its parent are joined by an edge of the original graph.(needs predecessors)
-*/
+  //Begin Validation
+  /*
+  the BFS tree is a tree and does not contain cycles, (construct tree?)
+  each tree edge connects vertices whose BFS levels differ by exactly one, (needs tree)
+  every edge in the input list has vertices with levels that differ by at most one or that both are not in the BFS tree,
+  the BFS tree spans an entire connected component's vertices,(needs tree) and 
+  a node and its parent are joined by an edge of the original graph.(needs predecessors)
+   */
 
-//check parent of parent is same as parent
+  //check parent of parent is same as parent
 
-//every edge in the input list has vertices with levels that differ by at most one or that both are not in the BFS tree,
+  //every edge in the input list has vertices with levels that differ by at most one or that both are not in the BFS tree,
 //#pragma omp parallel for
-   for (int i = 0; i < csr_graph.nodes; i++)
-	{	
-	int from_level = h_values2[i],to_level=-1;int flag = 0;
-	for(int j=csr_graph.row_offsets[i];j<csr_graph.row_offsets[i+1];j++)
-		{
-		int to = csr_graph.column_indices[j];
-		to_level = h_values[to];
-		if(to_level <= -1 && from_level > -1) //in directed you should not say both should be in the graph. If from is visited, to should be visited
-			{			
-			printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i,to,rank_id,from_level,to_level);			
-			flag =1;
-			break;
-			}			
-		if(from_level>-1 && to_level - from_level > 1)
-			{			
-			printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i,to,rank_id,from_level,to_level);			
-			flag=1;
-			break;
-			}
-		}
-		if(flag ==1 ) break;
-	}
+  for (int i = 0; i < csr_graph.nodes; i++)
+  {
+    int from_level = h_values2[i], to_level = -1;
+    int flag = 0;
+    for (int j = csr_graph.row_offsets[i]; j < csr_graph.row_offsets[i + 1]; j++)
+    {
+      int to = csr_graph.column_indices[j];
+      to_level = h_values[to];
+      if (to_level <= -1 && from_level > -1) //in directed you should not say both should be in the graph. If from is visited, to should be visited
+      {
+        printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i, to, rank_id, from_level, to_level);
+        flag = 1;
+        break;
+      }
+      if (from_level>-1 && to_level - from_level > 1)
+      {
+        printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i, to, rank_id, from_level, to_level);
+        flag = 1;
+        break;
+      }
+    }
+    if (flag == 1) break;
+  }
   //  if (strcmp(source_file_name, "") == 0 && run_CPU)
   //  {
   //    correctTest(csr_graph.nodes, reference_labels, h_values);

@@ -3722,7 +3722,7 @@ namespace GASengine
 
       if (rank_id == 0)
       {
-        printf("Iter+Rank_id GPU_time wave termination_check update_vertices copy_time bitunion_time iter_total_time Propagate Broadcast BroadcastWait PropagateWait total_time frontier_size\n");
+        printf("Iter+Rank_id GPU_time wave-bitunion termination_check update_vertices copy_time bitunion_time iter_total_time Propagate Broadcast BroadcastWait PropagateWait total_time frontier_size\n");
         fflush(stdout);
       }
       MPI_Barrier(MPI_COMM_WORLD);
@@ -3734,7 +3734,7 @@ namespace GASengine
         printf("%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lld\n",
             i + rank_id / 100.0,
             stats->iter_stats[i].GPU_time,
-            stats->iter_stats[i].wave_time,
+            stats->iter_stats[i].wave_time - stats->iter_stats[i].bitunion_time,
             stats->iter_stats[i].allreduce_time,
             stats->iter_stats[i].update_time,
             stats->iter_stats[i].copy_time,

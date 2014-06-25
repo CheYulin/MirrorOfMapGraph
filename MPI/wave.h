@@ -265,10 +265,10 @@ public:
       {
         MPI_Isend(out_d, mesg_size, MPI_CHAR, rank_id + distance, pi,
             MPI_COMM_WORLD, &request);
-        waitstart = MPI_Wtime();
-        MPI_Wait(&request, &status);
-        waitend = MPI_Wtime();
-        propagate_wait += waitend - waitstart;
+//        waitstart = MPI_Wtime();
+//        MPI_Wait(&request, &status);
+//        waitend = MPI_Wtime();
+//        propagate_wait += waitend - waitstart;
       }
       if ((pj - distance) >= 0)
       {
@@ -304,12 +304,17 @@ public:
       //      }
     }
 
+//    mpikernel::bitsubstract<<<numblocks, numthreads>>>(mesg_size, out_d,
+//        out_copy, prefix_d);
+    startbitunion = MPI_Wtime();
     mpikernel::bitsubstract<<<numblocks, numthreads>>>(mesg_size, out_copy,
         prefix_d, assigned_temp);
     mpikernel::bitunion<<<numblocks, numthreads>>>(mesg_size, assigned_d,
         assigned_temp, assigned_d);
+    endbitunion = MPI_Wtime();
     endtime = MPI_Wtime();
     propagate_time = endtime - starttime;
+    bitunion_time += endbitunion - startbitunion;
   }
 
   void propogate(unsigned char* out_d, unsigned char* assigned_d,
