@@ -521,10 +521,9 @@ int main(int argc, char **argv)
 
     int p = sqrt(np);
     int numvert1d = ceil(numVertices / (double)p);
-
+#pragma omp parallel for
     for (i = 0; i < numedges; i++)
     {
-
       if (edges[2 * i] >= numvert1d || edges[2 * i + 1] >= numvert1d) printf("\nNot in range %d %d  should be in %d\n", edges[2 * i], edges[2 * i + 1], numvert1d);
 
       coo[i].row = (VertexId)edges[2 * i];
@@ -840,6 +839,39 @@ int main(int argc, char **argv)
   }
 
 
+//Begin Validation
+/*
+the BFS tree is a tree and does not contain cycles, (construct tree?)
+each tree edge connects vertices whose BFS levels differ by exactly one, (needs tree)
+every edge in the input list has vertices with levels that differ by at most one or that both are not in the BFS tree,
+the BFS tree spans an entire connected component's vertices,(needs tree) and 
+a node and its parent are joined by an edge of the original graph.(needs predecessors)
+*/
+
+//check parent of parent is same as parent
+
+//every edge in the input list has vertices with levels that differ by at most one or that both are not in the BFS tree,
+
+#pragma omp parallel for
+   for (int i = 0; i < csr_graph.nodes; i++)
+	{	
+	int to_level = h_values2[i],from_level=-1;
+	for(int j=csr_graph.row_offsets[i];j<csr_graph.row_offsets[i+1];j++)
+		{
+		int from = csr_graph.column_indices[j];
+		from_level = h_values[from];
+		if(to_level <= -1 && from_level > -1) //in directed you should not say both should be in the graph. If from is visited, to should be visited
+			{			
+			printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i,j,rank_id,from_level,to_level);			
+			break;
+			}			
+		if(to_level - from_level > 1)
+			{			
+			printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i,j,rank_id,from_level,to_level);			
+			break;
+			}
+		}
+	}
   //  if (strcmp(source_file_name, "") == 0 && run_CPU)
   //  {
   //    correctTest(csr_graph.nodes, reference_labels, h_values);

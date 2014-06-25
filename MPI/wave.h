@@ -226,7 +226,14 @@ public:
     int distance = 1;
     bitunion_time = 0.0;
     unsigned int mesg_size = ceil(n / 8.0);
-    int rank_id = pi * p + pj;
+    int rank_id = pi * p + pj; 
+    unsigned char *out_copy;
+    util::B40CPerror(cudaMalloc((void**)&out_copy,mesg_size * sizeof (unsigned char) ));
+    cudaMemcpy(out_copy, out_d, mesg_size, cudaMemcpyDeviceToDevice);
+
+    unsigned char *assigned_temp;
+    util::B40CPerror(cudaMalloc((void**)&assigned_temp,mesg_size * sizeof (unsigned char) ));
+
     double starttime, endtime;
     double waitstart, waitend;
     int numthreads = 256;
@@ -291,6 +298,9 @@ public:
       //        free(out_h);
       //      }
     }
+
+    mpikernel::bitsubstract << <numblocks, numthreads >> >(mesg_size, out_copy, prefix_d, assigned_temp);
+    mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, assigned_d, assigned_temp, assigned_d);
     endtime = MPI_Wtime();
     propagate_time = endtime - starttime;
   }
