@@ -879,26 +879,28 @@ a node and its parent are joined by an edge of the original graph.(needs predece
 //check parent of parent is same as parent
 
 //every edge in the input list has vertices with levels that differ by at most one or that both are not in the BFS tree,
-
 #pragma omp parallel for
    for (int i = 0; i < csr_graph.nodes; i++)
 	{	
-	int to_level = h_values2[i],from_level=-1;
+	int from_level = h_values2[i],to_level=-1;int flag = 0;
 	for(int j=csr_graph.row_offsets[i];j<csr_graph.row_offsets[i+1];j++)
 		{
-		int from = csr_graph.column_indices[j];
-		from_level = h_values[from];
+		int to = csr_graph.column_indices[j];
+		to_level = h_values[to];
 		if(to_level <= -1 && from_level > -1) //in directed you should not say both should be in the graph. If from is visited, to should be visited
 			{			
-			printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i,j,rank_id,from_level,to_level);			
+			printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i,to,rank_id,from_level,to_level);			
+			flag =1;
 			break;
 			}			
-		if(to_level - from_level > 1)
+		if(from_level>-1 && to_level - from_level > 1)
 			{			
-			printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i,j,rank_id,from_level,to_level);			
+			printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i,to,rank_id,from_level,to_level);			
+			flag=1;
 			break;
 			}
 		}
+		if(flag ==1 ) break;
 	}
   //  if (strcmp(source_file_name, "") == 0 && run_CPU)
   //  {
