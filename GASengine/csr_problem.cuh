@@ -256,15 +256,29 @@ namespace GASengine
                            "GpuSlice cudaFree d_row_offsets failed", __FILE__,
                            __LINE__);
         //        if (directed == 1)
-        if (d_row_indices)
-          util::B40CPerror(cudaFree(d_row_indices),
-                           "GpuSlice cudaFree d_row_indices failed", __FILE__,
-                           __LINE__);
+
+//        if (directed &&
+//            (Program::gatherOverEdges() == GATHER_ALL_EDGES ||
+//             Program::expandOverEdges() == EXPAND_ALL_EDGES ||
+//             Program::gatherOverEdges() == GATHER_IN_EDGES ||
+//             Program::expandOverEdges() == EXPAND_IN_EDGES))
+        if (directed)
+        {
+          if (d_row_indices)
+            util::B40CPerror(cudaFree(d_row_indices),
+                             "GpuSlice cudaFree d_row_indices failed", __FILE__,
+                             __LINE__);
+          if (d_column_offsets)
+            util::B40CPerror(cudaFree(d_column_offsets),
+                             "GpuSlice cudaFree d_column_offsets failed",
+                             __FILE__, __LINE__);
+          if (d_edgeCSC_indices)
+            util::B40CPerror(cudaFree(d_edgeCSC_indices),
+                             "GpuSlice cudaFree d_edgeCSC_indices failed",
+                             __FILE__, __LINE__);
+        }
         //        if (directed == 1)
-        if (d_column_offsets)
-          util::B40CPerror(cudaFree(d_column_offsets),
-                           "GpuSlice cudaFree d_column_offsets failed",
-                           __FILE__, __LINE__);
+
         if (d_edgeCountScan)
           util::B40CPerror(cudaFree(d_edgeCountScan),
                            "GpuSlice cudaFree d_edgeCountScan", __FILE__,
@@ -536,7 +550,12 @@ namespace GASengine
                                         __LINE__))
             break;
 
-          //          if (directed)
+//          if (directed &&
+//              (Program::gatherOverEdges() == GATHER_ALL_EDGES ||
+//               Program::expandOverEdges() == EXPAND_ALL_EDGES ||
+//               Program::gatherOverEdges() == GATHER_IN_EDGES ||
+//               Program::expandOverEdges() == EXPAND_IN_EDGES))
+          if (directed)
           {
             if (retval = util::B40CPerror(
                                           cudaMalloc((void**)&graph_slices[0]->d_row_indices,
@@ -678,7 +697,12 @@ namespace GASengine
           double endtransfer = omp_get_wtime();
           printf("CPU to GPU memory transfer time: %f ms\n", (endtransfer - starttransfer) * 1000.0);
 
-          //          if (directed)
+//          if (directed &&
+//              (Program::gatherOverEdges() == GATHER_ALL_EDGES ||
+//               Program::expandOverEdges() == EXPAND_ALL_EDGES ||
+//               Program::gatherOverEdges() == GATHER_IN_EDGES ||
+//               Program::expandOverEdges() == EXPAND_IN_EDGES))
+          if(directed)
           {
             thrust::device_ptr<SizeT> d_row_offsets_ptr = thrust::device_pointer_cast(graph_slices[0]->d_row_offsets);
             thrust::device_ptr<VertexId> d_row_indices_ptr = thrust::device_pointer_cast(graph_slices[0]->d_row_indices);
@@ -853,7 +877,7 @@ namespace GASengine
         }
 
         // Iterate through global frontier queue setups
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 2; i++)
         {
 
           // Allocate frontier queue if not big enough

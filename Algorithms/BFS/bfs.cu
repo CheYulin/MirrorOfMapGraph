@@ -30,6 +30,7 @@ typedef unsigned int uint;
 #include <deque>
 #include <vector>
 #include <bfs.h>
+#include <bfs_pred.h>
 #include <iostream>
 #include <omp.h>
 #include <mpi.h>
@@ -608,8 +609,8 @@ int main(int argc, char **argv)
       exit(1);
   }
 
-  //  if(rank_id == 0)
-  //    csr_graph.DisplayGraph();
+//  if (rank_id == 0)
+//    csr_graph.DisplayGraph();
   int num_srcs = 0;
   int* srcs = NULL;
   int origin = cfg.getParameter<int>("origin");
@@ -678,26 +679,26 @@ int main(int argc, char **argv)
         }
       }
      */
-//    int p = sqrt(np);
-//    int numvert1d = ceil(numVertices / p);
-//    if (rank_id == 0)
-//      printf("\nnumvert1d:%d", numvert1d);
-//
-//    if (rank_id == 0)
-//    {
-//      srand(rank_id);
-//      int random_node;
-//
-//      for (int i = 0; i < numvert1d; i++)
-//      {
-//        random_node = rand() % 16;
-//        if (csr_graph.row_offsets[random_node + 1] - csr_graph.row_offsets[random_node] > 1)
-//        {
-//          src_node = random_node;
-//          break;
-//        }
-//      }
-//    }
+    //    int p = sqrt(np);
+    //    int numvert1d = ceil(numVertices / p);
+    //    if (rank_id == 0)
+    //      printf("\nnumvert1d:%d", numvert1d);
+    //
+    //    if (rank_id == 0)
+    //    {
+    //      srand(rank_id);
+    //      int random_node;
+    //
+    //      for (int i = 0; i < numvert1d; i++)
+    //      {
+    //        random_node = rand() % 16;
+    //        if (csr_graph.row_offsets[random_node + 1] - csr_graph.row_offsets[random_node] > 1)
+    //        {
+    //          src_node = random_node;
+    //          break;
+    //        }
+    //      }
+    //    }
 
     MPI_Bcast(&src_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -708,7 +709,7 @@ int main(int argc, char **argv)
     srcs[0] = src_node;
     if (rank_id == 0)
     {
-      printf("Start Vertex:%d", src_node);
+      printf("Start Vertex:%d\n", src_node);
     }
     //printf("rank_id=%d, src_node=%d, max_degree=%d\n", rank_id, src_node, max_degree);
     //if (origin == 1)
@@ -747,6 +748,7 @@ int main(int argc, char **argv)
     exit(1);
 
   const bool INSTRUMENT = true;
+  cudaError_t retval = cudaSuccess;
   GASengine::EnactorVertexCentric<CsrProblem, bfs, INSTRUMENT> vertex_centric(cfg, g_verbose);
   MPI_Barrier(MPI_COMM_WORLD);
   double starttime = MPI_Wtime();
@@ -756,7 +758,7 @@ int main(int argc, char **argv)
     int tmp_num_srcs = 1;
     tmpsrcs[0] = srcs[i];
 
-    cudaError_t retval = cudaSuccess;
+
 
     retval = vertex_centric.EnactIterativeSearch(csr_problem,
                                                  csr_graph.row_offsets, directed, tmp_num_srcs, tmpsrcs, iter_num,
@@ -767,6 +769,32 @@ int main(int argc, char **argv)
       exit(1);
     }
   }
+
+//  delete csr_problem;
+//  typedef GASengine::CsrProblem<bfs_pred, VertexId, SizeT, Value,
+//          g_mark_predecessor, g_with_value> CsrProblem_pred;
+//  CsrProblem_pred csr_problem_pred(cfg);
+//
+//  if (csr_problem_pred.FromHostProblem(g_stream_from_host, csr_graph.nodes,
+//                                  csr_graph.edges, csr_graph.column_indices, csr_graph.row_offsets,
+//                                  csr_graph.edge_values, csr_graph.row_indices,
+//                                  csr_graph.column_offsets, num_gpus, directed, device_id, rank_id))
+//    exit(1);
+//  typename CsrProblem::GraphSlice *graph_slice = csr_problem.graph_slices[0];
+//
+//  int tmpsrcs[1];
+//  int tmp_num_srcs = 1;
+//  tmpsrcs[0] = srcs[0];
+//  GASengine::EnactorVertexCentric<CsrProblem, bfs_pred, INSTRUMENT> vertex_centric_pred(cfg, g_verbose);
+//  retval = vertex_centric_pred.EnactIterativeSearch(csr_problem,
+//                                                    csr_graph.row_offsets, directed, tmp_num_srcs, tmpsrcs, iter_num,
+//                                                    threshold, np, device_id, rank_id);
+//
+//  if (retval && (retval != cudaErrorInvalidDeviceFunction))
+//  {
+//    exit(1);
+//  }
+
   MPI_Barrier(MPI_COMM_WORLD);
   double endtime = MPI_Wtime();
 
@@ -823,8 +851,8 @@ int main(int argc, char **argv)
     {
       int num_nbs = csr_graph.row_offsets[i + 1] - csr_graph.row_offsets[i];
       local_traversed_edge += num_nbs;
-//      if (rank_id == 1)
-//        printf("rank_id=%d, h_values2[%d]=%d, num_nbs=%d\n", rank_id, i, h_values2[i], local_traversed_edge);
+      //      if (rank_id == 1)
+      //        printf("rank_id=%d, h_values2[%d]=%d, num_nbs=%d\n", rank_id, i, h_values2[i], local_traversed_edge);
     }
   }
 

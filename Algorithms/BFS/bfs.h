@@ -70,7 +70,7 @@ struct bfs
 
     for (int i = 0; i < nodes; i++)
     {
-      h_init_labels[i] = -1;
+      h_init_labels[i] = INIT_VALUE;
     }
     for (int i = 0; i < num_srcs; i++)
     {
@@ -159,7 +159,7 @@ struct bfs
     __device__
     GatherType operator()(GatherType left, GatherType right)
     {
-      return left + right;
+      return max(left, right);
     }
   };
 
@@ -184,7 +184,9 @@ struct bfs
             void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
                             VertexType &vertex_list, EdgeType &edge_list, GatherType & new_value)
     {
-
+      int nb_label = vertex_list.d_labels[neighbor_id_in];
+      int my_label = vertex_list.d_labels[vertex_id];
+      new_value = (my_label - nb_label) == 1? neighbor_id_in: -1;
     }
   };
 
@@ -227,7 +229,7 @@ struct bfs
                             const int vertex_id, const int neighbor_id_in, const int edge_id,
                             VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
     {
-      misc_value = vertex_id;
+//      misc_value = vertex_id;
       //      if(neighbor_id_in == 4120 || neighbor_id_in == 4480 || vertex_id == 4096)
       //        printf("Expand: vertex_id=%d, neighbor_id_in = %d\n", vertex_id, neighbor_id_in);
       frontier = neighbor_id_in;
@@ -246,7 +248,7 @@ struct bfs
       int bit_off = row_id % 8;
       unsigned char mask = 1 << bit_off;
       unsigned char is_visited = d_bitmap_visited[byte_id] & mask;
-      gather_tmp[vertex_id] = misc_value;
+//      gather_tmp[vertex_id] = misc_value;
       //      if (row_id == 4120 || row_id == 4480)
       //      if(rank_id == 1) 
       //        printf("rank_id=%d, iteration=%d, row_id=%d, mask=%d, is_visited=%d\n", rank_id, iteration, row_id, mask, is_visited);
