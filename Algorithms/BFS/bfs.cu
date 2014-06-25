@@ -30,7 +30,6 @@ typedef unsigned int uint;
 #include <deque>
 #include <vector>
 #include <bfs.h>
-#include <bfs_pred.h>
 #include <iostream>
 #include <omp.h>
 #include <mpi.h>
@@ -879,7 +878,7 @@ a node and its parent are joined by an edge of the original graph.(needs predece
 //check parent of parent is same as parent
 
 //every edge in the input list has vertices with levels that differ by at most one or that both are not in the BFS tree,
-#pragma omp parallel for
+//#pragma omp parallel for
    for (int i = 0; i < csr_graph.nodes; i++)
 	{	
 	int from_level = h_values2[i],to_level=-1;int flag = 0;
