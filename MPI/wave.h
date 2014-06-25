@@ -48,6 +48,7 @@ public:
   Statistics* stats;
   unsigned int *bitmap_compressed;
   unsigned char *bitmap_decompressed;
+  unsigned char *out_copy, *assigned_temp, *prefix_temp;
   Compressor* comp;
   double compression_ratio_broadcast;
   double compression_ratio;
@@ -117,6 +118,12 @@ public:
     broadcast_wait = 0;
     copy_time = 0;
     bitunion_time = 0;
+
+    util::B40CPerror(cudaMalloc((void**)&out_copy,ceil(n / 8.0) * sizeof (unsigned char) ));
+
+    util::B40CPerror(cudaMalloc((void**)&assigned_temp,ceil(n / 8.0) * sizeof (unsigned char) ));
+
+    util::B40CPerror(cudaMalloc((void**)&prefix_temp,ceil(n / 8.0) * sizeof (unsigned char) ));
 
     util::B40CPerror(
                      cudaMalloc((void**)&bitmap_compressed,
@@ -223,24 +230,19 @@ public:
                       unsigned char* prefix_d)
   {
 //printf("tree");
+
     int distance = 1;
     bitunion_time = 0.0;
     unsigned int mesg_size = ceil(n / 8.0);
     int rank_id = pi * p + pj; 
-    unsigned char *out_copy;
-    util::B40CPerror(cudaMalloc((void**)&out_copy,mesg_size * sizeof (unsigned char) ));
     cudaMemcpy(out_copy, out_d, mesg_size, cudaMemcpyDeviceToDevice);
-
-    unsigned char *assigned_temp;
-    util::B40CPerror(cudaMalloc((void**)&assigned_temp,mesg_size * sizeof (unsigned char) ));
-
-    double starttime, endtime;
+    double starttime, endtime, startbitunion,endbitunion;
     double waitstart, waitend;
     int numthreads = 256;
     int numblocks = (mesg_size + numthreads - 1) / numthreads;
     MPI_Request request;
     MPI_Status status;
-
+    starttime = MPI_Wtime();
     //    if (rank_id == 0 || rank_id == 1 || rank_id == 2 || rank_id == 3)
     //    {
     //      unsigned int *out_h = (unsigned int*)malloc(mesg_size);
@@ -256,7 +258,6 @@ public:
 
     //    cudaMemcpy(assigned_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
     propagate_wait=0.0;
-    starttime = MPI_Wtime();
     while (distance < p)
     {
       if ((pj + distance) < p)
@@ -271,17 +272,18 @@ public:
       if ((pj - distance) >= 0)
       {
 //        MPI_Recv(prefix_d, mesg_size, MPI_CHAR, rank_id - distance, pi, MPI_COMM_WORLD, &status);
-        MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, rank_id - distance, pi, MPI_COMM_WORLD, &request);
+        MPI_Irecv(prefix_temp, mesg_size, MPI_CHAR, rank_id - distance, pi, MPI_COMM_WORLD, &request);
 		       waitstart = MPI_Wtime(); 
 			MPI_Wait(&request, &status);
 			waitend = MPI_Wtime();
 			propagate_wait += waitend - waitstart;
         //        value += x;
-//        starttime = MPI_Wtime();
-        mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
+        startbitunion = MPI_Wtime();
+        mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_temp, out_d);
+	mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, prefix_temp, prefix_d, prefix_d);
         cudaDeviceSynchronize();
-//        endtime = MPI_Wtime();
-//        bitunion_time += endtime - starttime;
+        endbitunion = MPI_Wtime();
+        bitunion_time += endbitunion - startbitunion;
       }
       distance *= 2;
       //      MPI_Barrier(MPI_COMM_WORLD);

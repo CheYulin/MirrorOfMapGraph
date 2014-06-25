@@ -3454,6 +3454,7 @@ namespace GASengine
         iteration[0]++;
         long long tmp_frontier_size = frontier_size;
         //check if done
+	start_time = MPI_Wtime();
         MPI_Allreduce(&tmp_frontier_size, &global_frontier_size, 1,
                       MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
 
