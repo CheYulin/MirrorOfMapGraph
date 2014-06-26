@@ -186,7 +186,7 @@ struct bfs
     {
       int nb_label = vertex_list.d_labels[neighbor_id_in];
       int my_label = vertex_list.d_labels[vertex_id];
-      new_value = (my_label - nb_label) == 1? neighbor_id_in: -1;
+      new_value = (my_label - nb_label) == 1? neighbor_id_in+1: 0;
     }
   };
 
