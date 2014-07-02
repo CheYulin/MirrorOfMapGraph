@@ -190,7 +190,7 @@ void correctTest(int nodes, int* reference_labels, int* h_labels)
 void printUsageAndExit(char *algo_name)
 {
   std::cout << "Usage: " << algo_name
-          << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-BFS \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
+          << " [-graph (-g) graph_file] [-output (-o) output_file] [-sources src_file] [-p \"variable1=value1 variable2=value2 ... variable3=value3\" -help ] [-c config_file]\n";
   std::cout << "     -help display the command options\n";
   std::cout
           << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
@@ -608,8 +608,8 @@ int main(int argc, char **argv)
       exit(1);
   }
 
-  //  if (rank_id == 0)
-  //    csr_graph.DisplayGraph();
+//    if (rank_id == 1)
+//      csr_graph.DisplayGraph();
   int num_srcs = 0;
   int* srcs = NULL;
   int origin = cfg.getParameter<int>("origin");
@@ -637,7 +637,6 @@ int main(int argc, char **argv)
           srcs[count++] = tmp_src;
         }
       }
-
     }
     else
     {
@@ -821,7 +820,8 @@ int main(int argc, char **argv)
    row_indices[i+p] = i*p+pi;
    for(int i=pi+1;i<p;i++)
    row_indices[i+p-1] = i*p+pi;
-   */for (int i = 0; i < p; i++)
+   */
+  for (int i = 0; i < p; i++)
     col_indices[i] = i * p + pj;
   /*              for(int i=0;i<=pj-1;i++)
    col_indices[i] = i*p+pj;
@@ -879,29 +879,29 @@ int main(int argc, char **argv)
 
   //every edge in the input list has vertices with levels that differ by at most one or that both are not in the BFS tree,
 //#pragma omp parallel for
-  for (int i = 0; i < csr_graph.nodes; i++)
-  {
-    int from_level = h_values2[i], to_level = -1;
-    int flag = 0;
-    for (int j = csr_graph.row_offsets[i]; j < csr_graph.row_offsets[i + 1]; j++)
-    {
-      int to = csr_graph.column_indices[j];
-      to_level = h_values[to];
-      if (to_level <= -1 && from_level > -1) //in directed you should not say both should be in the graph. If from is visited, to should be visited
-      {
-        printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i, to, rank_id, from_level, to_level);
-        flag = 1;
-        break;
-      }
-      if (from_level>-1 && to_level - from_level > 1)
-      {
-        printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i, to, rank_id, from_level, to_level);
-        flag = 1;
-        break;
-      }
-    }
-    if (flag == 1) break;
-  }
+//  for (int i = 0; i < csr_graph.nodes; i++)
+//  {
+//    int from_level = h_values2[i], to_level = -1;
+//    int flag = 0;
+//    for (int j = csr_graph.row_offsets[i]; j < csr_graph.row_offsets[i + 1]; j++)
+//    {
+//      int to = csr_graph.column_indices[j];
+//      to_level = h_values[to];
+//      if (to_level <= -1 && from_level > -1) //in directed you should not say both should be in the graph. If from is visited, to should be visited
+//      {
+//        printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i, to, rank_id, from_level, to_level);
+//        flag = 1;
+//        break;
+//      }
+//      if (from_level>-1 && to_level - from_level > 1)
+//      {
+//        printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i, to, rank_id, from_level, to_level);
+//        flag = 1;
+//        break;
+//      }
+//    }
+//    if (flag == 1) break;
+//  }
   //  if (strcmp(source_file_name, "") == 0 && run_CPU)
   //  {
   //    correctTest(csr_graph.nodes, reference_labels, h_values);

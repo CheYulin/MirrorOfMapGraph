@@ -3241,7 +3241,7 @@ namespace GASengine
       //}
       frontier_size = local_srcs.size();
 
-      int tmp[2] ={frontier_size, 0};
+      int tmp[2] = {frontier_size, 0};
       if (retval = util::B40CPerror(
                                     cudaMemcpy(d_frontier_size,
                                                tmp,
@@ -3372,7 +3372,7 @@ namespace GASengine
         else
         {
           w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-          w.broadcast_send(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+          w.broadcast_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in, -1);
         }
         //        copy_if_mgpu(1000,
         //                     thrust::raw_pointer_cast(&dummy_flags[0]),
@@ -3470,41 +3470,41 @@ namespace GASengine
         else
         {
           start_time = MPI_Wtime();
-//          if (iteration[0] != 1)
-//          {
-//            if (compressed)
-//            {
-//              w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-//              w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-//            }
-//            else
-//            {
-//              w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-//              w.broadcast_send(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-//            }
-//            //  w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-//            //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-//
-//            end_time = MPI_Wtime();
-//          }
-//          else
+          //          if (iteration[0] != 1)
+          //          {
+          //            if (compressed)
+          //            {
+          //              w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+          //              w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+          //            }
+          //            else
+          //            {
+          //              w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+          //              w.broadcast_send(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+          //            }
+          //            //  w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+          //            //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+          //
+          //            end_time = MPI_Wtime();
+          //          }
+          //          else
+          //          {
+          if (compressed)
           {
-            if (compressed)
-            {
-              w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-              w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-            }
-            else
-            {
-              w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-              w.broadcast_send(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-            }
-            //  w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-            //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-
-            end_time = MPI_Wtime();
-
+            w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+            w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
           }
+          else
+          {
+            w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+            w.broadcast_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in, iter);
+          }
+          //  w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+          //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+
+          end_time = MPI_Wtime();
+
+          //          }
           iter_stat.wave_time = end_time - start_time;
         }
 
@@ -3512,6 +3512,8 @@ namespace GASengine
         iter_stat.broadcast_time = w.broadcast_time;
         iter_stat.propagate_wait = w.propagate_wait;
         iter_stat.broadcast_wait = w.broadcast_wait;
+        iter_stat.prop_row = w.prop_row;
+        iter_stat.prop_col = w.prop_col;
         iter_stat.copy_time = w.copy_time;
         iter_stat.bitunion_time = w.bitunion_time;
         iter_stat.compression_time = w.compression_time;
@@ -3579,6 +3581,13 @@ namespace GASengine
       }
 
       start_time = MPI_Wtime();
+      if (pi == pj)
+      {
+        cudaMemcpy(graph_slice->vertex_list.d_labels_src, graph_slice->vertex_list.d_labels, graph_slice->nodes * sizeof (int), cudaMemcpyDeviceToDevice);
+      }
+
+      MPI_Bcast(graph_slice->vertex_list.d_labels_src, graph_slice->nodes, MPI_INT, pj, w.new_col_comm);
+
       byte_size = (graph_slice->nodes + 8 - 1) / 8;
       ////        MPI_Recv(graph_slice->d_bitmap_in, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD, &status);//receive broadcast
       int nthreads = 256;
@@ -3606,7 +3615,6 @@ namespace GASengine
                                                                                        graph_slice->d_edgeCountScan,
                                                                                        *m_mgpuContext);
 
-      //          int n_active_edges = *m_hostMappedValue;
       int n_active_edges;
       cudaMemcpy(&n_active_edges, m_deviceMappedValue,
                  sizeof (int),
@@ -3622,6 +3630,7 @@ namespace GASengine
       SizeT nBlocks = MGPU_DIV_UP(n_active_edges + frontier_size,
                                   nThreadsPerBlock);
       dim3 grid = vertex_centric::mgpukernel::calcGridDim(nBlocks);
+
 
       vertex_centric::mgpukernel::kernel_gather_mgpu<Program, VertexId,
               nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(
@@ -3639,65 +3648,96 @@ namespace GASengine
                                                                    graph_slice->m_gatherDstsTmp,
                                                                    graph_slice->m_gatherMapTmp);
 
-      mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
-                        , graph_slice->m_gatherMapTmp
-                        , n_active_edges
-                        , Program::INIT_VALUE
-                        , ReduceFunctor()
-                        , mgpu::equal_to<VertexId > ()
-                        , (VertexId *)NULL
-                        , ReduceOutputIterator(graph_slice->m_gatherTmp, graph_slice->frontier_queues.d_keys[0])
-                        , NULL
-                        , NULL
-                        , *m_mgpuContext);
+      //      mgpu::ReduceByKey(graph_slice->m_gatherDstsTmp
+      //                        , graph_slice->m_gatherMapTmp
+      //                        , n_active_edges
+      //                        , Program::INIT_VALUE
+      //                        , ReduceFunctor()
+      //                        , mgpu::equal_to<VertexId > ()
+      //                        , (VertexId *)NULL
+      //                        , ReduceOutputIterator(graph_slice->m_gatherTmp, graph_slice->frontier_queues.d_keys[0])
+      //                        , NULL
+      //                        , NULL
+      //                        , *m_mgpuContext);
 
+
+      thrust::device_ptr<int> m_gatherMapTmp_ptr = thrust::device_pointer_cast(graph_slice->m_gatherMapTmp);
+      thrust::device_ptr<int> m_gatherDstsTmp_ptr = thrust::device_pointer_cast(graph_slice->m_gatherDstsTmp);
+      thrust::device_ptr<int> m_gatherTmp_ptr = thrust::device_pointer_cast(graph_slice->m_gatherTmp);
+      thrust::device_ptr<int> d_keys1_ptr = thrust::device_pointer_cast(graph_slice->frontier_queues.d_keys[1]);
+      thrust::equal_to<int> binary_pred;
+      thrust::reduce_by_key(m_gatherDstsTmp_ptr, m_gatherDstsTmp_ptr + n_active_edges, m_gatherMapTmp_ptr, d_keys1_ptr, m_gatherTmp_ptr, binary_pred, ReduceFunctor());
+      SYNC_CHECK();
       end_time = MPI_Wtime();
 
-      //      if (rank_id == 0)
-      //      {
-      //
-      //        char* test_vid3 = new char[graph_slice->nodes];
-      //        cudaMemcpy(test_vid3, graph_slice->d_visit_flags, graph_slice->nodes, cudaMemcpyDeviceToHost);
-      //        printf("d_visit_flags: ");
-      //        for (int i = 0; i < graph_slice->nodes; ++i)
-      //        {
-      //          printf("%d, ", test_vid3[i]);
-      //        }
-      //        printf("\n");
-      //        delete[] test_vid3;
-      //
-      //        int* test_vid2 = new int[graph_slice->nodes];
-      //        cudaMemcpy(test_vid2, graph_slice->vertex_list.d_labels, graph_slice->nodes * sizeof(int), cudaMemcpyDeviceToHost);
-      //        printf("d_labels: ");
-      //        for (int i = 0; i < graph_slice->nodes; ++i)
-      //        {
-      //          printf("%d, ", test_vid2[i]);
-      //        }
-      //        printf("\n");
-      //        delete[] test_vid2;
-      //
-      //        test_vid2 = new int[graph_slice->nodes];
-      //        cudaMemcpy(test_vid2, graph_slice->frontier_queues.d_keys[0], graph_slice->nodes * sizeof(int), cudaMemcpyDeviceToHost);
-      //        printf("d_keys: ");
-      //        for (int i = 0; i < graph_slice->nodes; ++i)
-      //        {
-      //          printf("%d, ", test_vid2[i]);
-      //        }
-      //        printf("\n");
-      //        delete[] test_vid2;
-      //
-      //        test_vid2 = new int[graph_slice->nodes];
-      //        cudaMemcpy(test_vid2, graph_slice->m_gatherTmp, graph_slice->nodes * sizeof(int), cudaMemcpyDeviceToHost);
-      //        printf("m_gather: ");
-      //        for (int i = 0; i < graph_slice->nodes; ++i)
-      //        {
-      //          printf("%d, ", test_vid2[i]);
-      //        }
-      //        printf("\n");
-      //        delete[] test_vid2;
-      //
-      //      }
-
+//      if (rank_id == 1)
+//      {
+//
+//        char* test_vid3 = new char[graph_slice->nodes];
+//        cudaMemcpy(test_vid3, graph_slice->d_visit_flags, graph_slice->nodes, cudaMemcpyDeviceToHost);
+//        printf("d_visit_flags: ");
+//        for (int i = 0; i < graph_slice->nodes; ++i)
+//        {
+//          printf("%d, ", test_vid3[i]);
+//        }
+//        printf("\n");
+//        delete[] test_vid3;
+//
+//        int* test_vid2 = new int[n_active_edges];
+//        cudaMemcpy(test_vid2, graph_slice->m_gatherMapTmp, n_active_edges * sizeof (int), cudaMemcpyDeviceToHost);
+//        printf("m_gatherMapTmp: ");
+//        for (int i = 0; i < n_active_edges; ++i)
+//        {
+//          printf("%d, ", test_vid2[i]);
+//        }
+//        printf("\n");
+//        delete[] test_vid2;
+//
+//        test_vid2 = new int[n_active_edges];
+//        cudaMemcpy(test_vid2, graph_slice->m_gatherDstsTmp, n_active_edges * sizeof (int), cudaMemcpyDeviceToHost);
+//        printf("m_gatherDstsTmp: ");
+//        for (int i = 0; i < n_active_edges; ++i)
+//        {
+//          printf("%d, ", test_vid2[i]);
+//        }
+//        printf("\n");
+//        delete[] test_vid2;
+//
+//        test_vid2 = new int[graph_slice->nodes];
+//        cudaMemcpy(test_vid2, graph_slice->vertex_list.d_labels, graph_slice->nodes * sizeof (int), cudaMemcpyDeviceToHost);
+//        printf("d_labels: ");
+//        for (int i = 0; i < graph_slice->nodes; ++i)
+//        {
+//          printf("%d, ", test_vid2[i]);
+//        }
+//        printf("\n");
+//        delete[] test_vid2;
+//
+//        test_vid2 = new int[frontier_size];
+//        cudaMemcpy(test_vid2, graph_slice->frontier_queues.d_keys[0], frontier_size * sizeof (int), cudaMemcpyDeviceToHost);
+//        printf("d_keys: ");
+//        for (int i = 0; i < frontier_size; ++i)
+//        {
+//          printf("%d, ", test_vid2[i]);
+//        }
+//        printf("\n");
+//        delete[] test_vid2;
+//
+//        test_vid2 = new int[frontier_size];
+//        cudaMemcpy(test_vid2, graph_slice->m_gatherTmp, frontier_size * sizeof (int), cudaMemcpyDeviceToHost);
+//        printf("m_gather: ");
+//        for (int i = 0; i < frontier_size; ++i)
+//        {
+//          printf("%d, ", test_vid2[i]);
+//        }
+//        printf("\n");
+//        delete[] test_vid2;
+//
+//      }
+//
+//      fflush(stdout);
+//      usleep(1000);
+      
       MPI_Barrier(MPI_COMM_WORLD);
       double total_run_time_end = MPI_Wtime();
       double pred_time = end_time - start_time;
@@ -3722,7 +3762,7 @@ namespace GASengine
 
       if (rank_id == 0)
       {
-        printf("Iter+Rank_id GPU_time wave-bitunion termination_check update_vertices pred_time bitunion_time copy_time iter_total_time Propagate Broadcast BroadcastWait PropagateWait total_time frontier_size\n");
+        printf("Iter+Rank_id GPU_time termination_check Propagate bcast_row bcast_col update_vertices pred_time bitunion_time copy_time iter_total_time wave-bitunion Broadcast PropagateWait BroadcastWait total_time frontier_size\n");
         fflush(stdout);
       }
       MPI_Barrier(MPI_COMM_WORLD);
@@ -3736,17 +3776,19 @@ namespace GASengine
         {
           finel_pred_time = pred_time;
         }
-        printf("%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lld\n",
+        printf("%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lld\n",
                i + rank_id / 100.0,
                stats->iter_stats[i].GPU_time,
-               stats->iter_stats[i].wave_time - stats->iter_stats[i].bitunion_time,
                stats->iter_stats[i].allreduce_time,
+               stats->iter_stats[i].propagate_time,
+               stats->iter_stats[i].prop_row,
+               stats->iter_stats[i].prop_col,
                stats->iter_stats[i].update_time,
                finel_pred_time,
                stats->iter_stats[i].bitunion_time,
                stats->iter_stats[i].copy_time,
                stats->iter_stats[i].iter_total,
-               stats->iter_stats[i].propagate_time,
+               stats->iter_stats[i].wave_time - stats->iter_stats[i].bitunion_time,
                stats->iter_stats[i].broadcast_time,
                stats->iter_stats[i].propagate_wait,
                stats->iter_stats[i].broadcast_wait,
@@ -3764,10 +3806,10 @@ namespace GASengine
 
       }
 
-//      printf("rank_id %d predecessor update time %lf\n", rank_id, pred_time);
-//      fflush(stdout);
-//      MPI_Barrier(MPI_COMM_WORLD);
-//      usleep(200);
+      //      printf("rank_id %d predecessor update time %lf\n", rank_id, pred_time);
+      //      fflush(stdout);
+      //      MPI_Barrier(MPI_COMM_WORLD);
+      //      usleep(200);
 
       if (rank_id == 0)
       {

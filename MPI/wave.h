@@ -43,10 +43,11 @@ public:
   MPI_Group orig_group, new_row_group, new_col_group;
   MPI_Comm new_row_comm, new_col_comm;
   int new_row_rank, new_col_rank;
-  double init_time, propagate_time, broadcast_time, compression_time,
-  copy_time, bitunion_time, decompression_time, propagate_wait,
-  broadcast_wait;
+  double init_time, propagate_time, broadcast_time, compression_time, copy_time, bitunion_time, decompression_time, propagate_wait, broadcast_wait;
+  double prop_row, prop_col;
+
   Statistics* stats;
+
   unsigned int *bitmap_compressed;
   unsigned char *bitmap_decompressed;
   unsigned char *out_copy, *assigned_temp, *prefix_temp;
@@ -884,81 +885,185 @@ public:
 
   }
 
-  void broadcast_send(unsigned char* out_d, unsigned char* in_d)
+  void broadcast_tree(unsigned char* out_d, unsigned char* in_d, int iter)
   {
     double starttime, endtime;
-    MPI_Request request[2];
-    MPI_Status status[2];
-    //    MPI_Barrier(MPI_COMM_WORLD);
+    double prop_start, prop_end;
+    int rank_id = pi * p + pj;
+    MPI_Request request[7];
+    MPI_Status status[3];
+    broadcast_wait = 0.0;
+    broadcast_time = 0.0;
+    //        MPI_Barrier(MPI_COMM_WORLD);
     unsigned int mesg_size = ceil(n / (8.0));
+    //    int in[2] = { 0, 1 };
+    //    int out[2] = { 0, 1 };
 
+    starttime = MPI_Wtime();
+    prop_start = MPI_Wtime();
+    int seg_size = p;
+    while ((seg_size >> 1) > 0)
+    {
+      if ((pj + 1) % seg_size == 0)
+      {
+        int recv_rank = p * pi + pj - (seg_size >> 1);
+        MPI_Isend(out_d, mesg_size, MPI_CHAR, recv_rank, 0,
+                  MPI_COMM_WORLD, &request[0]);
+//        printf("pi=%d, pj=%d, to=%d\n", pi, pj, recv_rank);
+      }
+
+      if ((pj + 1 + (seg_size >> 1)) % seg_size == 0)
+      {
+        int send_rank = p * pi + pj + (seg_size >> 1);
+        MPI_Irecv(out_d, mesg_size, MPI_CHAR, send_rank, 0, MPI_COMM_WORLD, &request[1]);
+        
+        MPI_Wait(&request[1], &status[0]);
+//        printf("iter=%d, pi=%d, pj=%d, from=%d\n", iter, pi, pj, send_rank);
+      }
+      seg_size >>= 1;
+
+      //      fflush(stdout);
+      //      usleep(1000);
+      //      MPI_Barrier(MPI_COMM_WORLD);
+
+    }
+
+    prop_end = MPI_Wtime();
+    prop_row = prop_end - prop_start;
+
+    //    cudaDeviceSynchronize();
+
+    //        MPI_Barrier(MPI_COMM_WORLD);
+
+    prop_start = MPI_Wtime();
     if (pj == p - 1)
     {
-      for (int i = 0; i < p - 1; i++)
-      {
-        int recv_rank = pi * p + i;
-        MPI_Isend(out_d, mesg_size, MPI_CHAR, recv_rank, pi,
-                  MPI_COMM_WORLD, &request[0]);
-      }
+      int recv_rank = pi;
+      MPI_Isend(out_d, mesg_size, MPI_CHAR, recv_rank, 1,
+                MPI_COMM_WORLD, &request[2]);
 
-      for (int i = 0; i < p; i++)
-      {
-        if (i != pi)
-        {
-          int recv_rank = i * p + pi;
-          MPI_Isend(out_d, mesg_size, MPI_CHAR, recv_rank, pi,
-                    MPI_COMM_WORLD, &request[0]);
-        }
-      }
-
-      //        waitstart = MPI_Wtime();
-      //        MPI_Wait(&request, &status);
-      //        waitend = MPI_Wtime();
-      //        propagate_wait += waitend - waitstart;
-
-      if (pi < p - 1)
-      {
-        int send_rank = p * p - 1;
-        MPI_Irecv(prefix_temp, mesg_size, MPI_CHAR, send_rank,
-                  pi, MPI_COMM_WORLD, &request[0]);
-        MPI_Wait(&request[0], &status[0]);
-      }
+      //      printf("pi=%d, pj=%d, to=%d\n", pi, pj, recv_rank);
+      recv_rank = (p >> 1) * p + pi;
+      MPI_Isend(out_d, mesg_size, MPI_CHAR, recv_rank, 1,
+                MPI_COMM_WORLD, &request[3]);
+      //      printf("pi=%d, pj=%d, to=%d\n", pi, pj, recv_rank);
     }
-    else
+
+    if (pi == 0 || pi == (p >> 1))
     {
-      int send_rank = pi * p + p - 1;
-      MPI_Irecv(prefix_temp, mesg_size, MPI_CHAR, send_rank,
-                pi, MPI_COMM_WORLD, &request[0]);
-      
-      if (pi != pj)
-      {
-        send_rank = pj * p + p - 1;
-        MPI_Irecv(prefix_temp, mesg_size, MPI_CHAR, send_rank,
-                  pi, MPI_COMM_WORLD, &request[1]);
-        MPI_Wait(&request[1], &status[1]);
-      }
-      
-      MPI_Wait(&request[0], &status[0]);
-    }
-    
-    if (pi == pj)
-      cudaMemcpy(in_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
-//    starttime = MPI_Wtime();
-//    MPI_Bcast(out_d, mesg_size, MPI_CHAR, p - 1, new_row_comm);
-//    endtime = MPI_Wtime();
-//    broadcast_time = endtime - starttime;
-//
-//    starttime = MPI_Wtime();
-//    if (pi == pj)
-//      cudaMemcpy(in_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
-//    endtime = MPI_Wtime();
-//    copy_time = endtime - starttime;
-//
-//    starttime = MPI_Wtime();
-//    MPI_Bcast(in_d, mesg_size, MPI_CHAR, pj, new_col_comm);
-//    endtime = MPI_Wtime();
-//    broadcast_time += endtime - starttime;
+      int send_rank = pj * p + p - 1;
+      MPI_Irecv(in_d, mesg_size, MPI_CHAR, send_rank,
+                1, MPI_COMM_WORLD, &request[4]);
 
+      //      printf("pi=%d, pj=%d, from=%d\n", pi, pj, send_rank);
+      MPI_Wait(&request[4], &status[1]);
+    }
+
+    //    MPI_Barrier(MPI_COMM_WORLD);
+
+    seg_size = p >> 1;
+    while ((seg_size >> 1) > 0)
+    {
+      if (pi % seg_size == 0)
+      {
+        int recv_rank = p * (pi + (seg_size >> 1)) + pj;
+        MPI_Isend(in_d, mesg_size, MPI_CHAR, recv_rank, 1,
+                  MPI_COMM_WORLD, &request[5]);
+        //        printf("pi=%d, pj=%d, to=%d\n", pi, pj, recv_rank);
+      }
+
+      if ((pi - (seg_size >> 1)) % seg_size == 0)
+      {
+        int send_rank = (pi - (seg_size >> 1)) * p + pj;
+        MPI_Irecv(in_d, mesg_size, MPI_CHAR, send_rank,
+                  1, MPI_COMM_WORLD, &request[6]);
+
+        //        printf("pi=%d, pj=%d, from=%d\n", pi, pj, send_rank);
+        MPI_Wait(&request[6], &status[2]);
+      }
+      seg_size >>= 1;
+
+      //      fflush(stdout);
+      //      usleep(1000);
+      //      MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    prop_end = MPI_Wtime();
+    endtime = MPI_Wtime();
+    broadcast_time = endtime - starttime;
+    prop_col = prop_end - prop_start;
+
+    //    if (pj == p - 1)
+    //    {
+    //      for (int i = 0; i < p - 1; i++)
+    //      {
+    //        int recv_rank = pi * p + i;
+    //        MPI_Isend(out_d, mesg_size, MPI_CHAR, recv_rank, 0,
+    //            MPI_COMM_WORLD, &request[0]);
+    //      }
+    //
+    ////      if (pi != p - 1)
+    ////      {
+    //      for (int i = 0; i < p; i++)
+    //      {
+    //        if (i != pi)
+    //        {
+    //          int recv_rank = i * p + pi;
+    //          MPI_Isend(out_d, mesg_size, MPI_CHAR, recv_rank, 1,
+    //              MPI_COMM_WORLD, &request[1]);
+    ////            MPI_Isend(out, 2, MPI_INT, recv_rank, 1,
+    ////                MPI_COMM_WORLD, &request[1]);
+    ////            printf("pi=%d, pj=%d, to=%d\n", pi, pj, recv_rank);
+    //        }
+    //      }
+    ////      }
+    //
+    ////      if (pi == p - 1)
+    ////      {
+    ////        for (int i = 0; i < p - 1; i++)
+    ////        {
+    ////          int recv_rank = i * p + pi;
+    ////          MPI_Isend(out_d, mesg_size, MPI_CHAR, recv_rank, 1,
+    ////              MPI_COMM_WORLD, &request[2]);
+    //////          MPI_Isend(out, 2, MPI_INT, recv_rank, 1,
+    //////              MPI_COMM_WORLD, &request[2]);
+    //////          printf("pi=%d, pj=%d, to=%d\n", pi, pj, recv_rank);
+    ////        }
+    ////      }
+    //
+    //      if (pi < p - 1)
+    //      {
+    //        int send_rank = p * p - 1;
+    //        MPI_Irecv(in_d, mesg_size, MPI_CHAR, send_rank,
+    //            1, MPI_COMM_WORLD, &request[3]);
+    ////        MPI_Irecv(in, 2, MPI_INT, send_rank,
+    ////            1, MPI_COMM_WORLD, &request[3]);
+    ////        printf("pi=%d, pj=%d, from=%d\n", pi, pj, send_rank);
+    //        MPI_Wait(&request[3], &status[2]);
+    //      }
+    //    }
+    //    else
+    //    {
+    //      int send_rank = pi * p + p - 1;
+    //      MPI_Irecv(out_d, mesg_size, MPI_CHAR, send_rank,
+    //          0, MPI_COMM_WORLD, &request[4]);
+    //
+    //      MPI_Wait(&request[4], &status[0]);
+    //
+    //      if (pi != pj)
+    //      {
+    //        int send_rank = pj * p + p - 1;
+    //        MPI_Irecv(in_d, mesg_size, MPI_CHAR, send_rank,
+    //            1, MPI_COMM_WORLD, &request[5]);
+    ////        MPI_Irecv(in, 2, MPI_INT, send_rank,
+    ////            1, MPI_COMM_WORLD, &request[5]);
+    ////        printf("pi=%d, pj=%d, from=%d\n", pi, pj, send_rank);
+    //        MPI_Wait(&request[5], &status[1]);
+    //      }
+    //    }
+    //    if (pi == pj)
+    //      cudaMemcpy(in_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
   }
 
 };

@@ -51,10 +51,12 @@ struct Statistics
     int compressed_size;
     double update_time; // update visited bitmap and label time
     double iter_total;
+    double prop_row;
+    double prop_col;
 
     stats_per_iter() :
     frontier_size(0), GPU_time(0.0), propagate_time(0.0), broadcast_time(0.0), wave_time(0.0),
-    copy_time(0.0), bitunion_time(0.0), allreduce_time(0.0), compression_time(0.0), compressed_size(0), update_time(0.0), iter_total(0.0)
+    copy_time(0.0), bitunion_time(0.0), allreduce_time(0.0), compression_time(0.0), compressed_size(0), update_time(0.0), iter_total(0.0), prop_row(0.0), prop_col(0.0)
     {
     }
   };

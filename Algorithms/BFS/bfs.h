@@ -39,6 +39,7 @@ struct bfs
   struct VertexType
   {
     int* d_labels;
+    int* d_labels_src;
     int nodes;
     int edges;
 
@@ -78,6 +79,7 @@ struct bfs
     }
 
     b40c::util::B40CPerror(cudaMalloc((void**)&vertex_list.d_labels, nodes * sizeof (int)), "cudaMalloc VertexType::d_labels failed", __FILE__, __LINE__);
+    b40c::util::B40CPerror(cudaMalloc((void**)&vertex_list.d_labels_src, nodes * sizeof (int)), "cudaMalloc VertexType::d_labels_src failed", __FILE__, __LINE__);
 
     // Initialize d_labels
     if (b40c::util::B40CPerror(
@@ -184,9 +186,9 @@ struct bfs
             void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
                             VertexType &vertex_list, EdgeType &edge_list, GatherType & new_value)
     {
-      int nb_label = vertex_list.d_labels[neighbor_id_in];
+      int nb_label = vertex_list.d_labels_src[neighbor_id_in];
       int my_label = vertex_list.d_labels[vertex_id];
-      new_value = (my_label - nb_label) == 1? neighbor_id_in+1: 0;
+      new_value = (my_label - nb_label) == 1? neighbor_id_in: -1;
     }
   };
 

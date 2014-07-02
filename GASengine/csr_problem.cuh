@@ -518,7 +518,7 @@ namespace GASengine
           //init m_gatherTmp, necessary for CC!!!
           util::MemsetKernel<GatherType> << <memset_grid_size,
                   memset_block_size, 0, graph_slices[0]->stream >> >(
-                                                                     graph_slices[0]->m_gatherTmp, 0,
+                                                                     graph_slices[0]->m_gatherTmp, -1,
                                                                      graph_slices[0]->nodes);
 
           //
