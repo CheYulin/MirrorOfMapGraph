@@ -60,7 +60,7 @@ public:
   wave(int l_pi, int l_pj, int l_p, int l_n, Statistics* l_stats) :
       init_time(0.0), compressed_size(0), propagate_time(0.0), propagate_wait(
           0.0), broadcast_time(0.0), broadcast_wait(0.0), compression_time(
-          0.0), copy_time(0.0), bitunion_time(0.0)
+          0.0), copy_time(0.0), bitunion_time(0.0), prop_row(0.0), prop_col(0.0)
 
   //l_pi is the x index
   //l_pj is the y index
