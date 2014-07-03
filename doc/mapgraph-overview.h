@@ -67,6 +67,16 @@ This work was (partially) funded by the DARPA XDATA program under AFRL
 This material is based upon work supported by the Defense Advanced
 Research Projects Agency (DARPA) under <tt>Contract No. D14PC00029</tt>.
 
+\subsection publications MapGraph Publications
+
+- <a href="../../papers/MapGraph-SIGMOD-2014.pdf"> MapGraph: A High Level API
+for Fast Development of High Performance Graph Analytics on GPUs </a> -
+Zhisong Fu, Bryan Thompson, Michael Personick (SYSTAP, LLC).  GRADES
+2014, June 22, 2014, Snowbird, Utah, USA.  Copyright 2014 ACM
+978-1-4503-2982-8. DOI:<a
+href="http://dx.doi.org/10.1145/2621934.2621936"
+>http://dx.doi.org/10.1145/2621934.2621936</a>
+
 \subsection performance MapGraph vs Many-Core CPUs
 
 MapGraph is up to two orders of magnitude faster than parallel CPU
