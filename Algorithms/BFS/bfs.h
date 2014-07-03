@@ -87,7 +87,14 @@ struct bfs
                                           cudaMemcpyHostToDevice),
                                "CsrProblem cudaMemcpy d_labels failed", __FILE__,
                                __LINE__))
-      exit(0);
+      exit(1);
+    
+    if (b40c::util::B40CPerror(
+                               cudaMemcpy(vertex_list.d_labels_src, h_init_labels, nodes * sizeof (DataType),
+                                          cudaMemcpyHostToDevice),
+                               "CsrProblem cudaMemcpy d_labels failed", __FILE__,
+                               __LINE__))
+      exit(1);
 
     delete[] h_init_labels;
 

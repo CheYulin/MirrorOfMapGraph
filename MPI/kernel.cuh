@@ -123,7 +123,7 @@ namespace MPI
     }
     
     template<typename Program>
-    __global__ void update_BFS_labels(int iter, typename Program::SizeT nodes, unsigned char* bitmap, typename Program::VertexType vertex_list)
+    __global__ void update_BFS_labels(int rank_id, int iter, typename Program::SizeT nodes, unsigned char* bitmap_in, unsigned char* bitmap_out, typename Program::VertexType vertex_list)
     {
       int tid = blockIdx.x * blockDim.x + threadIdx.x;
       for(int i = tid; i < nodes; i += blockDim.x * gridDim.x)
@@ -131,10 +131,17 @@ namespace MPI
         int byte_id = i / 8;
         int bit_off = i % 8;
         unsigned char mask = 1 << bit_off;
-        if( (bitmap[byte_id] & mask) && vertex_list.d_labels[i] == -1)
-//        if(bitmap[byte_id] & mask)
+        if( (bitmap_out[byte_id] & mask) && vertex_list.d_labels[i] == -1)
+//        if(bitmap_out[byte_id] & mask)
         {
           vertex_list.d_labels[i] = iter;
+        }
+        
+        if( (bitmap_in[byte_id] & mask) && vertex_list.d_labels_src[i] == -1)
+        {
+//          if(rank_id == 1)
+//            printf("rank_id=%d, iter=$d, vertex_id=%d\n", rank_id, iter, i);
+          vertex_list.d_labels_src[i] = iter;
         }
       }
       

@@ -3318,7 +3318,7 @@ namespace GASengine
       {
         int nthreads = 256;
         int nblocks = (graph_slice->nodes + nthreads - 1) / nthreads;
-        update_BFS_labels<Program> << <nblocks, nthreads >> >(0, graph_slice->nodes, graph_slice->d_bitmap_visited, graph_slice->vertex_list);
+        update_BFS_labels<Program> << <nblocks, nthreads >> >(rank_id, 0, graph_slice->nodes, graph_slice->d_bitmap_in, graph_slice->d_bitmap_visited, graph_slice->vertex_list);
 
         //        if (rank_id == 1)
         //        {
@@ -3367,7 +3367,7 @@ namespace GASengine
         if (compressed)
         {
           w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
-          w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_out);
+          w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         }
         else
         {
@@ -3530,7 +3530,7 @@ namespace GASengine
         {
           int nthreads = 256;
           int nblocks = (graph_slice->nodes + nthreads - 1) / nthreads;
-          update_BFS_labels<Program> << <nblocks, nthreads >> >(iteration[0], graph_slice->nodes, graph_slice->d_bitmap_out, graph_slice->vertex_list);
+          update_BFS_labels<Program> << <nblocks, nthreads >> >(rank_id, iteration[0], graph_slice->nodes, graph_slice->d_bitmap_in, graph_slice->d_bitmap_out, graph_slice->vertex_list);
           //          if (rank_id == 1)
           //          {
           //            int* test_vid2 = new int[graph_slice->nodes];
@@ -3581,12 +3581,12 @@ namespace GASengine
       }
 
       start_time = MPI_Wtime();
-      if (pi == pj)
-      {
-        cudaMemcpy(graph_slice->vertex_list.d_labels_src, graph_slice->vertex_list.d_labels, graph_slice->nodes * sizeof (int), cudaMemcpyDeviceToDevice);
-      }
-
-      MPI_Bcast(graph_slice->vertex_list.d_labels_src, graph_slice->nodes, MPI_INT, pj, w.new_col_comm);
+//      if (pi == pj)
+//      {
+//        cudaMemcpy(graph_slice->vertex_list.d_labels_src, graph_slice->vertex_list.d_labels, graph_slice->nodes * sizeof (int), cudaMemcpyDeviceToDevice);
+//      }
+//
+//      MPI_Bcast(graph_slice->vertex_list.d_labels_src, graph_slice->nodes, MPI_INT, pj, w.new_col_comm);
 
       byte_size = (graph_slice->nodes + 8 - 1) / 8;
       ////        MPI_Recv(graph_slice->d_bitmap_in, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD, &status);//receive broadcast
@@ -3672,7 +3672,6 @@ namespace GASengine
 
 //      if (rank_id == 1)
 //      {
-//
 //        char* test_vid3 = new char[graph_slice->nodes];
 //        cudaMemcpy(test_vid3, graph_slice->d_visit_flags, graph_slice->nodes, cudaMemcpyDeviceToHost);
 //        printf("d_visit_flags: ");
