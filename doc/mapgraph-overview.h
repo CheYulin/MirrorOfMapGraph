@@ -69,7 +69,7 @@ Research Projects Agency (DARPA) under <tt>Contract No. D14PC00029</tt>.
 
 \subsection publications MapGraph Publications
 
-- <a href="../../papers/MapGraph-SIGMOD-2014.pdf"> MapGraph: A High Level API
+- <a href="../papers/MapGraph-SIGMOD-2014.pdf"> MapGraph: A High Level API
 for Fast Development of High Performance Graph Analytics on GPUs </a> -
 Zhisong Fu, Bryan Thompson, Michael Personick (SYSTAP, LLC).  GRADES
 2014, June 22, 2014, Snowbird, Utah, USA.  Copyright 2014 ACM

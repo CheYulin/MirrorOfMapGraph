@@ -2,6 +2,8 @@
 all: api
 
 api:
+	@mkdir api
+	cp -r papers api
 	doxygen Doxyfile
 
 clean:
