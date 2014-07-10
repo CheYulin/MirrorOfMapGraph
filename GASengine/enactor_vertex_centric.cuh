@@ -25,7 +25,7 @@
  Copyright 2013-2014 SYSTAP, LLC.  http://www.systap.com
 
  Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
+ you may not use this file except in compliance wbroadith the License.
  You may obtain a copy of the License at
 
  http://www.apache.org/licenses/LICENSE-2.0
@@ -3314,7 +3314,7 @@ namespace GASengine
       //      }
 
       SYNC_CHECK();
-      if (pj == p - 1)
+      //if (pj == p - 1)
       {
         int nthreads = 256;
         int nblocks = (graph_slice->nodes + nthreads - 1) / nthreads;
@@ -3422,6 +3422,12 @@ namespace GASengine
           retval = EnactIterativeSearch<ExpandPolicy, ContractPolicy > (csr_problem, h_row_offsets, directed, threshold,
                                                                         expand_grid_size, contract_grid_size, selector, frontier_selector, pi, pj, rank_id);
         }
+        int byte_size = (graph_slice->nodes + 8 - 1) / 8;
+        int nthreads = 256;
+        int nblocks = (byte_size + nthreads - 1) / nthreads;
+	  bitsubstract << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_out, graph_slice->d_bitmap_visited, graph_slice->d_bitmap_out);
+	  util::B40CPerror(cudaDeviceSynchronize(), "bitunion", __FILE__, __LINE__);
+
         end_time = MPI_Wtime();
         //        stats->total_GPU_time += end_time - start_time;
         iter_stat.GPU_time = end_time - start_time;
@@ -3487,9 +3493,10 @@ namespace GASengine
         //          }
         //          else
         //          {
-        
+
         if (compressed)
         {
+
           w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
           w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
         }
@@ -3538,10 +3545,12 @@ namespace GASengine
 
         start_time = MPI_Wtime();
         //update bitmap_visited
-        int nthreads = 256;
+        {
+	  int nthreads = 256;
         int nblocks = (byte_size + nthreads - 1) / nthreads;
         bitunion << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_out, graph_slice->d_bitmap_visited, graph_slice->d_bitmap_visited);
         util::B40CPerror(cudaDeviceSynchronize(), "bitunion", __FILE__, __LINE__);
+	   }
         //update labels
         //        if (pj == p - 1)
         {
@@ -3610,7 +3619,7 @@ namespace GASengine
       byte_size = (graph_slice->nodes + 8 - 1) / 8;
       ////        MPI_Recv(graph_slice->d_bitmap_in, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD, &status);//receive broadcast
       int nthreads = 256;
-      int nblocks = (byte_size + nthreads - 1) / nthreads;
+      int nblocks = (graph_slice->nodes + nthreads - 1) / nthreads;
       MPI::mpikernel::bitmap2flag<Program> << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_assigned, graph_slice->d_visit_flags);
       util::B40CPerror(cudaDeviceSynchronize(), "bitmap2flag", __FILE__, __LINE__);
 
@@ -3678,11 +3687,11 @@ namespace GASengine
                         NULL,
                         NULL,
                         *m_mgpuContext);
-
+      graph_slice->predecessor_size = frontier_size;
       end_time = MPI_Wtime();
 //      thrust::device_ptr<int> m_gatherTmp_ptr(graph_slice->m_gatherTmp);
-//      int pred_sum = thrust::reduce(m_gatherTmp_ptr, m_gatherTmp_ptr + graph_slice->nodes);
-//      printf("rank_id %d pred_sum %d\n", rank_id, pred_sum);
+//      long long pred_sum = thrust::reduce(m_gatherTmp_ptr, m_gatherTmp_ptr + graph_slice->nodes);
+//      printf("rank_id %d pred_sum %lld\n", rank_id, pred_sum);
 
       //      if (rank_id == 1)
       //      {

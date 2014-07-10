@@ -216,13 +216,21 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
   int i;
   int rank, namelen;
   char processor_name[MPI_MAX_PROCESSOR_NAME];
+
+  rank = atoi(getenv("MV2_COMM_WORLD_RANK"));
+  myid=rank;
+
+  cudaGetDeviceCount(&devCount);
+  device_id = myid % devCount;
+  cudaSetDevice(device_id);
+
   //  freopen("/dev/null", "w", stderr); /* Hide errors from nodes with no CUDA cards */
   MPI_Status stat;
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+//  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Get_processor_name(processor_name, &namelen);
-  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+//  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
   if (myid == 0)
   {
@@ -420,7 +428,7 @@ int main(int argc, char **argv)
   }
 
   int directed = cfg.getParameter<int>("directed");
-
+  int src_node = cfg.getParameter<int>("src");
   if (graph_random == false && graph_type == 1)
   {
     typedef CooEdgeTuple<typename bfs::VertexId, typename bfs::DataType> EdgeTupleType;
@@ -665,7 +673,6 @@ int main(int argc, char **argv)
   }
   else
   {
-    int src_node = cfg.getParameter<int>("src");
     /*int vert_max_degree = 0;
      int max_degree = 0;
       for (int i=0; i<csr_graph.nodes; i++)
@@ -865,7 +872,6 @@ int main(int argc, char **argv)
     printf("global_traversed_edge %lld total_time %lf\n", global_traversed_edge, endtime - starttime);
   }
 
-
   //Begin Validation
   /*
   the BFS tree is a tree and does not contain cycles, (construct tree?)
@@ -879,29 +885,31 @@ int main(int argc, char **argv)
 
   //every edge in the input list has vertices with levels that differ by at most one or that both are not in the BFS tree,
 //#pragma omp parallel for
-//  for (int i = 0; i < csr_graph.nodes; i++)
-//  {
-//    int from_level = h_values2[i], to_level = -1;
-//    int flag = 0;
-//    for (int j = csr_graph.row_offsets[i]; j < csr_graph.row_offsets[i + 1]; j++)
-//    {
-//      int to = csr_graph.column_indices[j];
-//      to_level = h_values[to];
-//      if (to_level <= -1 && from_level > -1) //in directed you should not say both should be in the graph. If from is visited, to should be visited
-//      {
-//        printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i, to, rank_id, from_level, to_level);
-//        flag = 1;
-//        break;
-//      }
-//      if (from_level>-1 && to_level - from_level > 1)
-//      {
-//        printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i, to, rank_id, from_level, to_level);
-//        flag = 1;
-//        break;
-//      }
-//    }
-//    if (flag == 1) break;
-//  }
+  for (int i = 0; i < csr_graph.nodes; i++)
+  {
+    int from_level = h_values2[i], to_level = -1;
+    int flag = 0;
+    for (int j = csr_graph.row_offsets[i]; j < csr_graph.row_offsets[i + 1]; j++)
+    {
+      int to = csr_graph.column_indices[j];
+      to_level = h_values[to];
+      if (to_level <= -1 && from_level > -1) //in directed you should not say both should be in the graph. If from is visited, to should be visited
+      {
+        printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i, to, rank_id, from_level, to_level);
+        flag = 1;
+        break;
+      }
+      if (from_level>-1 && to_level - from_level > 1)
+      {
+        printf("\n Validation failed at From=%d To=%d in rank %d From_level = %d to_level = %d", i, to, rank_id, from_level, to_level);
+        flag = 1;
+        break;
+      }
+    }
+    if (flag == 1) break;
+  }
+
+
   //  if (strcmp(source_file_name, "") == 0 && run_CPU)
   //  {
   //    correctTest(csr_graph.nodes, reference_labels, h_values);
@@ -923,6 +931,90 @@ int main(int argc, char **argv)
 
     fclose(f);
   }
+
+
+
+free(h_values2);
+free(h_values);
+
+
+//copy predecessors
+int root = (int)src_node;
+
+  int* h_preds = (int*)malloc(sizeof (int) * csr_graph.nodes);
+
+for(int i=0;i<csr_graph.nodes;i++)
+	h_preds[i] =0;
+
+
+//printf("\nFrontier Size is :%lld",pred_size);
+
+int* local_preds = (int*)malloc(sizeof (int) * csr_graph.nodes);
+
+for(int i=0;i<csr_graph.nodes;i++)
+	local_preds[i] = 0;
+
+csr_problem.ExtractPreds(h_preds);
+
+for(int i=0;i<csr_graph.nodes;i++)
+	{
+	if(h_preds[i] != -1)
+		local_preds[i] = h_preds[i]+pj*csr_graph.nodes+1;
+	}
+
+free(h_preds);
+
+for(int i=0;i<csr_graph.nodes;i++)
+	if(local_preds[i] > csr_graph.nodes*p+1)
+		printf("\n out of range");
+
+MPI_Reduce(&local_preds[0], &local_preds[0], csr_graph.nodes, MPI_INT, MPI_SUM, 0, new_row_comm);
+
+for(int i=0;i<csr_graph.nodes;i++)
+	if(local_preds[i] > csr_graph.nodes*p+1)
+		{printf("\n out of range after Reduction rank:%d i=%d %lld",rank_id,i,local_preds[i]);
+		break;}
+
+	if(pj==0)
+	{
+	
+	int* global_preds = (int*)malloc(sizeof (int) * csr_graph.nodes*p);
+	MPI_Allgather(&local_preds[0],csr_graph.nodes,MPI_INT,&global_preds[0],csr_graph.nodes,MPI_INT,new_col_comm);
+	
+	if(pi==0){	long long count =0;
+	for(int i=0;i<csr_graph.nodes*p;i++)
+		if(global_preds[i] != 0 && global_preds[i] != root+1) count++;
+	//printf("\n Count is %d",count);
+	}
+	global_preds[src_node] = src_node+1;
+
+	//#pragma omp parallel for
+
+
+	for(int j=0;j<numVertices+1;j++)
+	{
+		int count =0;
+		//#pragma omp parallel for
+		for(int i=0;i<csr_graph.nodes;i++)
+			{
+			if(local_preds[i] != (src_node+1) && local_preds[i] !=0) {local_preds[i] = global_preds[local_preds[i]-1];	count++;}
+			}
+		if(count == 0) 
+		{
+			printf("Predecessor test Passed for Row %d\n",pi);
+			break;
+		}
+		else if(j>numVertices)
+			{ 
+			printf("Predecessor test failed for row %d\n",pi);
+			break;	
+			}	
+	}
+free(global_preds);
+	}
+
+free(local_preds);
+
 
   MPI_Finalize();
   return 0;

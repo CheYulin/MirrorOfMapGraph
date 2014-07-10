@@ -289,6 +289,11 @@ struct bfs
   {
     cudaMemcpy(h_output, vertex_list.d_labels, sizeof (DataType) * vertex_list.nodes, cudaMemcpyDeviceToHost);
   }
+  static void extractPred(int * pred_d,  int nodes, int * h_output)
+  {
+    cudaMemcpy(h_output, pred_d, sizeof (int) * nodes, cudaMemcpyDeviceToHost);
+	
+  }
 
 };
 

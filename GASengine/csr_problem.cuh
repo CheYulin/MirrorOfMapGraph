@@ -181,7 +181,7 @@ namespace GASengine
       unsigned char* d_bitmap_assigned;
       unsigned char* d_bitmap_in;
       unsigned char* d_bitmap_visited;
-
+      int predecessor_size;	
       GatherType *m_gatherMapTmp;
       GatherType *m_gatherTmp;
       GatherType *m_gatherTmp1;
@@ -456,7 +456,56 @@ namespace GASengine
 
       return retval;
     }
+    cudaError_t ExtractPreds(int * h_preds)
+    {
+      cudaError_t retval = cudaSuccess;
 
+      do
+      {
+        if (graph_slices.size() == 1)
+        {
+          // Set device
+          if (util::B40CPerror(cudaSetDevice(graph_slices[0]->gpu),
+                               "CsrProblem cudaSetDevice failed", __FILE__, __LINE__))
+            break;
+
+          Program::extractPred(graph_slices[0]->m_gatherTmp,graph_slices[0]->nodes, h_preds);
+        }
+        else
+        {
+          printf("Multi GPU is not supported yet!\n");
+          exit(0);
+        }
+      }
+      while (0);
+
+      return retval;
+    }
+
+ cudaError_t ExtractPredSize(int * frontier_size)
+    {
+      cudaError_t retval = cudaSuccess;
+
+      do
+      {
+        if (graph_slices.size() == 1)
+        {
+          // Set device
+          if (util::B40CPerror(cudaSetDevice(graph_slices[0]->gpu),
+                               "CsrProblem cudaSetDevice failed", __FILE__, __LINE__))
+            break;	
+		*frontier_size = graph_slices[0]->predecessor_size;
+        }
+        else
+        {
+          printf("Multi GPU is not supported yet!\n");
+          exit(0);
+        }
+      }
+      while (0);
+
+      return retval;
+    }
     /**
      * Initialize from host CSR problem
      */
