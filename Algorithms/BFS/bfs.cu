@@ -218,7 +218,7 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
   char processor_name[MPI_MAX_PROCESSOR_NAME];
 
   rank = atoi(getenv("MV2_COMM_WORLD_RANK"));
-  myid=rank;
+  myid = rank;
 
   cudaGetDeviceCount(&devCount);
   device_id = myid % devCount;
@@ -228,9 +228,9 @@ void MPI_init(int argc, char** argv, int &device_id, int& myid, int& numprocs)
   MPI_Status stat;
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-//  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  //  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Get_processor_name(processor_name, &namelen);
-//  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+  //  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
   if (myid == 0)
   {
@@ -529,7 +529,7 @@ int main(int argc, char **argv)
 
     int p = sqrt(np);
     int numvert1d = ceil(numVertices / (double)p);
-#pragma omp parallel for
+    //#pragma omp parallel for
     for (i = 0; i < numedges; i++)
     {
       if (edges[2 * i] >= numvert1d || edges[2 * i + 1] >= numvert1d) printf("\nNot in range %d %d  should be in %d\n", edges[2 * i], edges[2 * i + 1], numvert1d);
@@ -616,8 +616,8 @@ int main(int argc, char **argv)
       exit(1);
   }
 
-//    if (rank_id == 1)
-//      csr_graph.DisplayGraph();
+  //    if (rank_id == 1)
+  //      csr_graph.DisplayGraph();
   int num_srcs = 0;
   int* srcs = NULL;
   int origin = cfg.getParameter<int>("origin");
@@ -634,7 +634,7 @@ int main(int argc, char **argv)
       num_srcs = cfg.getParameter<int>("num_src");
       srcs = new int[num_srcs];
       printf("Using %d random starting vertices!\n", num_srcs);
-      srand(time(NULL));
+      srand(0);
       int count = 0;
       while (count < num_srcs)
       {
@@ -645,6 +645,11 @@ int main(int argc, char **argv)
           srcs[count++] = tmp_src;
         }
       }
+      //      if(rank_id == 0)
+      //      {
+      //        for(int i=0; i<num_srcs; i++)
+      //          printf("starting vertex: %d\n", srcs[i]);
+      //      }
     }
     else
     {
@@ -884,7 +889,7 @@ int main(int argc, char **argv)
   //check parent of parent is same as parent
 
   //every edge in the input list has vertices with levels that differ by at most one or that both are not in the BFS tree,
-//#pragma omp parallel for
+  //#pragma omp parallel for
   for (int i = 0; i < csr_graph.nodes; i++)
   {
     int from_level = h_values2[i], to_level = -1;
@@ -934,86 +939,94 @@ int main(int argc, char **argv)
 
 
 
-free(h_values2);
-free(h_values);
+  free(h_values2);
+  free(h_values);
 
 
-//copy predecessors
-int root = (int)src_node;
+  //copy predecessors
+  int root = (int)src_node;
 
-  int* h_preds = (int*)malloc(sizeof (int) * csr_graph.nodes);
+  int* h_preds = (int*)malloc(sizeof (int)* csr_graph.nodes);
 
-for(int i=0;i<csr_graph.nodes;i++)
-	h_preds[i] =0;
-
-
-//printf("\nFrontier Size is :%lld",pred_size);
-
-int* local_preds = (int*)malloc(sizeof (int) * csr_graph.nodes);
-
-for(int i=0;i<csr_graph.nodes;i++)
-	local_preds[i] = 0;
-
-csr_problem.ExtractPreds(h_preds);
-
-for(int i=0;i<csr_graph.nodes;i++)
-	{
-	if(h_preds[i] != -1)
-		local_preds[i] = h_preds[i]+pj*csr_graph.nodes+1;
-	}
-
-free(h_preds);
-
-for(int i=0;i<csr_graph.nodes;i++)
-	if(local_preds[i] > csr_graph.nodes*p+1)
-		printf("\n out of range");
-
-MPI_Reduce(&local_preds[0], &local_preds[0], csr_graph.nodes, MPI_INT, MPI_SUM, 0, new_row_comm);
-
-for(int i=0;i<csr_graph.nodes;i++)
-	if(local_preds[i] > csr_graph.nodes*p+1)
-		{printf("\n out of range after Reduction rank:%d i=%d %lld",rank_id,i,local_preds[i]);
-		break;}
-
-	if(pj==0)
-	{
-	
-	int* global_preds = (int*)malloc(sizeof (int) * csr_graph.nodes*p);
-	MPI_Allgather(&local_preds[0],csr_graph.nodes,MPI_INT,&global_preds[0],csr_graph.nodes,MPI_INT,new_col_comm);
-	
-	if(pi==0){	long long count =0;
-	for(int i=0;i<csr_graph.nodes*p;i++)
-		if(global_preds[i] != 0 && global_preds[i] != root+1) count++;
-	//printf("\n Count is %d",count);
-	}
-	global_preds[src_node] = src_node+1;
-
-	//#pragma omp parallel for
+  for (int i = 0; i < csr_graph.nodes; i++)
+    h_preds[i] = 0;
 
 
-	for(int j=0;j<numVertices+1;j++)
-	{
-		int count =0;
-		//#pragma omp parallel for
-		for(int i=0;i<csr_graph.nodes;i++)
-			{
-			if(local_preds[i] != (src_node+1) && local_preds[i] !=0) {local_preds[i] = global_preds[local_preds[i]-1];	count++;}
-			}
-		if(count == 0) 
-		{
-			printf("Predecessor test Passed for Row %d\n",pi);
-			break;
-		}
-		else if(j>numVertices)
-			{ 
-			printf("Predecessor test failed for row %d\n",pi);
-			break;	
-			}	
-	}
-free(global_preds);
-	}
+  //printf("\nFrontier Size is :%lld",pred_size);
 
-free(local_preds);
+  int* local_preds = (int*)malloc(sizeof (int)* csr_graph.nodes);
+
+  for (int i = 0; i < csr_graph.nodes; i++)
+    local_preds[i] = 0;
+
+  csr_problem.ExtractPreds(h_preds);
+
+  for (int i = 0; i < csr_graph.nodes; i++)
+  {
+    if (h_preds[i] != -1)
+      local_preds[i] = h_preds[i] + pj * csr_graph.nodes + 1;
+  }
+
+  free(h_preds);
+
+  for (int i = 0; i < csr_graph.nodes; i++)
+    if (local_preds[i] > csr_graph.nodes * p + 1)
+      printf("\n out of range");
+
+  MPI_Reduce(&local_preds[0], &local_preds[0], csr_graph.nodes, MPI_INT, MPI_SUM, 0, new_row_comm);
+
+  for (int i = 0; i < csr_graph.nodes; i++)
+    if (local_preds[i] > csr_graph.nodes * p + 1)
+    {
+      printf("\n out of range after Reduction rank:%d i=%d %lld", rank_id, i, local_preds[i]);
+      break;
+    }
+
+  if (pj == 0)
+  {
+
+    int* global_preds = (int*)malloc(sizeof (int)* csr_graph.nodes * p);
+    MPI_Allgather(&local_preds[0], csr_graph.nodes, MPI_INT, &global_preds[0], csr_graph.nodes, MPI_INT, new_col_comm);
+
+    if (pi == 0)
+    {
+      long long count = 0;
+      for (int i = 0; i < csr_graph.nodes * p; i++)
+        if (global_preds[i] != 0 && global_preds[i] != root + 1) count++;
+      //printf("\n Count is %d",count);
+    }
+    global_preds[src_node] = src_node + 1;
+
+    //#pragma omp parallel for
+
+
+    for (int j = 0; j < numVertices + 1; j++)
+    {
+      int count = 0;
+      //#pragma omp parallel for
+      for (int i = 0; i < csr_graph.nodes; i++)
+      {
+        if (local_preds[i] != (src_node + 1) && local_preds[i] != 0)
+        {
+          local_preds[i] = global_preds[local_preds[i] - 1];
+          count++;
+        }
+      }
+      if (count == 0)
+      {
+        printf("Predecessor test Passed for Row %d\n", pi);
+        break;
+      }
+      else if (j > numVertices)
+      {
+        printf("Predecessor test failed for row %d\n", pi);
+        break;
+      }
+    }
+    free(global_preds);
+  }
+
+  free(local_preds);
 
 
   MPI_Finalize();

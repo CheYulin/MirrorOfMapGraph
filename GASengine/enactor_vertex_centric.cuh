@@ -288,6 +288,7 @@ namespace GASengine
     //    thrust::device_vector<int> d_vertex_ids;
     int* d_frontier_size;
     int* d_edge_frontier_size;
+    int* h_edge_frontier_size_pinned;
     int frontier_size;
     int edge_frontier_size;
 
@@ -314,7 +315,9 @@ namespace GASengine
     {
       cudaMallocHost(&m_hostMappedValue, sizeof (SizeT), cudaHostAllocMapped);
       cudaHostGetDevicePointer(&m_deviceMappedValue, m_hostMappedValue, 0);
+
       cudaMalloc((void**)&d_frontier_size, 2 * sizeof (SizeT));
+      cudaMallocHost((void**)&h_edge_frontier_size_pinned, 2 * sizeof (SizeT));
       cudaMalloc((void**)&d_edge_frontier_size, 2 * sizeof (SizeT));
 
       if (util::B40CPerror(
@@ -756,7 +759,7 @@ namespace GASengine
 
             //					int rank_id;
             //					MPI_Comm_rank(MPI_COMM_WORLD, &rank_id);
-            //					printf("rank_id=%d, frontier_size=%d, edge_frontier_size=%d\n", rank_id, frontier_size, edge_frontier_size);
+//            printf("frontier_size=%d, edge_frontier_size=%d\n", frontier_size, edge_frontier_size);
             SYNC_CHECK();
             //      cudaDeviceSynchronize();      //terminate scan kernel before read out m_hostMappedValue
 
@@ -1233,7 +1236,7 @@ namespace GASengine
         }
         CHECK(cudaMemset(graph_slice->d_active_flags, 0, sizeof (int)* graph_slice->nodes));
       }
-      cudaDeviceSynchronize();
+      //      cudaDeviceSynchronize();
       SYNC_CHECK();
       selector ^= 1;
 
@@ -2494,8 +2497,8 @@ namespace GASengine
 
       }
 
-      if (util::B40CPerror(cudaThreadSynchronize(), "expand_atomic::Kernel failed ", __FILE__, __LINE__))
-        exit(1);
+      //      if (util::B40CPerror(cudaThreadSynchronize(), "expand_atomic::Kernel failed ", __FILE__, __LINE__))
+      //        exit(1);
 
     }
 
@@ -2877,36 +2880,28 @@ namespace GASengine
         {
           //This function call is fine but the contract function call slow things down a lot
           expand_dynamic < ExpandPolicy > (graph_slice, directed, selector, frontier_selector, queue_index, expand_grid_size);
+          cudaMemcpyAsync(h_edge_frontier_size_pinned, d_edge_frontier_size, 2 * sizeof (int), cudaMemcpyDeviceToHost);
+
           selector ^= 1;
-          //          queue_index++;
 
-          //          cudaEventQuery(throttle_event);                // give host memory mapped visibility to GPU updates
-
-          //              if (DEBUG) printf("\n%lld", (long long) iteration[0]);
-
-          // Throttle
-          if (iteration[0] & 1)
-          {
-            if (retval =
-                util::B40CPerror(cudaEventRecord(throttle_event),
-                                 "EnactorVertexCentric cudaEventRecord throttle_event failed",
-                                 __FILE__, __LINE__))
-              break;
-          }
-          else
-          {
-            if (retval =
-                util::B40CPerror(
-                                 cudaEventSynchronize(throttle_event),
-                                 "EnactorVertexCentric cudaEventSynchronize throttle_event failed",
-                                 __FILE__, __LINE__))
-              break;
-          };
-
-          // Check if done
-          //          if (done[0] == 0)
-          //            break;
-
+          //          // Throttle
+          //          if (iteration[0] & 1)
+          //          {
+          //            if (retval =
+          //                util::B40CPerror(cudaEventRecord(throttle_event),
+          //                                 "EnactorVertexCentric cudaEventRecord throttle_event failed",
+          //                                 __FILE__, __LINE__))
+          //              break;
+          //          }
+          //          else
+          //          {
+          //            if (retval =
+          //                util::B40CPerror(
+          //                                 cudaEventSynchronize(throttle_event),
+          //                                 "EnactorVertexCentric cudaEventSynchronize throttle_event failed",
+          //                                 __FILE__, __LINE__))
+          //              break;
+          //          };
         }
 
         //        printf("iter=%d, rank_id=%d, frontier_size=%d, edge_frontier_size=%d\n", iteration[0], rank_id, frontier_size, edge_frontier_size);
@@ -3131,6 +3126,9 @@ namespace GASengine
       cudaEventRecord(stop);
       cudaEventSynchronize(stop);
       cudaDeviceSynchronize();
+
+      if (frontier_size <= threshold) 
+        edge_frontier_size = h_edge_frontier_size_pinned[frontier_selector];
       //      double endTime = omp_get_wtime();
       //      double elapsed_wall = (endTime - startTime) * 1000;
 
@@ -3387,7 +3385,7 @@ namespace GASengine
       Statistics::stats_per_iter iter_stat;
       double start_time, end_time, total_start, total_end;
 
-      MPI_Barrier(MPI_COMM_WORLD);
+//      MPI_Barrier(MPI_COMM_WORLD);
       double total_run_time_start = MPI_Wtime();
       int iter;
       for (iter = 0; iter < iter_num; iter++)
@@ -3425,8 +3423,8 @@ namespace GASengine
         int byte_size = (graph_slice->nodes + 8 - 1) / 8;
         int nthreads = 256;
         int nblocks = (byte_size + nthreads - 1) / nthreads;
-	  bitsubstract << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_out, graph_slice->d_bitmap_visited, graph_slice->d_bitmap_out);
-	  util::B40CPerror(cudaDeviceSynchronize(), "bitunion", __FILE__, __LINE__);
+        bitsubstract << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_out, graph_slice->d_bitmap_visited, graph_slice->d_bitmap_out);
+        util::B40CPerror(cudaDeviceSynchronize(), "bitunion", __FILE__, __LINE__);
 
         end_time = MPI_Wtime();
         //        stats->total_GPU_time += end_time - start_time;
@@ -3453,7 +3451,8 @@ namespace GASengine
         //          free(in_h);
         //        }
         //
-        iter_stat.frontier_size = count;
+        iter_stat.frontier_size = frontier_size;
+        iter_stat.edge_frontier_size = edge_frontier_size;
 
         iteration[0]++;
 
@@ -3473,45 +3472,45 @@ namespace GASengine
         //        }
         //        else
         //        {
-        start_time = MPI_Wtime();
-        //          if (iteration[0] != 1)
-        //          {
-        //            if (compressed)
-        //            {
-        //              w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-        //              w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-        //            }
-        //            else
-        //            {
-        //              w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-        //              w.broadcast_send(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-        //            }
-        //            //  w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-        //            //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-        //
-        //            end_time = MPI_Wtime();
-        //          }
-        //          else
-        //          {
-
-        if (compressed)
-        {
-
-          w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-          w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-        }
-        else
-        {
-          w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
-          w.broadcast_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in, iter);
-        }
-        //  w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-        //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
-
-        end_time = MPI_Wtime();
-
-        //          }
-        iter_stat.wave_time = end_time - start_time;
+//        start_time = MPI_Wtime();
+//        //          if (iteration[0] != 1)
+//        //          {
+//        //            if (compressed)
+//        //            {
+//        //              w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+//        //              w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+//        //            }
+//        //            else
+//        //            {
+//        //              w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+//        //              w.broadcast_send(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+//        //            }
+//        //            //  w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+//        //            //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+//        //
+//        //            end_time = MPI_Wtime();
+//        //          }
+//        //          else
+//        //          {
+//
+//        if (compressed)
+//        {
+//
+//          w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+//          w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+//        }
+//        else
+//        {
+//          w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+//          w.broadcast_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in, iter);
+//        }
+//        //  w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+//        //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+//
+//        end_time = MPI_Wtime();
+//
+//        //          }
+//        iter_stat.wave_time = end_time - start_time;
         //        }
 
         long long tmp_frontier_size = frontier_size;
@@ -3521,7 +3520,7 @@ namespace GASengine
                       MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
 
         end_time = MPI_Wtime();
-
+        iter_stat.allreduce_time = end_time - start_time;
         if (global_frontier_size == 0)
         {
           //update predecessors
@@ -3529,8 +3528,49 @@ namespace GASengine
           w.bitunion_time = 0.0;
           //break;
         }
+        else
+        {
+          start_time = MPI_Wtime();
 
-        iter_stat.allreduce_time = end_time - start_time;
+          if (compressed)
+          {
+            w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+            w.broadcast_new_frontier(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+          }
+          else
+          {
+            w.propogate_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_assigned, graph_slice->d_bitmap_prefix);
+            w.broadcast_tree(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in, iter);
+          }
+          end_time = MPI_Wtime();
+          iter_stat.wave_time = end_time - start_time;
+        }
+        //  w.reduce_frontier_GDR(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+        //        w.reduce_frontier_CPU(graph_slice->d_bitmap_out, graph_slice->d_bitmap_in);
+
+
+
+        //          }
+
+        //        }
+
+        //        long long tmp_frontier_size = frontier_size;
+        //        //check if done
+        //        start_time = MPI_Wtime();
+        //        MPI_Allreduce(&tmp_frontier_size, &global_frontier_size, 1,
+        //                      MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+        //
+        //        end_time = MPI_Wtime();
+        //
+        //        if (global_frontier_size == 0)
+        //        {
+        //          //update predecessors
+        //          iter_stat.wave_time = 0.0;
+        //          w.bitunion_time = 0.0;
+        //          //break;
+        //        }
+
+
 
         iter_stat.propagate_time = w.propagate_time;
         iter_stat.broadcast_time = w.broadcast_time;
@@ -3546,11 +3586,11 @@ namespace GASengine
         start_time = MPI_Wtime();
         //update bitmap_visited
         {
-	  int nthreads = 256;
-        int nblocks = (byte_size + nthreads - 1) / nthreads;
-        bitunion << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_out, graph_slice->d_bitmap_visited, graph_slice->d_bitmap_visited);
-        util::B40CPerror(cudaDeviceSynchronize(), "bitunion", __FILE__, __LINE__);
-	   }
+          int nthreads = 256;
+          int nblocks = (byte_size + nthreads - 1) / nthreads;
+          bitunion << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_out, graph_slice->d_bitmap_visited, graph_slice->d_bitmap_visited);
+          util::B40CPerror(cudaDeviceSynchronize(), "bitunion", __FILE__, __LINE__);
+        }
         //update labels
         //        if (pj == p - 1)
         {
@@ -3606,8 +3646,8 @@ namespace GASengine
           break;
       }
 
-//      cudaDeviceSynchronize();
-//      MPI_Barrier(MPI_COMM_WORLD);
+      //      cudaDeviceSynchronize();
+      //      MPI_Barrier(MPI_COMM_WORLD);
       start_time = MPI_Wtime();
       ////      if (pi == pj)
       ////      {
@@ -3619,7 +3659,7 @@ namespace GASengine
       byte_size = (graph_slice->nodes + 8 - 1) / 8;
       ////        MPI_Recv(graph_slice->d_bitmap_in, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD, &status);//receive broadcast
       int nthreads = 256;
-      int nblocks = (graph_slice->nodes + nthreads - 1) / nthreads;
+      int nblocks = (byte_size + nthreads - 1) / nthreads;
       MPI::mpikernel::bitmap2flag<Program> << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_assigned, graph_slice->d_visit_flags);
       util::B40CPerror(cudaDeviceSynchronize(), "bitmap2flag", __FILE__, __LINE__);
 
@@ -3689,9 +3729,9 @@ namespace GASengine
                         *m_mgpuContext);
       graph_slice->predecessor_size = frontier_size;
       end_time = MPI_Wtime();
-//      thrust::device_ptr<int> m_gatherTmp_ptr(graph_slice->m_gatherTmp);
-//      long long pred_sum = thrust::reduce(m_gatherTmp_ptr, m_gatherTmp_ptr + graph_slice->nodes);
-//      printf("rank_id %d pred_sum %lld\n", rank_id, pred_sum);
+      //      thrust::device_ptr<int> m_gatherTmp_ptr(graph_slice->m_gatherTmp);
+      //      long long pred_sum = thrust::reduce(m_gatherTmp_ptr, m_gatherTmp_ptr + graph_slice->nodes);
+      //      printf("rank_id %d pred_sum %lld\n", rank_id, pred_sum);
 
       //      if (rank_id == 1)
       //      {
@@ -3757,8 +3797,8 @@ namespace GASengine
       //
       //      }
       //
-//      fflush(stdout);
-//      usleep(1000);
+      //      fflush(stdout);
+      //      usleep(1000);
 
       MPI_Barrier(MPI_COMM_WORLD);
       double total_run_time_end = MPI_Wtime();
@@ -3784,7 +3824,7 @@ namespace GASengine
 
       if (rank_id == 0)
       {
-        printf("Iter+Rank_id GPU_time termination_check Propagate bcast_row bcast_col update_vertices pred_time bitunion_time copy_time iter_total_time wave-bitunion Broadcast PropagateWait BroadcastWait total_time frontier_size\n");
+        printf("Iter+Rank_id GPU_time termination_check Propagate bcast_row bcast_col update_vertices pred_time bitunion_time copy_time iter_total_time wave-bitunion Broadcast PropagateWait BroadcastWait total_time frontier_size edge_frontier_size\n");
         fflush(stdout);
       }
       MPI_Barrier(MPI_COMM_WORLD);
@@ -3798,7 +3838,7 @@ namespace GASengine
         {
           finel_pred_time = pred_time;
         }
-        printf("%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lld\n",
+        printf("%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lld %lld\n",
                i + rank_id / 100.0,
                stats->iter_stats[i].GPU_time,
                stats->iter_stats[i].allreduce_time,
@@ -3815,7 +3855,8 @@ namespace GASengine
                stats->iter_stats[i].propagate_wait,
                stats->iter_stats[i].broadcast_wait,
                stats->iter_stats[i].GPU_time + stats->iter_stats[i].wave_time + stats->iter_stats[i].allreduce_time + stats->iter_stats[i].update_time,
-               stats->iter_stats[i].frontier_size);
+               stats->iter_stats[i].frontier_size,
+               stats->iter_stats[i].edge_frontier_size);
 
         fflush(stdout);
         MPI_Barrier(MPI_COMM_WORLD);

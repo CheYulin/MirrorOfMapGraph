@@ -266,8 +266,8 @@ public:
       {
         MPI_Isend(out_d, mesg_size, MPI_CHAR, rank_id + distance, pi,
                   MPI_COMM_WORLD, &request);
-        //        waitstart = MPI_Wtime();
-        //        MPI_Wait(&request, &status);
+        //                waitstart = MPI_Wtime();
+        MPI_Wait(&request, &status);
         //        waitend = MPI_Wtime();
         //        propagate_wait += waitend - waitstart;
       }
@@ -896,17 +896,17 @@ public:
     broadcast_time = 0.0;
     //        MPI_Barrier(MPI_COMM_WORLD);
     unsigned int mesg_size = ceil(n / (8.0));
-//    cudaMemcpy(out_copy, out_d, mesg_size, cudaMemcpyDeviceToDevice);
+    //    cudaMemcpy(out_copy, out_d, mesg_size, cudaMemcpyDeviceToDevice);
     //    unsigned char* out = (unsigned char*)malloc(mesg_size);
     //    unsigned char* in = (unsigned char*)malloc(mesg_size);
     //    
     //    cudaMemcpy(out, out_d, mesg_size, cudaMemcpyDeviceToHost);
 
-//    if (pi == 0 && pj == 0)
-//      printf("mesg_size=%d\n", mesg_size);
+    //    if (pi == 0 && pj == 0)
+    //      printf("mesg_size=%d\n", mesg_size);
 
-//    unsigned int in[2] = {0, 1};
-//    unsigned int out[2] = {0, 1};
+    //    unsigned int in[2] = {0, 1};
+    //    unsigned int out[2] = {0, 1};
 
     starttime = MPI_Wtime();
     prop_start = MPI_Wtime();
@@ -918,11 +918,11 @@ public:
         int recv_rank = p * pi + pj - (seg_size >> 1);
         MPI_Isend(out_d, mesg_size, MPI_CHAR, recv_rank, 0,
                   MPI_COMM_WORLD, &request[0]);
-//        MPI_Wait(&request[0], &status[0]);
+        MPI_Wait(&request[0], &status[0]);
         //        MPI_Isend(out, mesg_size, MPI_CHAR, recv_rank, 0,
         //                  MPI_COMM_WORLD, &request[0]);
-//        cudaMemcpy(out, out_d, 2 * sizeof (int), cudaMemcpyDeviceToHost);
-//        printf("Send: iter=%d, rank_id=%d, to=%d, out[0]=%u, out[1]=%u\n", iter, pi * p + pj, recv_rank, out[0], out[1]);
+        //        cudaMemcpy(out, out_d, 2 * sizeof (int), cudaMemcpyDeviceToHost);
+        //        printf("Send: iter=%d, rank_id=%d, to=%d, out[0]=%u, out[1]=%u\n", iter, pi * p + pj, recv_rank, out[0], out[1]);
       }
 
       if ((pj + 1 + (seg_size >> 1)) % seg_size == 0)
@@ -932,8 +932,8 @@ public:
         //        MPI_Irecv(out, mesg_size, MPI_CHAR, send_rank, 0, MPI_COMM_WORLD, &request[1]);
 
         MPI_Wait(&request[1], &status[0]);
-//        cudaMemcpy(in, out_d, 2 * sizeof (int), cudaMemcpyDeviceToHost);
-//        printf("Recv: iter=%d, rank_id=%d, from=%d, out[0]=%u, out[1]=%u\n", iter, pi * p + pj, send_rank, in[0], in[1]);
+        //        cudaMemcpy(in, out_d, 2 * sizeof (int), cudaMemcpyDeviceToHost);
+        //        printf("Recv: iter=%d, rank_id=%d, from=%d, out[0]=%u, out[1]=%u\n", iter, pi * p + pj, send_rank, in[0], in[1]);
       }
       seg_size >>= 1;
 
@@ -942,8 +942,8 @@ public:
       //      MPI_Barrier(MPI_COMM_WORLD);
 
     }
-//    MPI_Barrier(MPI_COMM_WORLD);
-//    cudaMemcpy(out_d, out_copy, msg_size, cudaMemcpyDeviceToDevice);
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //    cudaMemcpy(out_d, out_copy, msg_size, cudaMemcpyDeviceToDevice);
 
     prop_end = MPI_Wtime();
     prop_row = prop_end - prop_start;
@@ -958,7 +958,7 @@ public:
       int recv_rank = pi;
       MPI_Isend(out_d, mesg_size, MPI_CHAR, recv_rank, 1,
                 MPI_COMM_WORLD, &request[2]);
-//      MPI_Wait(&request[2], &status[0]);
+      MPI_Wait(&request[2], &status[0]);
       //      MPI_Isend(out, mesg_size, MPI_CHAR, recv_rank, 1,
       //                MPI_COMM_WORLD, &request[2]);
 
@@ -966,7 +966,7 @@ public:
       recv_rank = (p >> 1) * p + pi;
       MPI_Isend(out_d, mesg_size, MPI_CHAR, recv_rank, 1,
                 MPI_COMM_WORLD, &request[3]);
-//      MPI_Wait(&request[3], &status[0]);
+      //      MPI_Wait(&request[3], &status[0]);
       //      MPI_Isend(out, mesg_size, MPI_CHAR, recv_rank, 1,
       //                MPI_COMM_WORLD, &request[3]);
       //      printf("pi=%d, pj=%d, to=%d\n", pi, pj, recv_rank);
@@ -994,7 +994,7 @@ public:
         int recv_rank = p * (pi + (seg_size >> 1)) + pj;
         MPI_Isend(in_d, mesg_size, MPI_CHAR, recv_rank, 1,
                   MPI_COMM_WORLD, &request[5]);
-//        MPI_Wait(&request[5], &status[0]);
+        MPI_Wait(&request[5], &status[0]);
         //        MPI_Isend(in, mesg_size, MPI_CHAR, recv_rank, 1,
         //                  MPI_COMM_WORLD, &request[5]);
         //        printf("pi=%d, pj=%d, to=%d\n", pi, pj, recv_rank);
@@ -1020,8 +1020,8 @@ public:
 
     //    cudaMemcpy(out_d, out, mesg_size, cudaMemcpyHostToDevice);
     //    cudaMemcpy(in_d, in, mesg_size, cudaMemcpyHostToDevice);
-//        MPI_Barrier(MPI_COMM_WORLD);
-//    cudaMemcpy(out_d, out_copy, mesg_size, cudaMemcpyDeviceToDevice);
+    //        MPI_Barrier(MPI_COMM_WORLD);
+    //    cudaMemcpy(out_d, out_copy, mesg_size, cudaMemcpyDeviceToDevice);
     prop_end = MPI_Wtime();
     endtime = MPI_Wtime();
     broadcast_time = endtime - starttime;
