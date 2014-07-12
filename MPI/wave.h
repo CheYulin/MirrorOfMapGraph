@@ -154,79 +154,79 @@ public:
 
   }
 
-  /*
-   void propogate(unsigned char* out_d, unsigned char* assigned_d,
-   unsigned char* prefix_d)
-   //wave propogation, in sequential from top to bottom of the column
-   {
-   double starttime, endtime;
 
-   unsigned int mesg_size = ceil(n / 8.0);
-   int myid = pi * p + pj;
-
-   int numthreads = 512;
-   int byte_size = (n + 8 - 1) / 8;
-   int numblocks = min(512, (byte_size + numthreads - 1) / numthreads);
-
-
-   MPI_Request request[2];
-   MPI_Status status[2];
-   if (p > 1)
-   {
-
-   if (pj == 0)
-   {
-   starttime = MPI_Wtime();
-   MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi,
-   MPI_COMM_WORLD, &request[1]);
-   MPI_Wait(&request[1], &status[1]);
-
-
-   endtime = MPI_Wtime();
-   propagate_time = endtime - starttime;
-   }
-
-   else if (pj != p - 1)
-   {
-   starttime = MPI_Wtime();
-
-   MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi, MPI_COMM_WORLD, &request[0]);
-   MPI_Wait(&request[0], &status[0]);
-   endtime = MPI_Wtime();
-   propagate_time = endtime - starttime;
-
-   starttime = MPI_Wtime();
-   mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
-   cudaDeviceSynchronize();
-   endtime = MPI_Wtime();
-   bitunion_time = endtime - starttime;
-
-   starttime = MPI_Wtime();
-   MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi, MPI_COMM_WORLD, &request[1]);
-
-
-   MPI_Wait(&request[1], &status[1]);
-
-   endtime = MPI_Wtime();
-   propagate_time += endtime - starttime;
-   }
-
-   else
-   {
-   starttime = MPI_Wtime();
-
-   MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi,
-   MPI_COMM_WORLD, &request[0]);
-   MPI_Wait(&request[0], &status[0]);
-
-   endtime = MPI_Wtime();
-   propagate_time = endtime - starttime;
-   mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
-   cudaDeviceSynchronize();
-   }
-   }
-
-   } */
+  //   void propogate(unsigned char* out_d, unsigned char* assigned_d,
+  //   unsigned char* prefix_d)
+  //   //wave propogation, in sequential from top to bottom of the column
+  //   {
+  //   double starttime, endtime;
+  //
+  //   unsigned int mesg_size = ceil(n / 8.0);
+  //   int myid = pi * p + pj;
+  //
+  //   int numthreads = 512;
+  //   int byte_size = (n + 8 - 1) / 8;
+  //   int numblocks = min(512, (byte_size + numthreads - 1) / numthreads);
+  //
+  //
+  //   MPI_Request request[2];
+  //   MPI_Status status[2];
+  //   if (p > 1)
+  //   {
+  //
+  //   if (pj == 0)
+  //   {
+  //   starttime = MPI_Wtime();
+  //   MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi,
+  //   MPI_COMM_WORLD, &request[1]);
+  //   MPI_Wait(&request[1], &status[1]);
+  //
+  //
+  //   endtime = MPI_Wtime();
+  //   propagate_time = endtime - starttime;
+  //   }
+  //
+  //   else if (pj != p - 1)
+  //   {
+  //   starttime = MPI_Wtime();
+  //
+  //   MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi, MPI_COMM_WORLD, &request[0]);
+  //   MPI_Wait(&request[0], &status[0]);
+  //   endtime = MPI_Wtime();
+  //   propagate_time = endtime - starttime;
+  //
+  //   starttime = MPI_Wtime();
+  //   mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
+  //   cudaDeviceSynchronize();
+  //   endtime = MPI_Wtime();
+  //   bitunion_time = endtime - starttime;
+  //
+  //   starttime = MPI_Wtime();
+  //   MPI_Isend(out_d, mesg_size, MPI_CHAR, myid + 1, pi, MPI_COMM_WORLD, &request[1]);
+  //
+  //
+  //   MPI_Wait(&request[1], &status[1]);
+  //
+  //   endtime = MPI_Wtime();
+  //   propagate_time += endtime - starttime;
+  //   }
+  //
+  //   else
+  //   {
+  //   starttime = MPI_Wtime();
+  //
+  //   MPI_Irecv(prefix_d, mesg_size, MPI_CHAR, myid - 1, pi,
+  //   MPI_COMM_WORLD, &request[0]);
+  //   MPI_Wait(&request[0], &status[0]);
+  //
+  //   endtime = MPI_Wtime();
+  //   propagate_time = endtime - starttime;
+  //   mpikernel::bitunion << <numblocks, numthreads >> >(mesg_size, out_d, prefix_d, out_d);
+  //   cudaDeviceSynchronize();
+  //   }
+  //   }
+  //
+  //   } 
 
   void propogate_tree(unsigned char* out_d, unsigned char* assigned_d,
                       unsigned char* prefix_d)
@@ -243,7 +243,9 @@ public:
     int numthreads = 256;
     int numblocks = (mesg_size + numthreads - 1) / numthreads;
     MPI_Request request;
+    MPI_Request requests[10];
     MPI_Status status;
+    MPI_Status statuses[10];
     starttime = MPI_Wtime();
     //    if (rank_id == 0 || rank_id == 1 || rank_id == 2 || rank_id == 3)
     //    {
@@ -260,14 +262,15 @@ public:
 
     //    cudaMemcpy(assigned_d, out_d, mesg_size, cudaMemcpyDeviceToDevice);
     propagate_wait = 0.0;
+    int wait_count = 0;
     while (distance < p)
     {
       if ((pj + distance) < p)
       {
         MPI_Isend(out_d, mesg_size, MPI_CHAR, rank_id + distance, pi,
-                  MPI_COMM_WORLD, &request);
+                  MPI_COMM_WORLD, &requests[wait_count++]);
         //                waitstart = MPI_Wtime();
-        MPI_Wait(&request, &status);
+        //        MPI_Wait(&request[wait_count], &status);
         //        waitend = MPI_Wtime();
         //        propagate_wait += waitend - waitstart;
       }
@@ -290,6 +293,7 @@ public:
         bitunion_time += endbitunion - startbitunion;
       }
       distance *= 2;
+
       //      MPI_Barrier(MPI_COMM_WORLD);
       //      if (rank_id == 3)
       //      {
@@ -304,7 +308,6 @@ public:
       //        free(out_h);
       //      }
     }
-
     //    mpikernel::bitsubstract<<<numblocks, numthreads>>>(mesg_size, out_d,
     //        out_copy, prefix_d);
     startbitunion = MPI_Wtime();
@@ -316,6 +319,10 @@ public:
     endtime = MPI_Wtime();
     propagate_time = endtime - starttime;
     bitunion_time += endbitunion - startbitunion;
+
+    MPI_Waitall(wait_count, requests, statuses);
+
+
   }
 
   void propogate(unsigned char* out_d, unsigned char* assigned_d,

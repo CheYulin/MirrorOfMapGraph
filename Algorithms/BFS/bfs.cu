@@ -454,11 +454,14 @@ int main(int argc, char **argv)
       printf("\n");
 
       MPI_Request request[2];
+      MPI_Status status[2];
       for (int i = 1; i < np; i++)
       {
         long long buffer[2] = {part_count[i], num_vert_per_part_1d};
         MPI_Isend(buffer, sizeof (long long)* 2, MPI_CHAR, i, 0, MPI_COMM_WORLD, &request[0]);
+        MPI_Wait(&request[0], &status[0]);
         MPI_Isend(coos[i], sizeof (EdgeTupleType) * part_count[i], MPI_CHAR, i, 0, MPI_COMM_WORLD, &request[1]);
+        MPI_Wait(&request[1], &status[1]);
       }
 
       //      printf("nodes=%d, num_part_1d=%d, num_vert_per_part_1d=%d\n", csr_graph.nodes, num_part_1d, num_vert_per_part_1d);
