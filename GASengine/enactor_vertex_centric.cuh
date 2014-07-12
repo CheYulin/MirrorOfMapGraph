@@ -3426,31 +3426,34 @@ namespace GASengine
         bitsubstract << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_out, graph_slice->d_bitmap_visited, graph_slice->d_bitmap_out);
         util::B40CPerror(cudaDeviceSynchronize(), "bitunion", __FILE__, __LINE__);
 
+        thrust::device_ptr<unsigned char> d_bitmap_out_ptr(graph_slice->d_bitmap_out);
+        unsigned int red_result = (int)thrust::reduce(d_bitmap_out_ptr, d_bitmap_out_ptr+byte_size);
         end_time = MPI_Wtime();
         //        stats->total_GPU_time += end_time - start_time;
         iter_stat.GPU_time = end_time - start_time;
 
-        long long count = 0;
-        //        if (pj == p - 1)
-        //        {
-        //          int mesg_size = (graph_slice->nodes + 8 - 1) / 8;
-        //          char *in_h = (char*)malloc(mesg_size);
-        //          cudaMemcpy(in_h, graph_slice->d_bitmap_out, mesg_size, cudaMemcpyDeviceToHost);
-        //          //#pragma omp parallel for reduction(+:count)
-        //          for (int i = 0; i < mesg_size; i++)
-        //          {
-        //            count += (int)(in_h[i] >> 0 & 1);
-        //            count += (int)(in_h[i] >> 1 & 1);
-        //            count += (int)(in_h[i] >> 2 & 1);
-        //            count += (int)(in_h[i] >> 3 & 1);
-        //            count += (int)(in_h[i] >> 4 & 1);
-        //            count += (int)(in_h[i] >> 5 & 1);
-        //            count += (int)(in_h[i] >> 6 & 1);
-        //            count += (int)(in_h[i] >> 7 & 1);
-        //          }
-        //          free(in_h);
-        //        }
-        //
+       /* long long count = 0;
+                if (pj == p - 1)
+                {
+                  int mesg_size = (graph_slice->nodes + 8 - 1) / 8;
+                  char *in_h = (char*)malloc(mesg_size);
+                  cudaMemcpy(in_h, graph_slice->d_bitmap_out, mesg_size, cudaMemcpyDeviceToHost);
+                  //#pragma omp parallel for reduction(+:count)
+                  for (int i = 0; i < mesg_size; i++)
+                  {
+                    count += (int)(in_h[i] >> 0 & 1);
+                    count += (int)(in_h[i] >> 1 & 1);
+                    count += (int)(in_h[i] >> 2 & 1);
+                    count += (int)(in_h[i] >> 3 & 1);
+                    count += (int)(in_h[i] >> 4 & 1);
+                    count += (int)(in_h[i] >> 5 & 1);
+                    count += (int)(in_h[i] >> 6 & 1);
+                    count += (int)(in_h[i] >> 7 & 1);
+                  }
+                  free(in_h);
+                }
+        */
+	  frontier_size = red_result;
         iter_stat.frontier_size = frontier_size;
         iter_stat.edge_frontier_size = edge_frontier_size;
 
