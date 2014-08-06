@@ -80,7 +80,7 @@ href="http://dx.doi.org/10.1145/2621934.2621936"
 \subsection performance MapGraph vs Many-Core CPUs
 
 MapGraph is up to two orders of magnitude faster than parallel CPU
-implementations on up 24 CPU cores and has performance comparable to a
+implementations on up to 24 CPU cores and has performance comparable to a
 state-of-the-art manually optimized GPU implementation.  For example,
 the diagram below shows the speedups of MapGraph versus GraphLab for SSSP.
 
