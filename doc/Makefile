@@ -8,7 +8,7 @@ all: api
 # .svn files for each child.
 papers.dir:
 	-mkdir -p api/html/papers
-	cp -r papers/* api/html
+	cp -r papers/* api/html/papers
 
 # Build the documentation.
 api: papers.dir

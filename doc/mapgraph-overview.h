@@ -77,6 +77,12 @@ Zhisong Fu, Bryan Thompson, Michael Personick (SYSTAP, LLC).  GRADES
 href="http://dx.doi.org/10.1145/2621934.2621936"
 >http://dx.doi.org/10.1145/2621934.2621936</a>
 
+- <a href="./papers/UUSCI-2014-002.pdf" > Parallel Breadth First Search
+on GPU Clusters </a> - Z. Fu, H.K. Dasari, M. Berzins, B. Thompson.
+SCI Technical Report, SCI Institute, University of Utah. July 29, 2014. URL:<a
+href="http://www.sci.utah.edu/publications/Fu2014a/UUSCI-2014-002.pdf"
+>http://www.sci.utah.edu/publications/Fu2014a/UUSCI-2014-002.pdf</a>
+
 \subsection performance MapGraph vs Many-Core CPUs
 
 MapGraph is up to two orders of magnitude faster than parallel CPU
