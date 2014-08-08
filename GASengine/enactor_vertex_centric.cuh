@@ -240,7 +240,8 @@ namespace GASengine
                 cudaBindTexture(0,
                     vertex_centric::contract_atomic::BitmaskTex<
                         VisitedMask>::ref,
-                    graph_slice->d_visited_mask, bitmask_desc,
+                    graph_slice->d_visited_mask, 
+                    //bitmask_desc,
                     bytes),
                 "EnactorVertexCentric cudaBindTexture bitmask_tex_ref failed",
                 __FILE__, __LINE__))
