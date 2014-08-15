@@ -33,7 +33,10 @@ compaction.
 the data-level parallelism of the GPU and offer throughput of up to 3
 billion traversed edges per second on a single GPU.
 
-- Partitioned graphs and Multi-GPU support will be in a future release.
+- Preliminary results for the multi-GPU version of MapGraph have traversal
+rates of nearly 30 GTEPS (30 billion traversed edges per second) on a
+scale-free random graph with 4.3 billion directed edges using a 64 GPU
+cluster. See the multi-GPU paper referenced below for details.
 
 - The MapGraph API also comes in a CPU-only version that is currently packaged 
 and distributed with the <a href="http://sourceforge.net/projects/bigdata/">
