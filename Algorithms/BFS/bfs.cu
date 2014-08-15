@@ -42,6 +42,7 @@ typedef unsigned int uint;
 
 #include <b40c/graph/builder/market.cuh>
 #include <b40c/graph/builder/random.cuh>
+#include <b40c/graph/builder/rmat.cuh>
 
 #include <GASengine/csr_problem.cuh>
 #include <GASengine/enactor_vertex_centric.cuh>
@@ -55,6 +56,7 @@ template<
     typename Value,
     typename SizeT>
 void CPUBFS(
+    int directed,
     int test_iteration,
     const CsrGraph<VertexId, Value, SizeT> &csr_graph,
     VertexId *source_path,
@@ -73,9 +75,12 @@ void CPUBFS(
   frontier.push_back(src);
 
   double startTime = omp_get_wtime();
+
   //
   // Perform BFS on CPU
   //
+
+  int iter = 0;
   while (!frontier.empty())
   {
     // Dequeue node from frontier
@@ -86,7 +91,6 @@ void CPUBFS(
     // Locate adjacency list
     int edges_begin = csr_graph.row_offsets[dequeued_node];
     int edges_end = csr_graph.row_offsets[dequeued_node + 1];
-
     for (int edge = edges_begin; edge < edges_end; edge++)
     {
 
@@ -102,6 +106,28 @@ void CPUBFS(
         frontier.push_back(neighbor);
       }
     }
+
+    if(directed==0)
+    {
+       edges_begin = csr_graph.column_offsets[dequeued_node];
+       edges_end = csr_graph.column_offsets[dequeued_node + 1];
+       for (int edge = edges_begin; edge < edges_end; edge++)
+       {
+
+        // Lookup neighbor and enqueue if undiscovered
+         VertexId neighbor = csr_graph.row_indices[edge];
+         if (source_path[neighbor] == -1)
+         {
+            source_path[neighbor] = neighbor_dist;
+            if (search_depth < neighbor_dist)
+            {
+              search_depth = neighbor_dist;
+            }
+            frontier.push_back(neighbor);
+          }
+       }
+    }
+    iter++;
   }
 
   double EndTime = omp_get_wtime();
@@ -279,10 +305,20 @@ int main(int argc, char **argv)
 
   int directed = cfg.getParameter<int>("directed");
 
+/*
+  if(strcmp(graph_file, "RMAT") == 0)
+  {
+    int tmpn = pow(2,21);
+    int tmpe = tmpn * 16;
+    if(builder::BuildRmatGraph<g_with_value>(tmpn, tmpe, csr_graph, true, 0.45, 0.15, 0.15) != 0)
+      exit(1);
+  }
+  else*/
+  {
   if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
       false) != 0)
     exit(1);
-
+  }
 //  csr_graph.DisplayGraph();
   int num_srcs = 0;
   int* srcs = NULL;
@@ -363,6 +399,7 @@ int main(int argc, char **argv)
       src--;
 
     CPUBFS(
+        directed,
         test_iteration,
         csr_graph,
         reference_labels,
@@ -404,6 +441,18 @@ int main(int argc, char **argv)
 
   Value* h_values = (Value*) malloc(sizeof(Value) * csr_graph.nodes);
   csr_problem.ExtractResults(h_values);
+  
+  //compute GTEPS
+  long long te = 0;
+  for(int i=0; i<csr_graph.nodes; i++)
+  {
+    if(h_values[i] != -1)
+    {
+      te += csr_graph.row_offsets[i+1] -  csr_graph.row_offsets[i];
+    }
+  }
+  
+  printf("Traversed edge: %d\n", te);
 
   if (strcmp(source_file_name, "") == 0 && run_CPU)
   {
