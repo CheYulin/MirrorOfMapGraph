@@ -51,8 +51,7 @@ license</a>.  You can download MapGraph from <a
 href="http://sourceforge.net/projects/mpgraph/" >
 http://sourceforge.net/projects/mpgraph/ </a>. For the lastest version
 of this documentation, see <a
-href="http://www.systap.com/mapgraph/api/html/index.html">
-http://www.systap.com/mapgraph/api/html/index.html </a>.  You can
+href="http://mapgraph.io">http://mapgraph.io</a>.  You can
 subscribe to receive notice for future updates on the <a
 href="http://sourceforge.net/projects/mpgraph/" >project home
 page</a>.  For open source support, please ask a question on the <a
