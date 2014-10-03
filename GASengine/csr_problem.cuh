@@ -164,8 +164,8 @@ namespace GASengine
       VertexId *d_labels;				// Source distance
       VertexId *d_preds;               // Predecessor values
       EValue *d_edge_values; // Weight attached to each edge, size equals to the size of d_column_indices
-      int num_src;
-      int *srcs;
+//      int num_src;
+//      int *srcs;
       int outer_iter_num;
       int directed;
       int* d_edgeCountScan;

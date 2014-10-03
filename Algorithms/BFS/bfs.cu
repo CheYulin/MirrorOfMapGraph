@@ -404,7 +404,6 @@ int main(int argc, char **argv)
         csr_graph,
         reference_labels,
         src);
-    //    return 0;
   }
 
 // Allocate problem on GPU
@@ -430,8 +429,7 @@ int main(int argc, char **argv)
 
     cudaError_t retval = cudaSuccess;
 
-    retval = vertex_centric.EnactIterativeSearch(csr_problem,
-        csr_graph.row_offsets, directed, 1, tmpsrcs, iter_num, threshold);
+    retval = vertex_centric.EnactIterativeSearch(csr_problem, directed, 1, tmpsrcs, iter_num, threshold);
 
     if (retval && (retval != cudaErrorInvalidDeviceFunction))
     {

@@ -2398,7 +2398,6 @@ namespace GASengine
     template<typename ExpandPolicy,
     typename ContractPolicy>
     cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
-        typename CsrProblem::SizeT* h_row_offsets,
         int directed, int num_srcs, int* srcs, int iter_num, int threshold)
     {
       typedef typename CsrProblem::SizeT SizeT;
@@ -2899,9 +2898,7 @@ namespace GASengine
       return retval;
     }
 
-    cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
-        typename CsrProblem::SizeT* h_row_offsets,
-        int directed, int num_srcs, int* srcs, int iter_num, int threshold)
+    cudaError_t EnactIterativeSearch(CsrProblem &csr_problem, int directed, int num_srcs, int* srcs, int iter_num, int threshold)
     {
       typedef typename CsrProblem::VertexId VertexId;
       typedef typename CsrProblem::SizeT SizeT;
@@ -2950,7 +2947,7 @@ namespace GASengine
         ContractPolicy;
 
         return EnactIterativeSearch<ExpandPolicy, ContractPolicy>(
-            csr_problem, h_row_offsets, directed, num_srcs, srcs, iter_num, threshold);
+            csr_problem, directed, num_srcs, srcs, iter_num, threshold);
       }
 
       printf("Not yet tuned for this architecture\n");
