@@ -17,6 +17,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <assert.h>
+#include <string.h>
 #define xfree free
 #include <mpi.h>
 #include "make_graph.h"
@@ -29,17 +30,18 @@ int main(int argc, char* argv[])
   unsigned long global_edges;
   double start, stop;
   size_t i;
-
+  int ppr;
   MPI_Init(&argc, &argv);
 
   log_numverts = 16; /* In base 2 */
   long int edges_per_vert = 16;
   if (argc >= 2) log_numverts = atoi(argv[1]);
   if (argc >= 3) edges_per_vert = atoi(argv[2]);
+  if (argc >= 4) ppr = atoi(argv[3]);//partitions per rank
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  if (rank == 0) fprintf(stderr, "Graph size is %" PRId64 " vertices and %" PRId64 " edges\n", INT64_C(1) << log_numverts, edges_per_vert << log_numverts);
+  if (rank == 0) fprintf(stderr, "Graph size is %" PRId64 " vertices and %" PRId64 " edges as %d partitions\n", INT64_C(1) << log_numverts, edges_per_vert << log_numverts, ppr*size);
 
   /* Start of graph generation timing */
   MPI_Barrier(MPI_COMM_WORLD);
@@ -67,30 +69,35 @@ int main(int argc, char* argv[])
   }
   MPI_Barrier(MPI_COMM_WORLD);
   start = MPI_Wtime();
-  if (rank == 0)
-    fprintf(stderr, "\nFile IO\n");
+
   //MPI_Status status;
-  MPI_File cFile[size];
+  MPI_File cFile[size][ppr];
 
-  int length[size], prefix[size];
-  char filename[size][10];
+  int length[size][ppr], prefix[size][ppr];
+  char filename[size][ppr][30];
 
-  //init first one to zero
-  if (rank == 0)
     for (int i = 0; i < size; i++)
-      length[i] = 0;
-
+      for(int j=0;j<ppr;j++)
+		{
+			length[i][j] = 0;
+			prefix[i][j] =0;
+		}
+		
   //compute filenames
   for (int i = 0; i < size; i++)
-    sprintf(filename[i], "graph%d", i);
+	for(int j=0;j<ppr;j++)
+    		sprintf(filename[i][j], "graphi_%d_%d", i,j);
+
+
 
   int p = sqrt(size);
   int global_size = INT64_C(1) << log_numverts;
   int slice_size = ceil((double)global_size / p);
+  int slice_rank = ceil((double)slice_size / ppr);
   int x_index, y_index;
 
 
-  if (rank == 0) printf("\nslice_size %d global_size:%d\n", slice_size, global_size);
+  if (rank == 0) printf("\nslice_size %d Sub Slice Size %d  global_size:%d\n", slice_size, slice_rank, global_size);
 
   MPI_File sizefile;
   int rc = MPI_File_open(MPI_COMM_WORLD, "Graphsizes", MPI_MODE_RDWR | MPI_MODE_CREATE, MPI_INFO_NULL, &sizefile);
@@ -101,8 +108,9 @@ int main(int argc, char* argv[])
   }
   //open all files
   for (int i = 0; i < size; i++)
+   for(int j=0;j<ppr;j++)
   {
-    int rc = MPI_File_open(MPI_COMM_WORLD, filename[i], MPI_MODE_RDWR | MPI_MODE_CREATE, MPI_INFO_NULL, &cFile[i]);
+    int rc = MPI_File_open(MPI_COMM_WORLD, filename[i][j], MPI_MODE_RDWR | MPI_MODE_CREATE, MPI_INFO_NULL, &cFile[i][j]);
     if (rc)
     {
       printf("Unable to open file \"temp\"\n");
@@ -110,13 +118,8 @@ int main(int argc, char* argv[])
     }
   }
 
-
   int from, to;
-  int edge[2], file_index;
-  if (rank == 0)
-  {
-    for (i = 0; i < size; i++)
-      prefix[i] = length[i];
+  int edge[2], file_index, file_sub_index;
 
     //go through all elemnts
     for (i = 0; i < my_edges; ++i)
@@ -132,12 +135,10 @@ int main(int argc, char* argv[])
       if (x_index < p && y_index < p)
       {
         file_index = y_index * p + x_index;
-
-        //match elemnent found 
-
+		file_sub_index = edge[1] / slice_rank;
         //increment count for corresponding
 
-        length[file_index]++;
+        length[file_index][file_sub_index]++;
       } //if(file_index == 0  ){printf("%d %d \n",edge[0],edge[1]);}
 
       edge[0] = to % slice_size;
@@ -148,238 +149,50 @@ int main(int argc, char* argv[])
       if (x_index < p && y_index < p)
       {
         file_index = y_index * p + x_index;
-        length[file_index]++;
+        file_sub_index = edge[1] / slice_rank;
+        length[file_index][file_sub_index]++;
       }
-
-
     }
-    //send the sizes array to next node
-    if (rank != size - 1) MPI_Send(&length, size, MPI_INT, rank + 1, 0, MPI_COMM_WORLD);
-
-    if (size == 1)
-    {
-      int writelength[size + 1];
-      for (int i = 0; i < size; i++)
-        writelength[i] = length[i];
-      writelength[size] = (INT64_C(1) << log_numverts);
-
-      printf("\nnumverts is %d\n", writelength[size]);
-
-      MPI_File_write(sizefile, &writelength, size + 1, MPI_INT, MPI_STATUS_IGNORE);
-    }
+//Do a prefix Sum
 
 
-  }
-  else if (rank < size - 1)
-  {
-    MPI_Recv(&length, size, MPI_INT, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (i = 0; i < size; i++)
-      prefix[i] = length[i];
+  //MPI_Barrier(MPI_COMM_WORLD);
+  //if (rank == 0)
+    //fprintf(stderr, "\nFile IO\n");
 
-    printf("\nIn Rank %d\n", rank);
-
-    for (i = 0; i < my_edges; ++i)
-    {
-      from = get_v0_from_edge(&result[i]);
-      to = get_v1_from_edge(&result[i]);
-
-      edge[0] = from % slice_size;
-      edge[1] = to % slice_size;
-
-      x_index = from / slice_size;
-      y_index = to / slice_size;
-      if (x_index < p && y_index < p)
-      {
-        file_index = y_index * p + x_index;
-        //if(file_index == 0  ){printf("%d %d \n",edge[0],edge[1]);}
-        //match elemnent found 
-
-        //increment count for corresponding
-
-        length[file_index]++;
-      } //write to corresponfing file
-      //MPI_File_write(cFile[file_index], &edge, 2, MPI_INT, MPI_STATUS_IGNORE);
-
-      edge[0] = to % slice_size;
-      edge[1] = from % slice_size;
-
-      x_index = to / slice_size;
-      y_index = from / slice_size;
-      if (x_index < p && y_index < p)
-      {
-        file_index = y_index * p + x_index;
-        length[file_index]++;
-      }
+MPI_Exscan(length, prefix, size*ppr, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
 
-    }
-    //send the sizes array to next node
-    if (rank != size - 1) MPI_Send(&length, size, MPI_INT, rank + 1, 0, MPI_COMM_WORLD);
 
-  }
-  else
-  {
 
-    MPI_Recv(&length, size, MPI_INT, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    for (i = 0; i < size; i++)
-      prefix[i] = length[i];
-    printf("\nIn Rank %d\n", rank);
-    for (i = 0; i < my_edges; ++i)
-    {
-      from = get_v0_from_edge(&result[i]);
-      to = get_v1_from_edge(&result[i]);
 
-      edge[0] = from % slice_size;
-      edge[1] = to % slice_size;
 
-      x_index = from / slice_size;
-      y_index = to / slice_size;
-      if (x_index < p && y_index < p)
-      {
-        file_index = y_index * p + x_index;
-        //if(file_index == 0  ){printf("%d %d \n",edge[0],edge[1]);}
-        //match elemnent found 
-
-        //increment count for corresponding
-
-        length[file_index]++;
-      } //write to corresponfing file
-      // MPI_File_write(cFile[file_index], &edge, 2, MPI_INT, MPI_STATUS_IGNORE);
-
-      edge[0] = to % slice_size;
-      edge[1] = from % slice_size;
-
-      x_index = to / slice_size;
-      y_index = from / slice_size;
-      if (x_index < p && y_index < p)
-      {
-        file_index = y_index * p + x_index;
-        length[file_index]++;
-      }
-
-    }
-
-    int writelength[size + 1];
+if (rank == size - 1)
+{
+    int writelength[size*ppr + 1];
     for (int i = 0; i < size; i++)
-      writelength[i] = length[i];
-    writelength[size] = (INT64_C(1) << log_numverts);
+    {
+		for(int j=0;j<ppr;j++)
+			writelength[i*ppr+j] = length[i][j] + prefix[i][j];
+    }
+    writelength[size*ppr] = (INT64_C(1) << log_numverts);
 
-    printf("\nnumverts is %d\n", writelength[size]);
-
-    MPI_File_write(sizefile, &writelength, size + 1, MPI_INT, MPI_STATUS_IGNORE);
-
-
-  }
-
+    MPI_File_write(sizefile, &writelength, size*ppr + 1, MPI_INT, MPI_STATUS_IGNORE);
+}
   MPI_Barrier(MPI_COMM_WORLD);
+ 
   MPI_File_close(&sizefile);
-
-
-
 
   //create list
 
-  int *dup_list[size];
-  int count[size];
-  for (i = 0; i < size; i++)
-    count[i] = 0;
-
-
+  int *dup_list[size][ppr];
+  int count[size][ppr];
+  
+  memset(count,0,sizeof(int)*size*ppr);
 
   for (int i = 0; i < size; i++)
-    dup_list[i] = (int *)malloc(2 * sizeof (int)*(length[i] - prefix[i]));
-
-  if (rank == 0)
-  {
-    //set view
-    for (i = 0; i < my_edges; ++i)
-    {
-      from = get_v0_from_edge(&result[i]);
-      to = get_v1_from_edge(&result[i]);
-
-      edge[0] = from % slice_size;
-      edge[1] = to % slice_size;
-
-      x_index = from / slice_size;
-      y_index = to / slice_size;
-      if (x_index < p && y_index < p)
-      {
-        file_index = y_index * p + x_index;
-
-        //match elemnent found 
-
-        //if(file_index == 0  ){printf("%d %d \n",edge[0],edge[1]);}
-        //write to dup_list
-        dup_list[file_index][count[file_index]] = edge[0];
-        dup_list[file_index][count[file_index] + 1] = edge[1];
-        count[file_index] += 2;
-      }
-
-      edge[0] = to % slice_size;
-      edge[1] = from % slice_size;
-
-      x_index = to / slice_size;
-      y_index = from / slice_size;
-      if (x_index < p && y_index < p)
-      {
-        file_index = y_index * p + x_index;
-
-        dup_list[file_index][count[file_index]] = edge[0];
-        dup_list[file_index][count[file_index] + 1] = edge[1];
-        count[file_index] += 2;
-      }
-
-
-    }
-  }
-  else if (rank < size - 1)
-  {
-    //set view
-    for (i = 0; i < my_edges; ++i)
-    {
-      from = get_v0_from_edge(&result[i]);
-      to = get_v1_from_edge(&result[i]);
-
-      edge[0] = from % slice_size;
-      edge[1] = to % slice_size;
-
-      x_index = from / slice_size;
-      y_index = to / slice_size;
-      if (x_index < p && y_index < p)
-      {
-        file_index = y_index * p + x_index;
-
-        //match elemnent found 
-
-        //if(file_index == 1  ){printf("%d %d \n",edge[0],edge[1]);}
-
-        dup_list[file_index][count[file_index]] = edge[0];
-        dup_list[file_index][count[file_index] + 1] = edge[1];
-        count[file_index] += 2;
-      }
-
-      edge[0] = to % slice_size;
-      edge[1] = from % slice_size;
-
-      x_index = to / slice_size;
-      y_index = from / slice_size;
-      if (x_index < p && y_index < p)
-      {
-        file_index = y_index * p + x_index;
-
-        dup_list[file_index][count[file_index]] = edge[0];
-        dup_list[file_index][count[file_index] + 1] = edge[1];
-        count[file_index] += 2;
-      }
-
-
-    }
-
-  }
-  else
-  {
-    //set view
-
+	for(int j = 0; j < ppr; j++)
+		dup_list[i][j] = (int *)malloc(2 * sizeof (int)*(length[i][j]));
 
     for (i = 0; i < my_edges; ++i)
     {
@@ -394,13 +207,11 @@ int main(int argc, char* argv[])
       if (x_index < p && y_index < p)
       {
         file_index = y_index * p + x_index;
-
-        //match elemnent found 
-
-        //if(file_index == 0  ){printf("%d %d \n",edge[0],edge[1]);}
-        dup_list[file_index][count[file_index]] = edge[0];
-        dup_list[file_index][count[file_index] + 1] = edge[1];
-        count[file_index] += 2;
+		file_sub_index = edge[1] / slice_rank;
+		
+        dup_list[file_index][file_sub_index][count[file_index][file_sub_index]] = edge[0];
+        dup_list[file_index][file_sub_index][count[file_index][file_sub_index] + 1] = edge[1];
+        count[file_index][file_sub_index] += 2;
       }
 
       edge[0] = to % slice_size;
@@ -411,66 +222,38 @@ int main(int argc, char* argv[])
       if (x_index < p && y_index < p)
       {
         file_index = y_index * p + x_index;
-
-        dup_list[file_index][count[file_index]] = edge[0];
-        dup_list[file_index][count[file_index] + 1] = edge[1];
-        count[file_index] += 2;
+		file_sub_index = edge[1] / slice_rank;
+		
+        dup_list[file_index][file_sub_index][count[file_index][file_sub_index]] = edge[0];
+        dup_list[file_index][file_sub_index][count[file_index][file_sub_index] + 1] = edge[1];
+        count[file_index][file_sub_index] += 2;
       }
-
     }
-  }
-
-  MPI_Barrier(MPI_COMM_WORLD);
-  //if(rank ==0) for(int i=0;i<size;i++) printf("\n%d %d\n",i,count[i]);
-
-  //NOW START WRITING YOUR PARTS
-
-  if (rank == 0)
-  {
-    //set view	
+    
     for (int i = 0; i < size; i++)
-      MPI_File_write(cFile[i], dup_list[i], count[i], MPI_INT, MPI_STATUS_IGNORE);
-
-
-  }
-  else if (rank < size - 1)
-  {
-    //set view
+		for(int j = 0;j < ppr; j++)
+			MPI_File_seek(cFile[i][j], 2 * prefix[i][j] * sizeof (int), MPI_SEEK_SET);
 
     for (int i = 0; i < size; i++)
-      MPI_File_seek(cFile[i], 2 * prefix[i] * sizeof (int), MPI_SEEK_SET);
+		for(int j = 0;j < ppr; j++)
+			MPI_File_write(cFile[i][j], dup_list[i][j], count[i][j], MPI_INT, MPI_STATUS_IGNORE);
 
-
-    for (int i = 0; i < size; i++)
-      MPI_File_write(cFile[i], dup_list[i], count[i], MPI_INT, MPI_STATUS_IGNORE);
-
-  }
-  else
-  {
-    //set view
-    for (int i = 0; i < size; i++)
-      MPI_File_seek(cFile[i], 2 * prefix[i] * sizeof (int), MPI_SEEK_SET);
-
-    for (int i = 0; i < size; i++)
-      MPI_File_write(cFile[i], dup_list[i], count[i], MPI_INT, MPI_STATUS_IGNORE);
-
-  }
 
   MPI_Barrier(MPI_COMM_WORLD);
 
   for (i = 0; i < size; i++)
-  {
-    MPI_File_close(&cFile[i]);
-  }
-
-
-  for (i = 0; i < size; i++)
-    free(dup_list[i]);
-
-
+	for(int j = 0;j < ppr; j++)
+	  {
+		MPI_File_close(&cFile[i][j]);
+	  }
+  for (int i = 0; i < size; i++)
+	for(int j=0;j<ppr;j++)
+    free(dup_list[i][j]);
 
   stop = MPI_Wtime();
   if (rank == 0) printf("\nTime taken to write the graph to files is %lf\n", stop - start);
+
+
   xfree(result);
   MPI_Finalize();
   return 0;
