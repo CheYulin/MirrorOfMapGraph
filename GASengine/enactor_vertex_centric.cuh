@@ -2398,6 +2398,7 @@ namespace GASengine
     template<typename ExpandPolicy,
     typename ContractPolicy>
     cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
+        typename CsrProblem::SizeT* h_row_offsets, // FIXME THIS PARAMETER SHOULD BE REMOVED.
         int directed, int num_srcs, int* srcs, int iter_num, int threshold)
     {
       typedef typename CsrProblem::SizeT SizeT;
@@ -2410,7 +2411,12 @@ namespace GASengine
       csr_problem.graph_slices[0];
 
       DEBUG = cfg.getParameter<int>("verbose");
-      m_mgpuContext = mgpu::CreateCudaDevice(cfg.getParameter<int>("device"));
+      {
+    	  CUdevice dev;
+    	  if(cuCtxGetDevice(&dev)) throw;
+    	  m_mgpuContext = mgpu::CreateCudaDevice(dev);
+//    	  m_mgpuContext = mgpu::CreateCudaDevice(cfg.getParameter<int>("device")); // Note: avoid access to "device" parameter from inside MapGraph core.
+      }
       cudaError_t retval = cudaSuccess;
 
 // Determine grid size(s)
@@ -2480,6 +2486,7 @@ namespace GASengine
               max_queue_sizing))
       return retval;
 
+      // Call back initializes any additional data for the user's GAS program.
       Program::Initialize(directed, graph_slice->nodes, graph_slice->edges, num_srcs,
           srcs, graph_slice->d_row_offsets, graph_slice->d_column_indices, graph_slice->d_column_offsets, graph_slice->d_row_indices,
           graph_slice->d_edge_values,
@@ -2898,7 +2905,9 @@ namespace GASengine
       return retval;
     }
 
-    cudaError_t EnactIterativeSearch(CsrProblem &csr_problem, int directed, int num_srcs, int* srcs, int iter_num, int threshold)
+    cudaError_t EnactIterativeSearch(CsrProblem &csr_problem,
+        typename CsrProblem::SizeT* h_row_offsets, // FIXME THIS PARAMETER SHOULD BE REMOVED.
+        int directed, int num_srcs, int* srcs, int iter_num, int threshold)
     {
       typedef typename CsrProblem::VertexId VertexId;
       typedef typename CsrProblem::SizeT SizeT;
@@ -2947,7 +2956,7 @@ namespace GASengine
         ContractPolicy;
 
         return EnactIterativeSearch<ExpandPolicy, ContractPolicy>(
-            csr_problem, directed, num_srcs, srcs, iter_num, threshold);
+            csr_problem, h_row_offsets, directed, num_srcs, srcs, iter_num, threshold);
       }
 
       printf("Not yet tuned for this architecture\n");
