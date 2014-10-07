@@ -559,8 +559,11 @@ namespace GASengine
             thrust::device_ptr<EValue> d_edge_values_ptr = thrust::device_pointer_cast(graph_slices[0]->d_edge_values);
             thrust::device_ptr<VertexId> d_edgeCSC_indices_ptr = thrust::device_pointer_cast(graph_slices[0]->d_edgeCSC_indices);
 
+            const double beginCSC = omp_get_wtime();
             offsets_to_indices(graph_slices[0]->nodes + 1, graph_slices[0]->edges, d_row_offsets_ptr, d_row_indices_ptr);
             sort_by_column(graph_slices[0]->edges, graph_slices[0]->nodes + 1, d_column_indices_ptr, d_row_indices_ptr, d_column_offsets_ptr, d_edgeCSC_indices_ptr);
+            const double elapsedCSC = omp_get_wtime() - beginCSC;
+            printf("GPU CSC matrix build time: %f ms\n", elapsedCSC*1000.0);
 
 //            printf("edge values:\n");
 //            for(int i=0; i<graph_slices[0]->edges; i++)
