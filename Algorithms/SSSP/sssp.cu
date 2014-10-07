@@ -123,6 +123,8 @@ void correctTest(int nodes, int* reference_dists, int* h_dists)
     printf("failed\n");
 }
 
+// FIXME CPUSSSP() ignores [directed]. Hence cross validation of the CPU and GPU
+// is only correct when the graph is treated as directed.
 template<typename VertexId, typename Value, typename SizeT>
 void CPUSSSP(CsrGraph<VertexId, Value, SizeT> const &graph, VertexId* dist, VertexId src)
 {
