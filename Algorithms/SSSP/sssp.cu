@@ -105,10 +105,10 @@ void cudaInit(int device)
   }
 }
 
-void correctTest(int nodes, int* reference_dists, int* h_dists)
+bool correctTest(int nodes, int* reference_dists, int* h_dists)
 {
   bool pass = true;
-  printf("Correctness testing ...");
+  printf("Correctness testing ...");fflush(stdout);
   for (int i = 0; i < nodes; i++)
   {
     if (reference_dists[i] != h_dists[i])
@@ -121,17 +121,19 @@ void correctTest(int nodes, int* reference_dists, int* h_dists)
     printf("passed\n");
   else
     printf("failed\n");
+  return pass;
 }
 
 // FIXME CPUSSSP() ignores [directed]. Hence cross validation of the CPU and GPU
 // is only correct when the graph is treated as directed.
 template<typename VertexId, typename Value, typename SizeT>
-void CPUSSSP(CsrGraph<VertexId, Value, SizeT> const &graph, VertexId* dist, VertexId src)
+void CPUSSSP(const bool directed, CsrGraph<VertexId, Value, SizeT> const &graph, VertexId* dist, VertexId src)
 {
 
 // initialize dist[] and pred[] arrays. Start with vertex s by setting
 // dist[] to 0.
 
+  printf("Running CPU code...");fflush(stdout);
   const int n = graph.nodes;
   for (int i = 0; i < n; i++)
     dist[i] = 100000000;
@@ -141,12 +143,12 @@ void CPUSSSP(CsrGraph<VertexId, Value, SizeT> const &graph, VertexId* dist, Vert
 // find vertex in ever-shrinking set, V-S, whose dist value is smallest
 // Recompute potential new paths to update all shortest paths
 
-  double startTime = omp_get_wtime();
+  const time_t startTime = time(NULL);
   while (true)
   {
 // find shortest distance so far in unvisited vertices
     int u = -1;
-    int sd = 100000000; // assume not reachable
+    int sd = sssp::INIT_VALUE; // assume not reachable
 
     for (int i = 0; i < n; i++)
     {
@@ -163,24 +165,36 @@ void CPUSSSP(CsrGraph<VertexId, Value, SizeT> const &graph, VertexId* dist, Vert
 
 // For neighbors of u, see if length of best path from s->u + weight
 // of edge u->v is better than best path from s->v.
-    visited[u] = true;
+	visited[u] = true;
+	{ // forward
+		for (int j = graph.row_offsets[u]; j < graph.row_offsets[u + 1];
+				++j) {
+			int v = graph.column_indices[j]; // the neighbor v
+			long newLen = dist[u]; // compute as long
+			newLen += graph.edge_values[j]; // sum with (u,v) weight
 
-    for (int j = graph.row_offsets[u]; j < graph.row_offsets[u + 1]; ++j)
-    {
-      int v = graph.column_indices[j]; // the neighbor v
-      long newLen = dist[u]; // compute as long
-      newLen += graph.edge_values[j]; // sum with (u,v) weight
+			if (newLen < dist[v]) {
+				dist[v] = newLen;
+			}
+		}
+	}
+	if (!directed) { // reverse
+		for (int j = graph.column_offsets[u]; j < graph.column_offsets[u + 1];
+				++j) {
+			int v = graph.row_indices[j]; // the neighbor v
+			long newLen = dist[u]; // compute as long
+			newLen += graph.edge_values[j]; // sum with (u,v) weight
 
-      if (newLen < dist[v])
-      {
-        dist[v] = newLen;
-      }
-    }
+			if (newLen < dist[v]) {
+				dist[v] = newLen;
+			}
+		}
+	}
   }
 
-  double EndTime = omp_get_wtime();
+  const time_t EndTime = time(NULL);
 
-  std::cout << "CPU time took: " << (EndTime - startTime) * 1000 << " ms"
+  std::cout << "CPU time took: " << difftime(EndTime, startTime) * 1000 << " ms"
       << std::endl;
 }
 
@@ -272,9 +286,10 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  char hostname[1024];
-  hostname[1023] = '\0';
+  char hostname[1024] = "localhost";
+#ifdef gethostname
   gethostname(hostname, 1023);
+#endif
 
   printf("Running on host: %s\n", hostname);
 
@@ -350,6 +365,13 @@ int main(int argc, char **argv)
     printf("Single source vertex: %d\n", srcs[0]);
   }
 
+  {
+	  const int stats = cfg.getParameter<int>("stats");
+	  if(stats) {
+		  csr_graph.PrintHistogram();
+	  }
+  }
+
   int run_CPU = cfg.getParameter<int>("run_CPU");
 
   VertexId* reference_dists;
@@ -361,7 +383,7 @@ int main(int argc, char **argv)
     if (origin == 1)
       src--;
 
-    CPUSSSP(
+    CPUSSSP(directed,
         csr_graph,
         reference_dists,
         src);
@@ -410,8 +432,12 @@ int main(int argc, char **argv)
 
   if (strcmp(source_file_name, "") == 0 && run_CPU)
   {
-    correctTest(csr_graph.nodes, reference_dists, h_values);
+	const bool ok = correctTest(csr_graph.nodes, reference_dists, h_values);
     free(reference_dists);
+	if (!ok) {
+		fprintf(stderr, "correctness test failed.");
+		exit(1);
+	}
   }
 
   if (outFileName)

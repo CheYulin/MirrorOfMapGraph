@@ -38,7 +38,7 @@ struct cc
   typedef int VertexId;
   typedef int SizeT;
 
-  static const int INIT_VALUE = 100000000;
+  static const int INIT_VALUE = INT_MAX;//100000000;
   static const bool allow_duplicates = true;
 
   struct VertexType

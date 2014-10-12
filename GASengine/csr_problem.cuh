@@ -203,6 +203,7 @@ namespace GASengine
               NULL), d_filter_mask(NULL), d_visit_flags(NULL), d_changed(d_changed), nodes(
               0), edges(0), stream(stream)
       {
+    	  printf("GraphSlice()");
         // Initialize triple-buffer frontier queue lengths
         for (int i = 0; i < 3; i++)
         {
@@ -216,6 +217,7 @@ namespace GASengine
        */
       virtual ~GraphSlice()
       {
+    	  printf("~GraphSlice()");
         // Set device
         util::B40CPerror(cudaSetDevice(gpu),
             "GpuSlice cudaSetDevice failed", __FILE__, __LINE__);
@@ -310,9 +312,10 @@ namespace GASengine
     /**
      * Constructor
      */
-    CsrProblem(Config cfg) :
+    CsrProblem(Config cfg) : // TODO Why is Config passed by value and not by ref?
         num_gpus(0), nodes(0), edges(0), cfg(cfg)
     {
+    	  printf("CsrProblem()");
     }
 
     /**
@@ -320,6 +323,7 @@ namespace GASengine
      */
     virtual ~CsrProblem()
     {
+  	  printf("~CsrProblem()");
       // Cleanup graph slices on the heap
       for (typename std::vector<GraphSlice*>::iterator itr =
           graph_slices.begin(); itr != graph_slices.end(); itr++)
@@ -407,7 +411,7 @@ namespace GASengine
         int num_gpus,
         int directed)
     {
-      int device = cfg.getParameter<int>("device");
+      const int device = cfg.getParameter<int>("device");
       cudaError_t retval = cudaSuccess;
       this->nodes = nodes;
       this->edges = edges;
@@ -423,7 +427,7 @@ namespace GASengine
           int gpu = device;
 //              if (retval = util::B40CPerror(cudaGetDevice(&gpu), "CsrProblem cudaGetDevice failed", __FILE__, __LINE__)) break;
           if (retval = util::B40CPerror(cudaSetDevice(gpu),
-              "CsrProblem cudaGetDevice failed", __FILE__, __LINE__))
+              "CsrProblem cudaSetDevice failed", __FILE__, __LINE__))
             break;
 //              printf("Running on device %d\n", device);
           graph_slices.push_back(new GraphSlice(gpu, directed, 0));

@@ -62,6 +62,8 @@ void CPUBFS(
     VertexId *source_path,
     VertexId src)
 {
+  printf("Running CPU code...");fflush(stdout);
+
   // (Re)initialize distances
   for (VertexId i = 0; i < csr_graph.nodes; i++)
   {
@@ -70,11 +72,11 @@ void CPUBFS(
   source_path[src] = 0;
   VertexId search_depth = 0;
 
+  const time_t startTime = time(NULL);
+
   // Initialize queue for managing previously-discovered nodes
   std::deque<VertexId> frontier;
   frontier.push_back(src);
-
-  double startTime = omp_get_wtime();
 
   //
   // Perform BFS on CPU
@@ -130,9 +132,9 @@ void CPUBFS(
     iter++;
   }
 
-  double EndTime = omp_get_wtime();
+  const time_t EndTime = time(NULL);
 
-  std::cout << "CPU time took: " << (EndTime - startTime) * 1000 << " ms"
+  std::cout << "CPU time took: " << difftime(EndTime, startTime) * 1000 << " ms"
       << std::endl;
   search_depth++;
 }
@@ -196,10 +198,10 @@ bool cudaInit(int device)
   return true;
 }
 
-void correctTest(int nodes, int* reference_labels, int* h_labels)
+bool correctTest(int nodes, int* reference_labels, int* h_labels)
 {
   bool pass = true;
-  printf("Correctness testing ...");
+  printf("Correctness testing ...");fflush(stdout);
   for (int i = 0; i < nodes; i++)
   {
     if (reference_labels[i] != h_labels[i])
@@ -212,6 +214,7 @@ void correctTest(int nodes, int* reference_labels, int* h_labels)
     printf("passed\n");
   else
     printf("failed\n");
+  return pass;
 }
 
 void printUsageAndExit(char *algo_name)
@@ -297,9 +300,10 @@ int main(int argc, char **argv)
   if (!cudaEnabled)
     return 0;
 
-  char hostname[1024];
-  hostname[1023] = '\0';
+  char hostname[1024] = "localhost";
+#ifdef gethostname
   gethostname(hostname, 1023);
+#endif
 
   printf("Running on host: %s\n", hostname);
 
@@ -386,6 +390,13 @@ int main(int argc, char **argv)
     printf("Single source vertex: %d\n", srcs[0]);
   }
 
+  {
+	  const int stats = cfg.getParameter<int>("stats");
+	  if(stats) {
+		  csr_graph.PrintHistogram();
+	  }
+  }
+
   VertexId* reference_labels;
 
   int run_CPU = cfg.getParameter<int>("run_CPU");
@@ -429,7 +440,7 @@ int main(int argc, char **argv)
 
     cudaError_t retval = cudaSuccess;
 
-    retval = vertex_centric.EnactIterativeSearch(csr_problem, directed, 1, tmpsrcs, iter_num, threshold);
+    retval = vertex_centric.EnactIterativeSearch(csr_problem, csr_graph.row_offsets, directed, 1, tmpsrcs, iter_num, threshold);
 
     if (retval && (retval != cudaErrorInvalidDeviceFunction))
     {
@@ -450,12 +461,16 @@ int main(int argc, char **argv)
     }
   }
   
-  printf("Traversed edge: %d\n", te);
+  printf("Traversed edge: %lld\n", te);
 
   if (strcmp(source_file_name, "") == 0 && run_CPU)
   {
-    correctTest(csr_graph.nodes, reference_labels, h_values);
+    const bool ok = correctTest(csr_graph.nodes, reference_labels, h_values);
     free(reference_labels);
+	if (!ok) {
+		fprintf(stderr, "correctness test failed.");
+		exit(1);
+	}
   }
 
   if (outFileName)

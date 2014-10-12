@@ -109,6 +109,8 @@ template<typename VertexId, typename Value, typename SizeT>
 void CPUPR(CsrGraph<VertexId, Value, SizeT> const &graph, Value* dist)
 {
 
+  printf("Running CPU code...");fflush(stdout);
+
 // initialize dist[] and pred[] arrays. Start with vertex s by setting
 // dist[] to 0.
 
@@ -129,7 +131,7 @@ void CPUPR(CsrGraph<VertexId, Value, SizeT> const &graph, Value* dist)
 // find vertex in ever-shrinking set, V-S, whose dist value is smallest
 // Recompute potential new paths to update all shortest paths
 
-  double startTime = omp_get_wtime();
+  const time_t startTime = time(NULL);
   int iter_count = 0;
   while (changed)
   {
@@ -153,10 +155,10 @@ void CPUPR(CsrGraph<VertexId, Value, SizeT> const &graph, Value* dist)
     iter_count++;
   }
 
-  double EndTime = omp_get_wtime();
+  const time_t EndTime = time(NULL);
 
   std::cout << "CPU iterations: " << iter_count << std::endl;
-  std::cout << "CPU time took: " << (EndTime - startTime) * 1000 << " ms"
+  std::cout << "CPU time took: " << difftime(EndTime, startTime) * 1000 << " ms"
       << std::endl;
 }
 
@@ -251,18 +253,26 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  char hostname[1024];
-  hostname[1023] = '\0';
+  char hostname[1024] = "localhost";
+#ifdef gethostname
   gethostname(hostname, 1023);
+#endif
 
   printf("Running on host: %s\n", hostname);
 
   cudaInit(cfg.getParameter<int>("device"));
-  int directed = cfg.getParameter<int>("directed");
+  const int directed = cfg.getParameter<int>("directed");
 
   if (builder::BuildMarketGraph<g_with_value>(graph_file, csr_graph,
       false) != 0)
     return 1;
+
+  {
+	  const int stats = cfg.getParameter<int>("stats");
+	  if(stats) {
+		  csr_graph.PrintHistogram();
+	  }
+  }
 
   Value* reference_dists;
 
@@ -304,14 +314,16 @@ int main(int argc, char **argv)
 
   if (run_CPU)
   {
-    double tol = cfg.getParameter<double>("tol");
-    printf("Correctness testing ... ");
-    Value l2error = l2norm(reference_dists, h_values, csr_graph.nodes) / l2norm(reference_dists, csr_graph.nodes); // / sqrt((Value)csr_graph.nodes);
-    if (l2error < tol)
-      printf("passed! l2 error = %f\n", l2error);
-    else
-      printf("failed! l2 error = %f\n", l2error);
+	const double tol = cfg.getParameter<double>("tol");
+    printf("Correctness testing ...");fflush(stdout);
+    const Value l2error = l2norm(reference_dists, h_values, csr_graph.nodes) / l2norm(reference_dists, csr_graph.nodes); // / sqrt((Value)csr_graph.nodes);
+    const bool pass = l2error < tol;
+    printf("%s! l2 error = %f\n", pass?"passed!":"failed!", l2error);
     free(reference_dists);
+    if(!pass) {
+		fprintf(stderr, "correctness test failed.");
+		exit(1);
+    }
   }
 
   if (outFileName)

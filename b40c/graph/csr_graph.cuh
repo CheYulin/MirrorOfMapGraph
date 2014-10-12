@@ -75,7 +75,7 @@ namespace b40c
       void FromCoo(Tuple *coo, SizeT coo_nodes, SizeT coo_edges, int undirected, bool ordered_rows = false)
       {
         printf("  Converting %d vertices, %d directed edges (%s tuples) to CSR format... ", coo_nodes, coo_edges, ordered_rows ? "ordered" : "unordered");
-        time_t mark1 = time(NULL);
+        const time_t mark1 = time(NULL);
         fflush (stdout);
 
         FromScratch<LOAD_VALUES>(coo_nodes, coo_edges, undirected);
@@ -158,8 +158,8 @@ namespace b40c
           }
         }
 
-        time_t mark2 = time(NULL);
-        printf("Done converting (%ds).\n", (int) (mark2 - mark1));
+        const time_t mark2 = time(NULL);
+        printf("Done converting (%ds).\n", (int) difftime(mark2, mark1));
         fflush(stdout);
       }
 
@@ -171,6 +171,8 @@ namespace b40c
         fflush (stdout);
 
         // Initialize
+        SizeT maxDegree = 0;
+        VertexId maxDegreeVertexId;
         int log_counts[32];
         for (int i = 0; i < 32; i++)
         {
@@ -183,7 +185,10 @@ namespace b40c
         {
 
           SizeT length = row_offsets[i + 1] - row_offsets[i];
-
+          if (length > maxDegree || i == 0) {
+			  maxDegree = length;
+			  maxDegreeVertexId = i;
+          }
           int log_length = -1;
           while (length > 0)
           {
@@ -202,6 +207,7 @@ namespace b40c
         {
           printf("\tDegree 2^%i: %d (%.2f%%)\n", i, log_counts[i + 1], (float) log_counts[i + 1] * 100.0 / nodes);
         }
+        printf("maxDegree=%lld (vertexId=%lld).\n", (long long)maxDegree, (long long)maxDegreeVertexId);
         printf("\n");
         fflush(stdout);
       }

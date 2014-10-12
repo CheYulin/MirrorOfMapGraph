@@ -4,7 +4,7 @@ NVCC_OPTS = -O3 -lineinfo -Xcompiler -fopenmp  -I. -I../../ -I$(MGPU_PATH)/inclu
 #NVCC_OPTS = -G -g -Xptxas -v -Xcompiler -fopenmp  -I. -I../../
 #NVCC_ARCHS = -gencode=arch=compute_20,code=sm_20
 #NVCC_ARCHS = -gencode arch=compute_35,code=sm_35
-LD_LIBS = -lgomp -lmgpu
+LD_LIBS = -lgomp -lmgpu -lcuda
 
 GEN_SM35 = -gencode=arch=compute_35,code=\"sm_35,compute_35\" 
 GEN_SM30 = -gencode=arch=compute_30,code=\"sm_30,compute_30\" 
@@ -17,7 +17,7 @@ SM_TARGETS = $(GEN_SM20) $(GEN_SM35)
 #RAND_OPTS=--compiler-options "-std=c++0x"
 
 all: config.o BFS
-	
+
 config.o: config.cpp ../../getvalue.h config.h Makefile register.h
 	nvcc -c -o $@ $< $(NVCC_OPTS) $(SM_TARGETS) $(RAND_OPTS)
 
@@ -26,7 +26,6 @@ BFS.o: bfs.cu bfs.h Makefile ../../GASengine/enactor_vertex_centric.cuh
 
 BFS: BFS.o config.o
 	nvcc -o $@ $^ $(NVCC_OPTS) $(LD_LIBS)
-	
+
 clean:
 	rm -f BFS *.o
-
