@@ -7,12 +7,19 @@ setup: $(GRAPH_NAME).mtx
 
 $(GRAPH_NAME).mtx: $(GRAPH_TAR)
 	tar xvfz $(GRAPH_TAR)
-	$(MATRIX2SNAP) $(GRAPH_NAME)/$(GRAPH_NAME).mtx $(GRAPH_NAME).mtx
+# Note: The original files have appropriate headers (#rows, #cols). We can use as is.
+	cp $(GRAPH_NAME)/$(GRAPH_NAME).mtx .
+# Note: If you want to use these files with graphlab you need to apply this script to
+# transform them. However, that will wipe out the #of rows and #of columns in the header
+# which means that you can't use the file with MapGraph.
+#	$(MATRIX2SNAP) $(GRAPH_NAME)/$(GRAPH_NAME).mtx $(GRAPH_NAME).mtx
 	rm -rf $(GRAPH_NAME)
 
+# Do not remove the data.
 clean:
-	rm $(GRAPH_NAME).mtx
 
+# Remove the data.
 realclean: clean
+	rm $(GRAPH_NAME).mtx
 	rm $(GRAPH_TAR)
 
