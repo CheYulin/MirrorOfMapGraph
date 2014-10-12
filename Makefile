@@ -105,20 +105,15 @@ NUMSRC=100
 # Arguments used by all of the tests.
 ARGS=-p run_CPU=$(RUNCPU) -p device=$(DEVICE) -p stats=1
 #
-# FIXME webbase-1M.mtx max degree in paper is incorrect. Should be
-# 4700 (vs 27).
+# FIXME webbase-1M.mtx. max degree in paper is incorrect. Should be 4700 (vs 27).
 #
-# FIXME delaunay_n21.mtx could not be read. Modified market.cuh to
-# assume edgeValue=1. max degree in paper is incorrect. Should be 20
-# (vs 23).
+# FIXME delaunay_n21.mtx. max degree in paper is incorrect. Should be 20 (vs 23).
 #
-# FIXME kron_g500-logn20: file claims to have 44620272 edges but paper
-# states 89,239,674. code reports maxDegree=73554 but paper states
-# 131,505.
+# FIXME kron_g500-logn20: file claims to have 44620272 edges but paper states 89,239,674. code reports maxDegree=73554 but paper states 131,505.
 #
-# FIXME The config.cpp code segfaults if the -p parameter name is not
-# recognized. For example, try specifying "-p directed=1" to CC. It 
-# will segfault.
+# FIXME The config.cpp code segfaults if the -p parameter name is not recognized. For example, try specifying "-p directed=1" to CC. It will segfault.
+#
+# FIXME The -source RANDOM -p num_src=100 does not appear to execute more than once (BFS/SSSP).
 
 test: build test.BFS test.BFS.random test.SSSP test.SSSP.random test.CC test.PageRank
 	echo "Done running performance/regression tests."
@@ -145,15 +140,11 @@ test.BFS.random: mgpu Algorithms/BFS.all download.graphs
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/webbase-1M/webbase-1M.mtx                 $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/delaunay_n21/delaunay_n21.mtx             $(ARGS) -p directed=0 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/wikipedia-20070206/wikipedia-20070206.mtx $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
-	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
+	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC) -p max_queue_sizing=2
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
 	echo "End test.BFS.random"
 
 # Note: as run for the SIGMOD 2014 paper.
-#
-# FIXME The CPU SSSP correctness test code is only correct when we
-# specify directed=1.  Thus, even though some of the graphs may be
-# undirected, they are being run as undirected for SSSP validation.
 #
 # FIXME The CPU SSSP algorithm is extremely expensive to run on large
 # graphs (it takes hours) and is therefore disabled for wikipedia,
