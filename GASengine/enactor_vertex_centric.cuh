@@ -2416,7 +2416,7 @@ namespace GASengine
 //    	  if(cuCtxGetDevice(&dev)) throw;
 //    	  m_mgpuContext = mgpu::CreateCudaDevice(dev);
     	  const int dev = cfg.getParameter<int>("device");
-    	  std::cerr<<"mgpuContext: device="<<dev<<std::endl;
+//    	  std::cerr<<"mgpuContext: device="<<dev<<std::endl;
     	  m_mgpuContext = mgpu::CreateCudaDevice(dev); // TODO Should avoid access to "device" parameter from inside MapGraph core.
       }
       cudaError_t retval = cudaSuccess;
