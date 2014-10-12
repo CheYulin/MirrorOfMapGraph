@@ -132,6 +132,7 @@ test.BFS: mgpu Algorithms/BFS.all download.graphs #-sources RANDOM -p num_src=10
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/wikipedia-20070206/wikipedia-20070206.mtx $(ARGS) -p directed=1 -p src=1
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p src=1
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1 -p src=1
+	echo "End test.BFS"
 
 # NUMSRC trials with random starting vertices. This tests the
 # robustness of the GPU code.
@@ -146,6 +147,7 @@ test.BFS.random: mgpu Algorithms/BFS.all download.graphs
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/wikipedia-20070206/wikipedia-20070206.mtx $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
+	echo "End test.BFS.random"
 
 # Note: as run for the SIGMOD 2014 paper.
 #
@@ -167,6 +169,7 @@ test.SSSP: mgpu Algorithms/SSSP.all download.graphs
 	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p src=1 -p run_CPU=0 -p max_queue_sizing=2
 # FIXME validation takes hours and is disabled.
 	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1 -p src=1 -p run_CPU=0
+	echo "End test.SSSP"
 
 # NUMSRC trials with random starting vertices. This tests the
 # robustness of the GPU code.
@@ -179,6 +182,7 @@ test.SSSP.random: mgpu Algorithms/SSSP.all download.graphs
 	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/wikipedia-20070206/wikipedia-20070206.mtx $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
 	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
 	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
+	echo "End test.SSSP.random"
 
 # Note: as run for the SIGMOD 2014 paper.
 #
@@ -189,6 +193,7 @@ test.CC: mgpu Algorithms/CC.all download.graphs
 	./Algorithms/CC/CC         -g $(GRAPHDIR)/wikipedia-20070206/wikipedia-20070206.mtx $(ARGS) -p max_queue_sizing=3
 	./Algorithms/CC/CC         -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p max_queue_sizing=3
 	./Algorithms/CC/CC         -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p max_queue_sizing=3
+	echo "End test.CC"
 
 # Note: as run for the SIGMOD 2014 paper.
 #
@@ -203,3 +208,4 @@ test.PageRank: mgpu Algorithms/PageRank.all download.graphs
 	./Algorithms/PageRank/PageRank -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p tol=1.2
 # Correctness testing ...passed!! l2 error = 0.059472
 	./Algorithms/PageRank/PageRank -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1
+	echo "End test.PageRank"
