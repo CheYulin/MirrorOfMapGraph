@@ -1,0 +1,829 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="84">
+  <logicalFolder name="root" displayName="root" projectFiles="true" kind="ROOT">
+    <df name="TEMPLATE" root=".">
+      <df name="Algorithms">
+        <df name="BFS">
+          <in>bfs.cu</in>
+          <in>bfs.h</in>
+          <in>config.cpp</in>
+          <in>config.h</in>
+          <in>register.h</in>
+        </df>
+        <df name="CC">
+          <in>cc.cu</in>
+          <in>cc.h</in>
+          <in>config.cpp</in>
+          <in>config.h</in>
+          <in>register.h</in>
+        </df>
+        <df name="PageRank">
+          <in>PageRank.cu</in>
+          <in>PageRank.h</in>
+          <in>config.cpp</in>
+          <in>config.h</in>
+          <in>register.h</in>
+        </df>
+        <df name="SSSP">
+          <in>config.cpp</in>
+          <in>config.h</in>
+          <in>register.h</in>
+          <in>sssp.cu</in>
+          <in>sssp.h</in>
+        </df>
+      </df>
+      <df name="b40c">
+        <df name="consecutive_reduction">
+          <df name="downsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+          </df>
+          <df name="single">
+            <in>kernel.cuh</in>
+          </df>
+          <df name="spine">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+          </df>
+          <df name="upsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+          </df>
+          <in>autotuned_policy.cuh</in>
+          <in>enactor.cuh</in>
+          <in>policy.cuh</in>
+          <in>problem_type.cuh</in>
+          <in>soa_scan_operator.cuh</in>
+        </df>
+        <df name="consecutive_removal">
+          <df name="downsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+          </df>
+          <df name="single">
+            <in>kernel.cuh</in>
+          </df>
+          <df name="spine">
+            <in>kernel.cuh</in>
+          </df>
+          <df name="upsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+          </df>
+          <in>autotuned_policy.cuh</in>
+          <in>enactor.cuh</in>
+          <in>policy.cuh</in>
+          <in>problem_type.cuh</in>
+        </df>
+        <df name="copy">
+          <in>autotuned_policy.cuh</in>
+          <in>cta.cuh</in>
+          <in>enactor.cuh</in>
+          <in>kernel.cuh</in>
+          <in>policy.cuh</in>
+        </df>
+        <df name="copy_if">
+          <df name="downsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+          </df>
+          <df name="single">
+            <in>kernel.cuh</in>
+          </df>
+          <df name="spine">
+            <in>kernel.cuh</in>
+          </df>
+          <df name="upsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+          </df>
+          <in>autotuned_policy.cuh</in>
+          <in>enactor.cuh</in>
+          <in>policy.cuh</in>
+          <in>problem_type.cuh</in>
+        </df>
+        <df name="graph">
+          <df name="builder">
+            <in>dimacs.cuh</in>
+            <in>fromfile.cuh</in>
+            <in>grid2d.cuh</in>
+            <in>grid3d.cuh</in>
+            <in>market (Zhisong Fu's conflicted copy 2014-01-04).cuh</in>
+            <in>market.cuh</in>
+            <in>metis.cuh</in>
+            <in>random.cuh</in>
+            <in>rmat.cuh</in>
+            <in>rr.cuh</in>
+            <in>utils.cuh</in>
+          </df>
+          <in>coo_edge_tuple.cuh</in>
+          <in>csr_graph.cuh</in>
+        </df>
+        <df name="partition">
+          <df name="downsweep">
+            <in>cta.cuh</in>
+            <in>kernel_policy.cuh</in>
+            <in>tile.cuh</in>
+            <in>tuning_policy.cuh</in>
+          </df>
+          <df name="spine">
+            <in>kernel.cuh</in>
+          </df>
+          <df name="upsweep">
+            <in>aggregate_counters.cuh</in>
+            <in>composite_counters.cuh</in>
+            <in>cta.cuh</in>
+            <in>kernel_policy.cuh</in>
+            <in>tile.cuh</in>
+            <in>tuning_policy.cuh</in>
+          </df>
+          <in>policy.cuh</in>
+          <in>problem_type.cuh</in>
+        </df>
+        <df name="radix_sort">
+          <df name="downsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+            <in>tile.cuh</in>
+            <in>tuning_policy.cuh</in>
+          </df>
+          <df name="upsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+            <in>tile.cuh</in>
+            <in>tuning_policy.cuh</in>
+          </df>
+          <in>autotuned_policy.cuh</in>
+          <in>enactor.cuh</in>
+          <in>pass_policy.cuh</in>
+          <in>policy.cuh</in>
+          <in>problem_type.cuh</in>
+          <in>sort_utils.cuh</in>
+        </df>
+        <df name="reduction">
+          <df name="spine">
+            <in>kernel.cuh</in>
+          </df>
+          <df name="upsweep">
+            <in>kernel.cuh</in>
+          </df>
+          <in>autotuned_policy.cuh</in>
+          <in>cta.cuh</in>
+          <in>enactor.cuh</in>
+          <in>kernel_policy.cuh</in>
+          <in>policy.cuh</in>
+          <in>problem_type.cuh</in>
+        </df>
+        <df name="scan">
+          <df name="downsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+          </df>
+          <df name="spine">
+            <in>kernel.cuh</in>
+          </df>
+          <df name="upsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+          </df>
+          <in>autotuned_policy.cuh</in>
+          <in>enactor.cuh</in>
+          <in>kernel_policy.cuh</in>
+          <in>policy.cuh</in>
+          <in>problem_type.cuh</in>
+        </df>
+        <df name="segmented_scan">
+          <df name="downsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+          </df>
+          <df name="spine">
+            <in>kernel.cuh</in>
+          </df>
+          <df name="upsweep">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+          </df>
+          <in>autotuned_policy.cuh</in>
+          <in>enactor.cuh</in>
+          <in>kernel_policy.cuh</in>
+          <in>policy.cuh</in>
+          <in>problem_type.cuh</in>
+          <in>soa_scan_operator.cuh</in>
+        </df>
+        <df name="util">
+          <df name="io">
+            <in>gather_tile.cuh</in>
+            <in>initialize_tile.cuh</in>
+            <in>load_tile.cuh</in>
+            <in>load_tile_discontinuity.cuh</in>
+            <in>modified_load.cuh</in>
+            <in>modified_store.cuh</in>
+            <in>scatter_tile.cuh</in>
+            <in>store_tile.cuh</in>
+            <in>two_phase_scatter_tile.cuh</in>
+          </df>
+          <df name="reduction">
+            <df name="soa">
+              <in>cooperative_soa_reduction.cuh</in>
+              <in>serial_soa_reduce.cuh</in>
+              <in>warp_soa_reduce.cuh</in>
+            </df>
+            <in>cooperative_reduction.cuh</in>
+            <in>serial_reduce.cuh</in>
+            <in>tree_reduce.cuh</in>
+            <in>warp_reduce.cuh</in>
+          </df>
+          <df name="scan">
+            <df name="soa">
+              <in>cooperative_soa_scan.cuh</in>
+              <in>serial_soa_scan.cuh</in>
+              <in>warp_soa_scan.cuh</in>
+            </df>
+            <in>cooperative_scan.cuh</in>
+            <in>serial_scan.cuh</in>
+            <in>warp_scan.cuh</in>
+          </df>
+          <in>arch_dispatch.cuh</in>
+          <in>basic_utils.cuh</in>
+          <in>cta_work_distribution.cuh</in>
+          <in>cta_work_progress.cuh</in>
+          <in>cuda_properties.cuh</in>
+          <in>device_intrinsics.cuh</in>
+          <in>enactor_base.cuh</in>
+          <in>error_utils.cuh</in>
+          <in>global_barrier.cuh</in>
+          <in>kernel_runtime_stats.cuh</in>
+          <in>memset_kernel (Zhisong Fu's conflicted copy 2014-01-04).cuh</in>
+          <in>memset_kernel.cuh</in>
+          <in>multiple_buffering.cuh</in>
+          <in>numeric_traits.cuh</in>
+          <in>operators.cuh</in>
+          <in>parameter_generation.cuh</in>
+          <in>ping_pong_storage.cuh</in>
+          <in>raking_grid.cuh</in>
+          <in>random_bits.cuh</in>
+          <in>soa_tuple.cuh</in>
+          <in>spine.cuh</in>
+          <in>srts_details.cuh</in>
+          <in>srts_grid.cuh</in>
+          <in>srts_soa_details.cuh</in>
+          <in>vector_types.cuh</in>
+        </df>
+      </df>
+      <df name="CI">
+      </df>
+      <df name="doc">
+        <df name="papers">
+        </df>
+        <in>mapgraph-overview.h</in>
+      </df>
+      <df name="GASengine">
+        <df name="vertex_centric">
+          <df name="contract_atomic">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+          </df>
+          <df name="expand_atomic">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+          </df>
+          <df name="expand_atomic_flag">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+          </df>
+          <df name="gather">
+            <in>cta.cuh</in>
+            <in>kernel.cuh</in>
+            <in>kernel_policy.cuh</in>
+          </df>
+          <df name="mgpukernel">
+            <in>kernel.cuh</in>
+          </df>
+        </df>
+        <in>csr_problem.cuh</in>
+        <in>enactor_base.cuh</in>
+        <in>enactor_vertex_centric.cuh</in>
+        <in>problem_type.cuh</in>
+      </df>
+      <df name="largePerformanceGraphs">
+        <df name="ak2010">
+        </df>
+        <df name="belgium_osm">
+        </df>
+        <df name="bitcoin">
+        </df>
+        <df name="coAuthorsDBLP">
+        </df>
+        <df name="delaunay_n13">
+        </df>
+        <df name="delaunay_n21">
+        </df>
+        <df name="kron_g500-logn20">
+        </df>
+        <df name="kron_g500-logn21">
+        </df>
+        <df name="soc-LiveJournal1">
+        </df>
+        <df name="webbase-1M">
+        </df>
+        <df name="wikipedia-20070206">
+        </df>
+      </df>
+      <df name="moderngpu2">
+        <df name="benchmarkinsert">
+          <in>benchmarkinsert.cu</in>
+        </df>
+        <df name="benchmarkintervalmove">
+          <in>benchmarkintervalmove.cu</in>
+        </df>
+        <df name="benchmarkjoin">
+          <in>benchmarkjoin.cu</in>
+        </df>
+        <df name="benchmarklaunchbox">
+          <in>benchmarklaunchbox.cu</in>
+        </df>
+        <df name="benchmarkloadbalance">
+          <in>benchmarkloadbalance.cu</in>
+        </df>
+        <df name="benchmarklocalitysort">
+          <in>benchmarklocalitysort.cu</in>
+        </df>
+        <df name="benchmarkmerge">
+          <in>benchmarkmerge.cu</in>
+        </df>
+        <df name="benchmarkreducebykey">
+          <in>benchmarkreducebykey.cu</in>
+        </df>
+        <df name="benchmarkscan">
+          <in>benchmarkscan.cu</in>
+        </df>
+        <df name="benchmarksegreduce">
+          <in>benchmarksegreduce.cu</in>
+        </df>
+        <df name="benchmarksegsort">
+          <in>benchmarksegsort.cu</in>
+        </df>
+        <df name="benchmarksets">
+          <in>benchmarksets.cu</in>
+        </df>
+        <df name="benchmarksort">
+          <in>benchmarksort.cu</in>
+        </df>
+        <df name="benchmarksortedsearch">
+          <in>benchmarksortedsearch.cu</in>
+        </df>
+        <df name="benchmarkspmvcsr">
+          <in>benchmarkspmvcsr.cu</in>
+        </df>
+        <df name="demo">
+          <in>demo.cu</in>
+        </df>
+        <df name="include">
+          <df name="device">
+            <in>ctaloadbalance.cuh</in>
+            <in>ctamerge.cuh</in>
+            <in>ctascan.cuh</in>
+            <in>ctasearch.cuh</in>
+            <in>ctasegreduce.cuh</in>
+            <in>ctasegscan.cuh</in>
+            <in>ctasegsort.cuh</in>
+            <in>ctasortedsearch.cuh</in>
+            <in>devicetypes.cuh</in>
+            <in>deviceutil.cuh</in>
+            <in>intrinsics.cuh</in>
+            <in>launchbox.cuh</in>
+            <in>loadstore.cuh</in>
+            <in>serialsets.cuh</in>
+            <in>sortnetwork.cuh</in>
+          </df>
+          <df name="kernels">
+            <in>bulkinsert.cuh</in>
+            <in>bulkremove.cuh</in>
+            <in>csrtools.cuh</in>
+            <in>cubradixsort.cuh</in>
+            <in>intervalmove.cuh</in>
+            <in>join.cuh</in>
+            <in>loadbalance.cuh</in>
+            <in>localitysort.cuh</in>
+            <in>merge.cuh</in>
+            <in>mergesort.cuh</in>
+            <in>reduce.cuh</in>
+            <in>reducebykey.cuh</in>
+            <in>scan.cuh</in>
+            <in>search.cuh</in>
+            <in>segmentedsort.cuh</in>
+            <in>segreduce.cuh</in>
+            <in>segreducecsr.cuh</in>
+            <in>sets.cuh</in>
+            <in>sortedsearch.cuh</in>
+            <in>spmvcsr.cuh</in>
+          </df>
+          <df name="util">
+            <in>format.h</in>
+            <in>mgpualloc.h</in>
+            <in>mgpucontext.h</in>
+            <in>static.h</in>
+            <in>util.h</in>
+          </df>
+          <in>mgpudevice.cuh</in>
+          <in>mgpuenums.h</in>
+          <in>mgpuhost.cuh</in>
+          <in>mmio.h</in>
+          <in>moderngpu.cuh</in>
+          <in>sparsematrix.h</in>
+        </df>
+        <df name="parallelmerge">
+          <in>parallelmerge.cu</in>
+        </df>
+        <df name="src">
+          <in>mgpucontext.cu</in>
+          <in>mgpuutil.cpp</in>
+          <in>mmio.cpp</in>
+          <in>sparsematrix.cpp</in>
+        </df>
+        <df name="testlaunchbox">
+          <in>testlaunchbox.cu</in>
+        </df>
+      </df>
+      <df name="PowerGraphReferenceImplementations">
+        <in>bfs.cpp</in>
+        <in>pagerank.cpp</in>
+        <in>sssp.cpp</in>
+        <in>sssp_gather.cpp</in>
+      </df>
+      <df name="regressions">
+      </df>
+      <df name="smallRegressionGraphs">
+      </df>
+      <in>getvalue.h</in>
+      <in>util.cuh</in>
+    </df>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>Makefile</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <sourceFolderFilter>^(nbproject)$</sourceFolderFilter>
+  <sourceRootList>
+    <Elem>.</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile</projectmakefile>
+  <confs>
+    <conf name="Default" type="0">
+      <toolsSet>
+        <remote-sources-mode>LOCAL_SOURCES</remote-sources-mode>
+        <compilerSet>default</compilerSet>
+      </toolsSet>
+      <codeAssistance>
+      </codeAssistance>
+      <makefileType>
+        <makeTool>
+          <buildCommandWorkingDir>.</buildCommandWorkingDir>
+          <buildCommand>${MAKE} -f Makefile</buildCommand>
+          <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
+          <executablePath></executablePath>
+        </makeTool>
+      </makefileType>
+      <item path="Algorithms/BFS/bfs.cu" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="Algorithms/BFS/config.cpp" ex="false" tool="1" flavor2="4">
+        <ccTool>
+        </ccTool>
+      </item>
+      <item path="Algorithms/CC/cc.cu" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="Algorithms/CC/config.cpp" ex="false" tool="1" flavor2="4">
+        <ccTool>
+        </ccTool>
+      </item>
+      <item path="Algorithms/PageRank/PageRank.cu" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="Algorithms/PageRank/config.cpp" ex="false" tool="1" flavor2="4">
+        <ccTool>
+        </ccTool>
+      </item>
+      <item path="Algorithms/SSSP/config.cpp" ex="false" tool="1" flavor2="4">
+        <ccTool>
+        </ccTool>
+      </item>
+      <item path="Algorithms/SSSP/sssp.cu" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="PowerGraphReferenceImplementations/bfs.cpp"
+            ex="false"
+            tool="1"
+            flavor2="4">
+        <ccTool>
+        </ccTool>
+      </item>
+      <item path="PowerGraphReferenceImplementations/pagerank.cpp"
+            ex="false"
+            tool="1"
+            flavor2="4">
+        <ccTool>
+        </ccTool>
+      </item>
+      <item path="PowerGraphReferenceImplementations/sssp.cpp"
+            ex="false"
+            tool="1"
+            flavor2="4">
+        <ccTool>
+        </ccTool>
+      </item>
+      <item path="PowerGraphReferenceImplementations/sssp_gather.cpp"
+            ex="false"
+            tool="1"
+            flavor2="4">
+        <ccTool>
+        </ccTool>
+      </item>
+      <folder path="TEMPLATE/Algorithms">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+            <pElem>.</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarkinsert">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarkintervalmove">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarkjoin">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarklaunchbox">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarkloadbalance">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarklocalitysort">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarkmerge">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarkreducebykey">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarkscan">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarksegreduce">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarksegsort">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarksets">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarksort">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarksortedsearch">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/benchmarkspmvcsr">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/demo">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <folder path="TEMPLATE/moderngpu2/parallelmerge">
+        <cTool>
+          <incDir>
+            <pElem>moderngpu2/include</pElem>
+          </incDir>
+        </cTool>
+      </folder>
+      <item path="moderngpu2/benchmarkinsert/benchmarkinsert.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarkintervalmove/benchmarkintervalmove.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarkjoin/benchmarkjoin.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarklaunchbox/benchmarklaunchbox.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarkloadbalance/benchmarkloadbalance.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarklocalitysort/benchmarklocalitysort.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarkmerge/benchmarkmerge.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarkreducebykey/benchmarkreducebykey.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarkscan/benchmarkscan.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarksegreduce/benchmarksegreduce.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarksegsort/benchmarksegsort.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarksets/benchmarksets.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarksort/benchmarksort.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarksortedsearch/benchmarksortedsearch.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/benchmarkspmvcsr/benchmarkspmvcsr.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/demo/demo.cu" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/parallelmerge/parallelmerge.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/src/mgpucontext.cu" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="moderngpu2/src/mgpuutil.cpp" ex="false" tool="1" flavor2="4">
+        <ccTool>
+        </ccTool>
+      </item>
+      <item path="moderngpu2/src/mmio.cpp" ex="false" tool="1" flavor2="4">
+        <ccTool>
+        </ccTool>
+      </item>
+      <item path="moderngpu2/src/sparsematrix.cpp" ex="false" tool="1" flavor2="4">
+        <ccTool>
+        </ccTool>
+      </item>
+      <item path="moderngpu2/testlaunchbox/testlaunchbox.cu"
+            ex="false"
+            tool="0"
+            flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>
