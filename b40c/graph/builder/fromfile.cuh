@@ -61,19 +61,22 @@ int BuildGraphFromFile(
     ifp = fopen(file_name, "r");
     if (ifp == NULL)
     {
-        fprintf(stderr, "Cannot open input file.\n");
-        exit(1);
+//        fprintf(stderr, "Cannot open input file.\n");
+	    throw std::exception("Cannot open input file.");
     }
 
-    if (fscanf(ifp, "%d", &nodes) < 0) exit(-1);
-    if (fscanf(ifp, "%d", &edges) < 0) exit(-1);
+	if (fscanf(ifp, "%d", &nodes) < 0)
+		throw std::exception("Must be non-negative");
+	if (fscanf(ifp, "%d", &edges) < 0)
+		throw std::exception("Must be non-negative");
     int directed_edges = edges;
     long long int from, to;
     float value;
 	EdgeTupleType *coo = (EdgeTupleType*) malloc(sizeof(EdgeTupleType) * directed_edges);
     for ( int i = 0; i < directed_edges; ++i )
     {
-        if (fscanf(ifp, "%Ld %Ld %f", &from, &to, &value) < 0) exit(-1);
+        if (fscanf(ifp, "%Ld %Ld %f", &from, &to, &value) < 0)
+    	    throw std::exception("Badly formed tuple.");
 		coo[i].row = from;
 		coo[i].col = to;
 		if (LOAD_VALUES)

@@ -86,7 +86,7 @@ class Config {
     	  ParamDesc::iterator desc_iter=param_desc.find(name);
     	  if(desc_iter==param_desc.end()) {
     	    std::cout << "getParameter error: '" << name << "' not found\n";
-    	    throw;
+    	    throw std::exception();
     	  }
 
 //    	  std::cout << "string type: "; //<< typeid(std::string).name() << std::endl;
@@ -97,7 +97,7 @@ class Config {
     		  std::cout << desc_iter->second.type->name() << std::endl;
     		  			std::cout << typeid(Type).name() << std::endl;
     	    std::cout << "getParameter error: '" << name << "' type miss match\n";
-    	    throw;
+    	    throw std::exception();
     	  }
 
     	  //check if the paramter has been set
@@ -120,11 +120,11 @@ class Config {
     	  ParamDesc::iterator iter=param_desc.find(name);
     	  if(iter==param_desc.end()) {
     	    std::cout << "setParameter error: '" << name << "' not found\n";
-    	    throw;
+    	    throw std::exception();
     	  }
     	  if(iter->second.type!=&typeid(Type)) {
     	    std::cout << "setParameter error: '" << name << "' type miss match\n";
-    	    throw;
+    	    throw std::exception();
     	  }
     	  params[name]=value;
     }

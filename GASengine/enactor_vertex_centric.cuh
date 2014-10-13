@@ -497,7 +497,7 @@ namespace GASengine
       if (util::B40CPerror(cudaDeviceSynchronize(),
           __FILE__,
           __LINE__))
-        exit(1);
+        throw std::exception();
 
     }
 
@@ -533,7 +533,7 @@ namespace GASengine
       if (util::B40CPerror(cudaDeviceSynchronize(),
               __FILE__,
               __LINE__))
-      exit(1);
+      throw std::exception();
     }
 
     void expand_mgpu(typename CsrProblem::GraphSlice *graph_slice, int &selector, const int frontier_selector, const int directed)
@@ -588,14 +588,14 @@ namespace GASengine
           //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
           //          "CsrProblem cudaMemcpy d_edge_frontier_size failed", __FILE__,
           //          __LINE__))
-          //        exit(1);
+          //        throw std::exception();
           //
           //      printf("m_nActive = %d\n", frontier_size);
           //      printf("nActiveEdges = %d\n", edge_frontier_size);
           //          if (edge_frontier_size >= graph_slice->frontier_elements[selector])
           //          {
           //            printf("queue size: %d, Frontier queue overflow (%d).  Please increase queue-sizing factor.\n", edge_frontier_size, graph_slice->frontier_elements[selector]);
-          //            exit(1);
+          //            throw std::exception();
           //          }
 
           scatter_mgpu(frontier_selector,
@@ -628,7 +628,7 @@ namespace GASengine
           //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
           //          "CsrProblem cudaMemcpy d_edge_frontier_size failed", __FILE__,
           //          __LINE__))
-          //        exit(1);
+          //        throw std::exception();
           //
           //      printf("m_nActive = %d\n", frontier_size);
           //          printf("edge_frontier_size1 = %d\n", edge_frontier_size1);
@@ -636,7 +636,7 @@ namespace GASengine
           if (edge_frontier_size1 + edge_frontier_size >= graph_slice->frontier_elements[selector])
           {
             printf("queue size: %d, Frontier queue overflow (%d).  Please increase queue-sizing factor.\n", edge_frontier_size1 + edge_frontier_size, graph_slice->frontier_elements[selector]);
-            exit(1);
+            throw std::exception();
           }
 
           scatter_mgpu(frontier_selector,
@@ -703,14 +703,14 @@ namespace GASengine
             //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
             //          "CsrProblem cudaMemcpy d_edge_frontier_size failed", __FILE__,
             //          __LINE__))
-            //        exit(1);
+            //        throw std::exception();
             //
             //      printf("m_nActive = %d\n", frontier_size);
             //      printf("nActiveEdges = %d\n", edge_frontier_size);
             if (edge_frontier_size >= graph_slice->frontier_elements[selector])
             {
               printf("queue size: %d, Frontier queue overflow (%d).  Please increase queue-sizing factor.\n", edge_frontier_size, graph_slice->frontier_elements[selector]);
-              exit(1);
+              throw std::exception();
             }
 
             scatter_mgpu(frontier_selector,
@@ -742,14 +742,14 @@ namespace GASengine
             //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
             //          "CsrProblem cudaMemcpy d_edge_frontier_size failed", __FILE__,
             //          __LINE__))
-            //        exit(1);
+            //        throw std::exception();
             //
             //      printf("m_nActive = %d\n", frontier_size);
             //      printf("nActiveEdges = %d\n", edge_frontier_size);
             if (edge_frontier_size >= graph_slice->frontier_elements[selector])
             {
               printf("queue size: %d, Frontier queue overflow (%d).  Please increase queue-sizing factor.\n", edge_frontier_size, graph_slice->frontier_elements[selector]);
-              exit(1);
+              throw std::exception();
             }
 
             scatter_mgpu(frontier_selector,
@@ -783,14 +783,14 @@ namespace GASengine
             //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
             //          "CsrProblem cudaMemcpy d_edge_frontier_size failed", __FILE__,
             //          __LINE__))
-            //        exit(1);
+            //        throw std::exception();
             //
             //      printf("m_nActive = %d\n", frontier_size);
             //      printf("nActiveEdges = %d\n", edge_frontier_size);
 //          if (edge_frontier_size >= graph_slice->frontier_elements[selector])
 //          {
 //            printf("queue size: %d, Frontier queue overflow (%d).  Please increase queue-sizing factor.\n", edge_frontier_size, graph_slice->frontier_elements[selector]);
-//            exit(1);
+//            throw std::exception();
 //          }
 
             scatter_mgpu(frontier_selector,
@@ -823,7 +823,7 @@ namespace GASengine
             //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
             //          "CsrProblem cudaMemcpy d_edge_frontier_size failed", __FILE__,
             //          __LINE__))
-            //        exit(1);
+            //        throw std::exception();
             //
             //      printf("m_nActive = %d\n", frontier_size);
 //          printf("edge_frontier_size1 = %d\n", edge_frontier_size1);
@@ -831,7 +831,7 @@ namespace GASengine
             if (edge_frontier_size1 + edge_frontier_size >= graph_slice->frontier_elements[selector])
             {
               printf("queue size: %d, Frontier queue overflow (%d).  Please increase queue-sizing factor.\n", edge_frontier_size1 + edge_frontier_size, graph_slice->frontier_elements[selector]);
-              exit(1);
+              throw std::exception();
             }
 
             scatter_mgpu(frontier_selector,
@@ -869,7 +869,7 @@ namespace GASengine
           else
           {
             cout << "Invalid expandOverEdges value!" << endl;
-            exit(1);
+            throw std::exception();
           }
         }
 
@@ -983,7 +983,7 @@ namespace GASengine
           if (util::B40CPerror(cudaMemcpy(&d_edge_frontier_size[frontier_selector], &zero, sizeof(SizeT), cudaMemcpyHostToDevice),
                   "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
                   __LINE__))
-          exit(1);
+          throw std::exception();
 
         }
         else
@@ -1004,20 +1004,20 @@ namespace GASengine
             //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
             //          "CsrProblem cudaMemcpy d_edge_frontier_size failed", __FILE__,
             //          __LINE__))
-            //        exit(1);
+            //        throw std::exception();
             //
             //      printf("m_nActive = %d\n", frontier_size);
             //      printf("nActiveEdges = %d\n", edge_frontier_size);
             if (edge_frontier_size >= graph_slice->frontier_elements[selector])
             {
               printf("queue size: %d, Frontier queue overflow (%d).  Please increase queue-sizing factor.\n", edge_frontier_size, graph_slice->frontier_elements[selector]);
-              exit(1);
+              throw std::exception();
             }
 
             if (util::B40CPerror(cudaMemcpy(&d_edge_frontier_size[frontier_selector], &zero, sizeof(SizeT), cudaMemcpyHostToDevice),
                     "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
                     __LINE__))
-            exit(1);
+            throw std::exception();
 
             IntervalGather(edge_frontier_size,
                 thrust::make_permutation_iterator(graph_slice->d_row_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
@@ -1057,20 +1057,20 @@ namespace GASengine
             //      if (util::B40CPerror(cudaMemcpy(&edge_frontier_size, &d_edge_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
             //          "CsrProblem cudaMemcpy d_edge_frontier_size failed", __FILE__,
             //          __LINE__))
-            //        exit(1);
+            //        throw std::exception();
             //
             //      printf("m_nActive = %d\n", frontier_size);
             //      printf("nActiveEdges = %d\n", edge_frontier_size);
             if (edge_frontier_size >= graph_slice->frontier_elements[selector])
             {
               printf("queue size: %d, Frontier queue overflow (%d).  Please increase queue-sizing factor.\n", edge_frontier_size, graph_slice->frontier_elements[selector]);
-              exit(1);
+              throw std::exception();
             }
 
             if (util::B40CPerror(cudaMemcpy(&d_edge_frontier_size[frontier_selector], &zero, sizeof(SizeT), cudaMemcpyHostToDevice),
                     "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
                     __LINE__))
-            exit(1);
+            throw std::exception();
 
             IntervalGather(edge_frontier_size,
                 thrust::make_permutation_iterator(graph_slice->d_column_offsets, graph_slice->frontier_queues.d_keys[selector ^ 1]),
@@ -1165,28 +1165,28 @@ namespace GASengine
             if (edge_frontier_size >= graph_slice->frontier_elements[selector])
             {
               printf("queue size: %d, Frontier queue overflow (%d).  Please increase queue-sizing factor.\n", edge_frontier_size, graph_slice->frontier_elements[selector]);
-              exit(1);
+              throw std::exception();
             }
 
             //using memset is faster?
             if (util::B40CPerror(cudaMemcpy(&d_edge_frontier_size[frontier_selector], &zero, sizeof(SizeT), cudaMemcpyHostToDevice),
                     "CsrProblem reset to zero d_edge_frontier_size failed", __FILE__,
                     __LINE__))
-            exit(1);
+            throw std::exception();
 
           }
           else
           {
             cout << "Invalid expandOverEdges value!" << endl;
-            exit(1);
+            throw std::exception();
           }
         }
         if (util::B40CPerror(cudaMemset(graph_slice->d_active_flags, 0, sizeof(int) * graph_slice->nodes), "cudaMemset d_active_flags failed ", __FILE__, __LINE__))
-        exit(1);
+        throw std::exception();
       }
 
       if (util::B40CPerror(cudaDeviceSynchronize(), __FILE__,__LINE__))
-      exit(1);
+      throw std::exception();
 
       selector ^= 1;
 
@@ -1196,7 +1196,7 @@ namespace GASengine
 //      if (util::B40CPerror(cudaMemcpy(&tmp_frontier_size, &d_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
 //              "CsrProblem cudaMemcpy tmp_frontier_size failed", __FILE__,
 //              __LINE__))
-//      exit(1);
+//      throw std::exception();
 //      printf("frontier_size after activation: %d\n", tmp_frontier_size);
 
 //      int* test_vid = new int[tmp_frontier_size];
@@ -1259,7 +1259,7 @@ namespace GASengine
       if (util::B40CPerror(cudaDeviceSynchronize(),
               __FILE__,
               __LINE__))
-      exit(1);
+      throw std::exception();
 
 //      test_vid = new float[graph_slice->nodes];
 //      cudaMemcpy(test_vid, graph_slice->vertex_list.d_dists, graph_slice->nodes * sizeof(float), cudaMemcpyDeviceToHost);
@@ -1867,14 +1867,14 @@ namespace GASengine
         else
         {
           cout << "Error gatherOverEdges type!" << endl;
-          exit(1);
+          throw std::exception();
         }
       }
 
       if (util::B40CPerror(cudaDeviceSynchronize(),
               __FILE__,
               __LINE__))
-      exit(1);
+      throw std::exception();
 
     }
 
@@ -2391,7 +2391,7 @@ namespace GASengine
       }
 
       if (util::B40CPerror(cudaDeviceSynchronize(), "expand_atomic::Kernel failed ", __FILE__, __LINE__))
-      exit(1);
+      throw std::exception();
 
     }
 
@@ -2413,7 +2413,7 @@ namespace GASengine
       DEBUG = cfg.getParameter<int>("verbose");
       {
 //    	  CUdevice dev;
-//    	  if(cuCtxGetDevice(&dev)) throw;
+//    	  if(cuCtxGetDevice(&dev)) throw std::exception();
 //    	  m_mgpuContext = mgpu::CreateCudaDevice(dev);
     	  const int dev = cfg.getParameter<int>("device");
 //    	  std::cerr<<"mgpuContext: device="<<dev<<std::endl;
@@ -2679,7 +2679,7 @@ namespace GASengine
 //        if (util::B40CPerror(cudaMemset(d_edge_frontier_size, 0, sizeof(SizeT)),
 //                "CsrProblem cudaMemset d_edge_frontier_size failed", __FILE__,
 //                __LINE__))
-//        exit(1);
+//        throw std::exception();
 
         if (DEBUG)
         {

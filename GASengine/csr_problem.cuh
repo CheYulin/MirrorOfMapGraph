@@ -388,7 +388,7 @@ namespace GASengine
         else
         {
           printf("Multi GPU is not supported yet!\n");
-          exit(0);
+   	      throw std::exception();
         }
       }
       while (0);
