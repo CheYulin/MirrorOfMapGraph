@@ -32,7 +32,7 @@ typedef unsigned int uint;
 #include <set>
 #include <cc.h>
 #include <iostream>
-#include <omp.h>
+#include <time.h>
 
 #include <config.h>
 

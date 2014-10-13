@@ -57,7 +57,6 @@ Research Projects Agency (DARPA) under Contract No. D14PC00029.
 #include <b40c/util/multiple_buffering.cuh>
 #include <GASengine/problem_type.cuh>
 #include <config.h>
-#include <omp.h>
 #include <util.cuh>
 #include <thrust/device_vector.h>
 #include <thrust/device_ptr.h>
@@ -522,7 +521,7 @@ namespace GASengine
           //Initializations
           //
 
-          double starttransfer = omp_get_wtime();
+          const time_t starttransfer = time(NULL);
           if (retval = util::B40CPerror(
               cudaMemcpy(graph_slices[0]->d_column_indices,
                   h_column_indices,
@@ -551,8 +550,8 @@ namespace GASengine
             break;
 
           cudaDeviceSynchronize();
-          double endtransfer = omp_get_wtime();
-          printf("CPU to GPU memory transfer time: %f ms\n", (endtransfer - starttransfer) * 1000.0);
+          const time_t endtransfer = time(NULL);
+          printf("CPU to GPU memory transfer time: %f ms\n", difftime(endtransfer, starttransfer) * 1000.0);
 
 //          if (directed)
           {
@@ -563,10 +562,10 @@ namespace GASengine
             thrust::device_ptr<EValue> d_edge_values_ptr = thrust::device_pointer_cast(graph_slices[0]->d_edge_values);
             thrust::device_ptr<VertexId> d_edgeCSC_indices_ptr = thrust::device_pointer_cast(graph_slices[0]->d_edgeCSC_indices);
 
-            const double beginCSC = omp_get_wtime();
+            const time_t beginCSC = time(NULL);
             offsets_to_indices(graph_slices[0]->nodes + 1, graph_slices[0]->edges, d_row_offsets_ptr, d_row_indices_ptr);
             sort_by_column(graph_slices[0]->edges, graph_slices[0]->nodes + 1, d_column_indices_ptr, d_row_indices_ptr, d_column_offsets_ptr, d_edgeCSC_indices_ptr);
-            const double elapsedCSC = omp_get_wtime() - beginCSC;
+            const time_t elapsedCSC = difftime(time(NULL), beginCSC);
             printf("GPU CSC matrix build time: %f ms\n", elapsedCSC*1000.0);
 
 //            printf("edge values:\n");

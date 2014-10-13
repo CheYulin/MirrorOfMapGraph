@@ -31,7 +31,7 @@ typedef unsigned int uint;
 #include <vector>
 #include <PageRank.h>
 #include <iostream>
-#include <omp.h>
+#include <time.h>
 #include <numeric>
 
 #include <config.h>

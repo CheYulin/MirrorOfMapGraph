@@ -48,7 +48,7 @@ limitations under the License.
 #include <mgpuenums.h>
 #include <thrust/reduce.h>
 #include <thrust/device_ptr.h>
-#include <omp.h>
+#include <time.h>
 #include <device/ctaloadbalance.cuh>
 #include <device/loadstore.cuh>
 using namespace b40c;

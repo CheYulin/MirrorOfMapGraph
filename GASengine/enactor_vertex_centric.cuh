@@ -563,7 +563,7 @@ namespace GASengine
 //      delete[] test_vid3;
 
 //      double startscatter = 0.0, startactive = 0.0, endscatter = 0.0, endactive = 0.0;
-//      startscatter = omp_get_wtime();
+//      startscatter = time(NULL);
 
       //Gathers the dst vertex ids from m_dsts and writes a true for each
       //dst vertex into m_activeFlags
@@ -1190,7 +1190,7 @@ namespace GASengine
 
       selector ^= 1;
 
-//      endscatter = omp_get_wtime();
+//      endscatter = time(NULL);
 
 //      int tmp_frontier_size;
 //      if (util::B40CPerror(cudaMemcpy(&tmp_frontier_size, &d_frontier_size[frontier_selector], sizeof(SizeT), cudaMemcpyDeviceToHost),
@@ -1209,11 +1209,11 @@ namespace GASengine
 //      printf("\n");
 //      delete[] test_vid;
 
-//      startactive = omp_get_wtime();
+//      startactive = time(NULL);
 //      selector ^= 1;
 
 //      cudaDeviceSynchronize();
-//      endactive = omp_get_wtime();
+//      endactive = time(NULL);
 //      selector ^= 1;
 
 //
@@ -2510,16 +2510,16 @@ namespace GASengine
       cudaEventCreate(&start);
       cudaEventCreate(&stop);
 
-      double startcontract, endcontract;
-      double startgather, endgather;
-      double startexpand, endexpand;
+      time_t startcontract, endcontract;
+      time_t startgather, endgather;
+      time_t startexpand, endexpand;
 
       double elapsedcontract = 0.0;
       double elapsedgather = 0.0;
       double elapsedexpand = 0.0;
 
       cudaEventRecord(start);
-      double startTime = omp_get_wtime();
+      const time_t startTime = time(NULL);
 
 // Forward phase BC iterations
 //          while (done[0] < 0 || frontier_size > 0)
@@ -2530,7 +2530,7 @@ namespace GASengine
         if (DEBUG)
         {
           cudaDeviceSynchronize();
-          startgather = omp_get_wtime();
+          startgather = time(NULL);
         }
         //
         //Gather stage
@@ -2541,9 +2541,9 @@ namespace GASengine
         if (DEBUG)
         {
           cudaDeviceSynchronize();
-          endgather = omp_get_wtime();
-          elapsedgather += endgather - startgather;
-          printf("Gather time: %f ms\n", (endgather - startgather) * 1000);
+          endgather = time(NULL);
+          elapsedgather += difftime(endgather, startgather);
+          printf("Gather time: %f ms\n", difftime(endgather, startgather) * 1000);
         }
 
 //            if (DEBUG)
@@ -2684,7 +2684,7 @@ namespace GASengine
         if (DEBUG)
         {
           cudaDeviceSynchronize();
-          startexpand = omp_get_wtime();
+          startexpand = time(NULL);
         }
 
         //
@@ -2773,9 +2773,9 @@ namespace GASengine
         if (DEBUG)
         {
           cudaDeviceSynchronize();
-          endexpand = omp_get_wtime();
-          elapsedexpand += endexpand - startexpand;
-          printf("Expand time: %f ms\n", (endexpand - startexpand) * 1000);
+          endexpand = time(NULL);
+          elapsedexpand += difftime(endexpand, startexpand);
+          printf("Expand time: %f ms\n", difftime(endexpand, startexpand) * 1000);
         }
 
 //        if (retval = util::B40CPerror(cudaMemset(d_frontier_size, 0, sizeof(SizeT)),
@@ -2788,7 +2788,7 @@ namespace GASengine
         {
           if (DEBUG)
           {
-            startcontract = omp_get_wtime();
+            startcontract = time(NULL);
           }
           //
           // Contraction
@@ -2824,9 +2824,9 @@ namespace GASengine
           if (DEBUG)
           {
             cudaDeviceSynchronize();
-            endcontract = omp_get_wtime();
-            elapsedcontract += endcontract - startcontract;
-            printf("Contract time: %f ms\n", (endcontract - startcontract) * 1000);
+            endcontract = time(NULL);
+            elapsedcontract += difftime(endcontract, startcontract);
+            printf("Contract time: %f ms\n", difftime(endcontract, startcontract) * 1000);
           }
 
           selector ^= 1;
@@ -2874,8 +2874,8 @@ namespace GASengine
       cudaEventRecord(stop);
       cudaEventSynchronize(stop);
       cudaDeviceSynchronize();
-      double endTime = omp_get_wtime();
-      double elapsed_wall = (endTime - startTime) * 1000;
+      const time_t endTime = time(NULL);
+      const time_t elapsed_wall = difftime(endTime, startTime) * 1000;
 
       float elapsed;
       cudaEventElapsedTime(&elapsed, start, stop);

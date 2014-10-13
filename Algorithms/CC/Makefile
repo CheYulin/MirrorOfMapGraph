@@ -4,7 +4,7 @@ NVCC_OPTS = -O3 -Xcompiler -fopenmp  -I. -I../.. -I$(MGPU_PATH)/include -L$(MGPU
 #NVCC_OPTS = -G -g -Xptxas -v -Xcompiler -fopenmp  -I. -I$(MGPU_PATH)/include -L$(MGPU_PATH)
 #NVCC_ARCHS = -gencode=arch=compute_20,code=sm_20
 #NVCC_ARCHS = -gencode arch=compute_35,code=sm_35
-LD_LIBS = -lgomp -lmgpu -lcuda
+LD_LIBS = -lmgpu -lcuda
 
 GEN_SM35 = -gencode=arch=compute_35,code=\"sm_35,compute_35\" 
 GEN_SM30 = -gencode=arch=compute_30,code=\"sm_30,compute_30\" 

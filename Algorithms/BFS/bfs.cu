@@ -31,7 +31,7 @@ typedef unsigned int uint;
 #include <vector>
 #include <bfs.h>
 #include <iostream>
-#include <omp.h>
+#include <time.h>
 
 #include <config.h>
 

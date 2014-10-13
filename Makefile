@@ -140,8 +140,10 @@ test.BFS.random: mgpu Algorithms/BFS.all download.graphs
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/webbase-1M/webbase-1M.mtx                 $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/delaunay_n21/delaunay_n21.mtx             $(ARGS) -p directed=0 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
 	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/wikipedia-20070206/wikipedia-20070206.mtx $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
-	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC) -p max_queue_sizing=2
-	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
+	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)\
+												    -p max_queue_sizing=6
+	./Algorithms/BFS/BFS       -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)\
+												    -p max_queue_sizing=6
 	echo "End test.BFS.random"
 
 # Note: as run for the SIGMOD 2014 paper.
@@ -157,9 +159,9 @@ test.SSSP: mgpu Algorithms/SSSP.all download.graphs
 # FIXME validation takes hours and is disabled.
 	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/wikipedia-20070206/wikipedia-20070206.mtx $(ARGS) -p directed=1 -p src=1 -p run_CPU=0
 # FIXME validation takes hours and is disabled.
-	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p src=1 -p run_CPU=0 -p max_queue_sizing=2
+	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p src=1 -p run_CPU=0
 # FIXME validation takes hours and is disabled.
-	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1 -p src=1 -p run_CPU=0
+	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1 -p src=1 -p run_CPU=0 
 	echo "End test.SSSP"
 
 # NUMSRC trials with random starting vertices. This tests the
@@ -171,8 +173,10 @@ test.SSSP.random: mgpu Algorithms/SSSP.all download.graphs
 	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/webbase-1M/webbase-1M.mtx                 $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
 	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/delaunay_n21/delaunay_n21.mtx             $(ARGS) -p directed=0 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
 	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/wikipedia-20070206/wikipedia-20070206.mtx $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
-	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
-	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC)
+	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/kron_g500-logn20/kron_g500-logn20.mtx     $(ARGS) -p directed=0 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC) \
+												    -p max_queue_sizing=6
+	./Algorithms/SSSP/SSSP     -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1 -p run_CPU=0 -sources RANDOM -p num_src=$(NUMSRC) \
+												    -p max_queue_sizing=6
 	echo "End test.SSSP.random"
 
 # Note: as run for the SIGMOD 2014 paper.
