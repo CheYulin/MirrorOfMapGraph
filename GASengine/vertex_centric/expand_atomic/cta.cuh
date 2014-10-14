@@ -639,7 +639,7 @@ namespace GASengine
           Tile<KernelPolicy::LOG_LOADS_PER_TILE, KernelPolicy::LOG_LOAD_VEC_SIZE, 1 << KernelPolicy::LOG_LOADS_PER_TILE, 1 << KernelPolicy::LOG_LOAD_VEC_SIZE> tile;
 
           // Load tile
-          util::io::LoadTile<KernelPolicy::LOG_LOADS_PER_TILE, KernelPolicy::LOG_LOAD_VEC_SIZE, KernelPolicy::THREADS, KernelPolicy::QUEUE_READ_MODIFIER, false>::LoadValid(tile.vertex_id, d_in,
+          util::io::LoadTile<KernelPolicy::LOG_LOADS_PER_TILE, KernelPolicy::LOG_LOAD_VEC_SIZE, 1 << KernelPolicy::LOG_LOADS_PER_TILE, 1 << KernelPolicy::LOG_LOAD_VEC_SIZE, KernelPolicy::THREADS, KernelPolicy::QUEUE_READ_MODIFIER, false>::LoadValid(tile.vertex_id, d_in,
               cta_offset, guarded_elements, (VertexId) -1);
 
           // Inspect dequeued vertices, updating label and obtaining

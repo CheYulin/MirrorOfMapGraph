@@ -528,6 +528,8 @@ namespace GASengine
           util::io::LoadTile<
               KernelPolicy::LOG_LOADS_PER_TILE,
               KernelPolicy::LOG_LOAD_VEC_SIZE,
+                  1 << KernelPolicy::LOG_LOADS_PER_TILE, 
+                  1 << KernelPolicy::LOG_LOAD_VEC_SIZE,
               KernelPolicy::THREADS,
               KernelPolicy::QUEUE_READ_MODIFIER,
               false>::LoadValid(
@@ -541,6 +543,7 @@ namespace GASengine
           util::io::LoadTile<
               KernelPolicy::LOG_LOADS_PER_TILE,
               KernelPolicy::LOG_LOAD_VEC_SIZE,
+                  1 << KernelPolicy::LOG_LOADS_PER_TILE, 1 << KernelPolicy::LOG_LOAD_VEC_SIZE, 
               KernelPolicy::THREADS,
               KernelPolicy::QUEUE_READ_MODIFIER,
               false>::LoadValid(
@@ -597,6 +600,8 @@ namespace GASengine
           util::io::ScatterTile<
               KernelPolicy::LOG_LOADS_PER_TILE,
               KernelPolicy::LOG_LOAD_VEC_SIZE,
+              1 << KernelPolicy::LOG_LOADS_PER_TILE,
+		          1 << KernelPolicy::LOG_LOAD_VEC_SIZE,
               KernelPolicy::THREADS,
               KernelPolicy::QUEUE_WRITE_MODIFIER>::Scatter(
               d_out,
