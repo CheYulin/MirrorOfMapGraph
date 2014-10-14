@@ -1,7 +1,7 @@
 NVCC = nvcc
 MGPU_PATH = ../../moderngpu2
-NVCC_OPTS = -O3 -lineinfo -Xcompiler -fopenmp  -I. -I../../ -I$(MGPU_PATH)/include -L$(MGPU_PATH)
-#NVCC_OPTS = -G -g -Xptxas -v -Xcompiler -fopenmp  -I. -I../../
+NVCC_OPTS = -O3 -lineinfo -I. -I../../ -I$(MGPU_PATH)/include -L$(MGPU_PATH)
+#NVCC_OPTS = -G -g -Xptxas -v -I. -I../../
 #NVCC_ARCHS = -gencode=arch=compute_20,code=sm_20
 #NVCC_ARCHS = -gencode arch=compute_35,code=sm_35
 LD_LIBS = -lmgpu -lcuda
