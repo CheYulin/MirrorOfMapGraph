@@ -199,7 +199,7 @@ namespace GASengine
       GraphSlice(int gpu, int directed, cudaStream_t stream) :
           gpu(gpu), directed(directed), d_column_indices(
               NULL), d_row_offsets(NULL), d_edge_values(NULL), d_preds(NULL), d_visited_mask(
-              NULL), d_filter_mask(NULL), d_visit_flags(NULL), d_changed(d_changed), nodes(
+              NULL), d_filter_mask(NULL), d_visit_flags(NULL), d_changed(NULL), nodes(
               0), edges(0), stream(stream)
       {
     	  printf("GraphSlice()");
