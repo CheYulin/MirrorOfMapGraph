@@ -20,6 +20,8 @@ clean:
 
 # Remove the data.
 realclean: clean
-	rm $(GRAPH_NAME).mtx
-	rm $(GRAPH_TAR)
+	-rm $(GRAPH_NAME).mtx
+	-rm $(GRAPH_TAR)
+	-rm -rf $(GRAPH_NAME)
+
 

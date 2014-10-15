@@ -35,6 +35,7 @@ clean: $(CLEAN) doc.clean
 
 # Clean the build and delete the downloaded data.
 realclean: clean realclean.create
+	make -C largePerformanceGraphs realclean
 
 realclean.create:
 	rm -rf ${release.dir}
