@@ -35,6 +35,7 @@ clean: $(CLEAN) doc.clean
 
 # Clean the build and delete the downloaded data.
 realclean: clean realclean.create
+	make -C largePerformanceGraphs realclean
 
 realclean.create:
 	rm -rf ${release.dir}
@@ -204,4 +205,3 @@ test.PageRank: mgpu Algorithms/PageRank.all download.graphs
 # Correctness testing ...passed!! l2 error = 0.059472
 	./Algorithms/PageRank/PageRank -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1
 	echo "End test.PageRank"
-

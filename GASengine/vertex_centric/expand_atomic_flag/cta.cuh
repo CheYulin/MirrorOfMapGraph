@@ -179,17 +179,17 @@ namespace GASengine
         /**
          * Tile of incoming vertex frontier to process
          */
-        template<int LOG_LOADS_PER_TILE, int LOG_LOAD_VEC_SIZE>
+        template<int LOG_LOADS_PER_TILE, int LOG_LOAD_VEC_SIZE, int LOADS_PER_TILE, int LOAD_VEC_SIZE>
         struct Tile
         {
           //---------------------------------------------------------------------
           // Typedefs and Constants
           //---------------------------------------------------------------------
 
-          enum
-          {
-            LOADS_PER_TILE = 1 << LOG_LOADS_PER_TILE, LOAD_VEC_SIZE = 1 << LOG_LOAD_VEC_SIZE
-          };
+//          enum
+//          {
+//            LOADS_PER_TILE = 1 << LOG_LOADS_PER_TILE, LOAD_VEC_SIZE = 1 << LOG_LOAD_VEC_SIZE
+//          };
 
           typedef typename util::VecType<SizeT, 2>::Type Vec2SizeT;
 
@@ -682,10 +682,10 @@ namespace GASengine
         __device__ __forceinline__ void ProcessTile(SizeT cta_offset, SizeT guarded_elements = KernelPolicy::TILE_ELEMENTS)
         {
 //              if(blockIdx.x == 0 && threadIdx.x == 0) printf("In Expand ProcessTile\n");
-          Tile<KernelPolicy::LOG_LOADS_PER_TILE, KernelPolicy::LOG_LOAD_VEC_SIZE> tile;
+          Tile<KernelPolicy::LOG_LOADS_PER_TILE, KernelPolicy::LOG_LOAD_VEC_SIZE, 1 << KernelPolicy::LOG_LOADS_PER_TILE, 1 << KernelPolicy::LOG_LOAD_VEC_SIZE> tile;
 
           // Load tile
-          util::io::LoadTile<KernelPolicy::LOG_LOADS_PER_TILE, KernelPolicy::LOG_LOAD_VEC_SIZE, KernelPolicy::THREADS, KernelPolicy::QUEUE_READ_MODIFIER, false>::LoadValid(tile.vertex_id, d_in,
+          util::io::LoadTile<KernelPolicy::LOG_LOADS_PER_TILE, KernelPolicy::LOG_LOAD_VEC_SIZE, 1 << KernelPolicy::LOG_LOADS_PER_TILE, 1 << KernelPolicy::LOG_LOAD_VEC_SIZE, KernelPolicy::THREADS, KernelPolicy::QUEUE_READ_MODIFIER, false>::LoadValid(tile.vertex_id, d_in,
               cta_offset, guarded_elements, (VertexId) -1);
 
           // Inspect dequeued vertices, updating label and obtaining

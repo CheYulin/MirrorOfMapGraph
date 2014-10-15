@@ -145,18 +145,20 @@ namespace GASengine
          */
         template<
             int LOG_LOADS_PER_TILE,
-            int LOG_LOAD_VEC_SIZE>
+            int LOG_LOAD_VEC_SIZE,
+            int LOADS_PER_TILE,
+            int LOAD_VEC_SIZE>
         struct Tile
         {
           //---------------------------------------------------------------------
           // Typedefs and Constants
           //---------------------------------------------------------------------
 
-          enum
-          {
-            LOADS_PER_TILE = 1 << LOG_LOADS_PER_TILE,
-            LOAD_VEC_SIZE = 1 << LOG_LOAD_VEC_SIZE
-          };
+//          enum
+//          {
+//            LOADS_PER_TILE = 1 << LOG_LOADS_PER_TILE,
+//            LOAD_VEC_SIZE = 1 << LOG_LOAD_VEC_SIZE
+//          };
 
           //---------------------------------------------------------------------
           // Members
@@ -519,13 +521,15 @@ namespace GASengine
             SizeT cta_offset,
             const SizeT &guarded_elements = KernelPolicy::TILE_ELEMENTS)
         {
-          Tile<KernelPolicy::LOG_LOADS_PER_TILE, KernelPolicy::LOG_LOAD_VEC_SIZE> tile;
+          Tile<KernelPolicy::LOG_LOADS_PER_TILE, KernelPolicy::LOG_LOAD_VEC_SIZE, 1<<KernelPolicy::LOG_LOADS_PER_TILE, 1<<KernelPolicy::LOG_LOAD_VEC_SIZE> tile;
 
 //            printf("Doing contract processtile: threadIdx.x=%d, guarded_elements=%d\n", threadIdx.x, guarded_elements);
           // Load tile
           util::io::LoadTile<
               KernelPolicy::LOG_LOADS_PER_TILE,
               KernelPolicy::LOG_LOAD_VEC_SIZE,
+                  1 << KernelPolicy::LOG_LOADS_PER_TILE, 
+                  1 << KernelPolicy::LOG_LOAD_VEC_SIZE,
               KernelPolicy::THREADS,
               KernelPolicy::QUEUE_READ_MODIFIER,
               false>::LoadValid(
@@ -539,6 +543,7 @@ namespace GASengine
           util::io::LoadTile<
               KernelPolicy::LOG_LOADS_PER_TILE,
               KernelPolicy::LOG_LOAD_VEC_SIZE,
+                  1 << KernelPolicy::LOG_LOADS_PER_TILE, 1 << KernelPolicy::LOG_LOAD_VEC_SIZE, 
               KernelPolicy::THREADS,
               KernelPolicy::QUEUE_READ_MODIFIER,
               false>::LoadValid(
@@ -595,6 +600,8 @@ namespace GASengine
           util::io::ScatterTile<
               KernelPolicy::LOG_LOADS_PER_TILE,
               KernelPolicy::LOG_LOAD_VEC_SIZE,
+              1 << KernelPolicy::LOG_LOADS_PER_TILE,
+		          1 << KernelPolicy::LOG_LOAD_VEC_SIZE,
               KernelPolicy::THREADS,
               KernelPolicy::QUEUE_WRITE_MODIFIER>::Scatter(
               d_out,
