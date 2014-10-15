@@ -204,3 +204,4 @@ test.PageRank: mgpu Algorithms/PageRank.all download.graphs
 # Correctness testing ...passed!! l2 error = 0.059472
 	./Algorithms/PageRank/PageRank -g $(GRAPHDIR)/bitcoin/bitcoin.mtx                       $(ARGS) -p directed=1
 	echo "End test.PageRank"
+
