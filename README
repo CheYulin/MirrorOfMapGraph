@@ -84,6 +84,9 @@ file.
 For SSSP, the output is a column whose value is the shortest path distance
 from the starting vertex.
 
+You can use "make test" to automatically download a number of graphs and run
+a variety of algorithms against each one.  Some graphs will fail if you do
+not have enough RAM on your device.
 
 MapGraph Directory Structure
 ---------------------------
