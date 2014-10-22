@@ -30,8 +30,183 @@
 #include <util/mgpucontext.h>
 #include <mgpuenums.h>
 
+#include "bfs.h"
+
 using namespace GASengine;
 using namespace std;
+
+struct predextract
+{
+  typedef int DataType;
+  typedef DataType MiscType;
+  typedef DataType GatherType;
+  typedef int VertexId;
+  typedef int SizeT;
+  
+//  typedef bfs::VertexType VertexType;
+//  typedef bfs::EdgeType EdgeType;
+
+  static const DataType INIT_VALUE = -1;
+  static const bool allow_duplicates = true;
+
+  struct VertexType
+  {
+    int* d_labels;
+    int nodes;
+    int edges;
+
+    VertexType() :
+        d_labels(NULL), nodes(0), edges(0)
+    {
+    }
+  };
+
+  struct EdgeType
+  {
+    int nodes; // #of nodes.
+    int edges; // #of edges.
+
+    EdgeType() :
+        nodes(0), edges(0)
+    {
+    }
+  };
+
+  static void Initialize(const int directed, const int nodes, const int edges, int num_srcs,
+      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, int* d_edge_values,
+      VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
+      MiscType* d_frontier_values[3])
+  {
+ 
+  }
+
+  static SrcVertex srcVertex()
+  {
+    return SINGLE;
+  }
+
+  static GatherEdges gatherOverEdges()
+  {
+    return NO_GATHER_EDGES;
+  }
+
+  static ApplyVertices applyOverEdges()
+  {
+    return NO_APPLY_VERTICES;
+  }
+
+  static ExpandEdges expandOverEdges()
+  {
+    return EXPAND_OUT_EDGES;
+  }
+
+  static PostApplyVertices postApplyOverEdges()
+  {
+    return NO_POST_APPLY_VERTICES;
+  }
+
+  /**
+   * the binary operator
+   */
+  struct gather_sum
+  {
+    __device__
+    GatherType operator()(GatherType left, GatherType right)
+    {
+      return left + right;
+    }
+  };
+
+  /**
+   * For each vertex in the frontier,
+   */
+  struct gather_vertex
+  {
+    __device__
+    void operator()(const int vertex_id, const GatherType final_value,
+        VertexType &vertex_list, EdgeType &edge_list)
+    {
+
+    }
+  };
+
+//  struct gather_edge
+//  {
+//    __device__
+//    void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
+//        VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
+//    {
+//
+//    }
+//  };
+  
+  struct gather_edge
+  {
+
+    __device__
+            void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
+                            VertexType &vertex_list, EdgeType &edge_list, GatherType & new_value)
+    {
+//      printf("tid=%d, vertex_id=%d, neighbor_id_in=%d, nb_label=%d, my_label=%d, new_value=%d\n", threadIdx.x, vertex_id, neighbor_id_in, nb_label, my_label, new_value);
+      int nb_label = vertex_list.d_labels[neighbor_id_in];
+      int my_label = vertex_list.d_labels[vertex_id];
+      new_value = (my_label - nb_label) == 1? neighbor_id_in: -1;
+//      printf("tid=%d, vertex_id=%d, neighbor_id_in=%d, nb_label=%d, my_label=%d, new_value=%d\n", threadIdx.x, vertex_id, neighbor_id_in, nb_label, my_label, new_value);
+    }
+  };
+
+  struct apply
+  {
+    __device__
+    void operator()(const int vertex_id, const int iteration, GatherType gathervalue,
+        VertexType& vertex_list, EdgeType& edge_list, char& changed)
+    {
+    }
+  };
+
+  /** post-apply function (invoked after threads in apply() synchronize at a memory barrier). */
+  struct post_apply
+  {
+    __device__
+    void operator()(const int vertex_id, VertexType& vertex_list, EdgeType& edge_list, GatherType* gather_tmp)
+    {
+    }
+  };
+
+  struct expand_vertex
+  {
+    __device__
+    bool operator()(const int vertex_id, const char changed, VertexType &vertex_list, EdgeType& edge_list)
+    {
+      return true;
+    }
+  };
+
+  struct expand_edge
+  {
+    __device__
+    void operator()(const bool changed, const int iteration,
+        const int vertex_id, const int neighbor_id_in, const int edge_id,
+        VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
+    {
+    }
+  };
+
+  struct contract
+  {
+    __device__
+    void operator()(const int iteration, int &vertex_id,
+        VertexType &vertex_list, EdgeType &edge_list, GatherType* gather_tmp, int& misc_value)
+    {
+      
+    }
+  };
+
+  static void extractResult(VertexType& vertex_list, DataType* h_output)
+  {
+  }
+
+};
 
 struct ReduceFunctor : std::binary_function<int, int, int>
 {
@@ -67,44 +242,19 @@ struct EdgeCountIterator : public std::iterator<std::input_iterator_tag, int>
   }
 };
 
-template<typename Program, typename VertexId, typename SizeT,
-typename Value, bool g_mark_predecessor, // Whether to mark predecessors (vs. mark distance from source)
-bool g_with_value>
-void predextract(GASengine::CsrProblem<Program, VertexId, SizeT, Value, g_mark_predecessor, g_with_value> &csr_problem, int device_id, int* m_gatherTmp)
+//void predextract(GASengine::CsrProblem<Program, VertexId, SizeT, Value, g_mark_predecessor, g_with_value> &csr_problem, int device_id, int* m_gatherTmp)
+void pred_extract(int nodes, int* d_column_offsets, int* d_row_indices, int* d_labels, int device_id, int* m_gatherTmp)
 {
-  //      cudaDeviceSynchronize();
-  //      MPI_Barrier(MPI_COMM_WORLD);
-  typedef GASengine::CsrProblem<bfs, VertexId, SizeT, Value, g_mark_predecessor, g_with_value> CsrProblem;
-  typename CsrProblem::GraphSlice *graph_slice = csr_problem.graph_slices[0];
-  ////      if (pi == pj)
-  ////      {
-  ////        cudaMemcpy(graph_slice->vertex_list.d_labels_src, graph_slice->vertex_list.d_labels, graph_slice->nodes * sizeof (int), cudaMemcpyDeviceToDevice);
-  ////      }
-  ////
-  ////      MPI_Bcast(graph_slice->vertex_list.d_labels_src, graph_slice->nodes, MPI_INT, pj, w.new_col_comm);
-
-  //  int byte_size = (graph_slice->nodes + 8 - 1) / 8;
-  //  ////        MPI_Recv(graph_slice->d_bitmap_in, byte_size, MPI_CHAR, src_proc, tag, MPI_COMM_WORLD, &status);//receive broadcast
-  //  int nthreads = 256;
-  //  int nblocks = (byte_size + nthreads - 1) / nthreads;
-  //  MPI::mpikernel::bitmap2flag<Program> << <nblocks, nthreads >> >(byte_size, graph_slice->d_bitmap_assigned, graph_slice->d_visit_flags);
-  //  util::B40CPerror(cudaDeviceSynchronize(), "bitmap2flag", __FILE__, __LINE__);
-  //
-  //  copy_if_mgpu(graph_slice->nodes,
-  //               graph_slice->d_visit_flags,
-  //               graph_slice->frontier_queues.d_keys[0],
-  //               NULL,
-  //               &frontier_size,
-  //               m_mgpuContext);
-
-
+  
+//  typedef GASengine::CsrProblem<bfs, VertexId, SizeT, Value, g_mark_predecessor, g_with_value> CsrProblem;
+//  typename CsrProblem::GraphSlice *graph_slice = csr_problem.graph_slices[0];
 
   mgpu::ContextPtr m_mgpuContext;
   m_mgpuContext = mgpu::CreateCudaDevice(device_id);
   int* d_seq;
-  cudaMalloc((void**)&d_seq, graph_slice->nodes * sizeof (int));
+  cudaMalloc((void**)&d_seq, nodes * sizeof (int));
   thrust::device_ptr<int> d_seq_ptr(d_seq);
-  thrust::sequence(thrust::device, d_seq_ptr, d_seq_ptr + graph_slice->nodes);
+  thrust::sequence(thrust::device, d_seq_ptr, d_seq_ptr + nodes);
   
   
 //  int* test_vid = new int[graph_slice->nodes];
@@ -119,15 +269,17 @@ void predextract(GASengine::CsrProblem<Program, VertexId, SizeT, Value, g_mark_p
   
 
   int n_active_edges;
-  EdgeCountIterator ecIterator(graph_slice->d_column_offsets, d_seq);
+  int* d_edgeCountScan;
+  cudaMalloc((void**) &d_edgeCountScan, (nodes + 1) * sizeof(int));
+  EdgeCountIterator ecIterator(d_column_offsets, d_seq);
   mgpu::Scan<mgpu::MgpuScanTypeExc, EdgeCountIterator, int, mgpu::plus<int>, int*>(
                                                                                    ecIterator,
-                                                                                   graph_slice->nodes,
+                                                                                   nodes,
                                                                                    0,
                                                                                    mgpu::plus<int>(),
                                                                                    (int*)NULL,
                                                                                    &n_active_edges,
-                                                                                   graph_slice->d_edgeCountScan,
+                                                                                   d_edgeCountScan,
                                                                                    *m_mgpuContext);
 
   //  int n_active_edges;
@@ -139,10 +291,10 @@ void predextract(GASengine::CsrProblem<Program, VertexId, SizeT, Value, g_mark_p
 
   const int nThreadsPerBlock = 128;
   MGPU_MEM(int)partitions = mgpu::MergePathPartitions<mgpu::MgpuBoundsUpper >
-          (mgpu::counting_iterator<int>(0), n_active_edges, graph_slice->d_edgeCountScan, graph_slice->nodes,
+          (mgpu::counting_iterator<int>(0), n_active_edges, d_edgeCountScan, nodes,
            nThreadsPerBlock, 0, mgpu::less<int>(), *m_mgpuContext);
 
-  SizeT nBlocks = (n_active_edges + graph_slice->nodes + nThreadsPerBlock - 1) / nThreadsPerBlock;
+  int nBlocks = (n_active_edges + nodes + nThreadsPerBlock - 1) / nThreadsPerBlock;
 
   int* m_gatherDstsTmp;
   int* m_gatherMapTmp;
@@ -152,23 +304,26 @@ void predextract(GASengine::CsrProblem<Program, VertexId, SizeT, Value, g_mark_p
 //  cudaMalloc((void**)&m_gatherTmp, graph_slice->nodes * sizeof (int));
   const int VT = 1;
 
-  vertex_centric::mgpukernel::kernel_gather_mgpu<Program, VT, nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(graph_slice->nodes,
+  predextract::VertexType vertex_list;
+  predextract::EdgeType edge_list;
+  vertex_list.d_labels = d_labels;
+  vertex_centric::mgpukernel::kernel_gather_mgpu<predextract, VT, nThreadsPerBlock> << <nBlocks, nThreadsPerBlock >> >(nodes,
                                                                                                                    d_seq,
                                                                                                                    nBlocks,
                                                                                                                    n_active_edges,
-                                                                                                                   graph_slice->d_edgeCountScan,
+                                                                                                                   d_edgeCountScan,
                                                                                                                    partitions->get(),
-                                                                                                                   graph_slice->d_column_offsets,
-                                                                                                                   graph_slice->d_row_indices,
-                                                                                                                   graph_slice->vertex_list,
-                                                                                                                   graph_slice->edge_list,
+                                                                                                                   d_column_offsets,
+                                                                                                                   d_row_indices,
+                                                                                                                   vertex_list,
+                                                                                                                   edge_list,
                                                                                                                    (int*)NULL,
                                                                                                                    m_gatherDstsTmp,
                                                                                                                    m_gatherMapTmp);
   
   
 
-//  test_vid = new int[n_active_edges];
+//  int* test_vid = new int[n_active_edges];
 //  cudaMemcpy(test_vid, m_gatherDstsTmp, n_active_edges * sizeof (int), cudaMemcpyDeviceToHost);
 //  printf("m_gatherDstsTmp: ");
 //  for (int i = 0; i < n_active_edges; ++i)
@@ -192,96 +347,28 @@ void predextract(GASengine::CsrProblem<Program, VertexId, SizeT, Value, g_mark_p
                     m_gatherDstsTmp,
                     m_gatherMapTmp,
                     n_active_edges,
-                    Program::INIT_VALUE,
+                    predextract::INIT_VALUE,
                     ReduceFunctor(),
-                    mgpu::equal_to<VertexId > (),
-                    (VertexId *)NULL,
+                    mgpu::equal_to<int > (),
+                    (int *)NULL,
                     m_gatherTmp,
                     //                        graph_slice->m_gatherTmp,
                     NULL,
                     NULL,
                     *m_mgpuContext);
   
-//  test_vid = new int[graph_slice->nodes];
-//  cudaMemcpy(test_vid, m_gatherTmp, (graph_slice->nodes) * sizeof (int), cudaMemcpyDeviceToHost);
+//  test_vid = new int[nodes];
+//  cudaMemcpy(test_vid, m_gatherTmp, (nodes) * sizeof (int), cudaMemcpyDeviceToHost);
 //  printf("m_gatherTmp: ");
-//  for (int i = 0; i < (graph_slice->nodes); ++i)
+//  for (int i = 0; i < (nodes); ++i)
 //  {
 //    printf("%d, ", test_vid[i]);
 //  }
 //  printf("\n");
 //  delete[] test_vid;
-  //  graph_slice->predecessor_size = graph_slice->nodes;
-  //      thrust::device_ptr<int> m_gatherTmp_ptr(graph_slice->m_gatherTmp);
-  //      long long pred_sum = thrust::reduce(m_gatherTmp_ptr, m_gatherTmp_ptr + graph_slice->nodes);
-  //      printf("rank_id %d pred_sum %lld\n", rank_id, pred_sum);
-
-  //      if (rank_id == 1)
-  //      {
-  //        char* test_vid3 = new char[graph_slice->nodes];
-  //        cudaMemcpy(test_vid3, graph_slice->d_visit_flags, graph_slice->nodes, cudaMemcpyDeviceToHost);
-  //        printf("d_visit_flags: ");
-  //        for (int i = 0; i < graph_slice->nodes; ++i)
-  //        {
-  //          printf("%d, ", test_vid3[i]);
-  //        }
-  //        printf("\n");
-  //        delete[] test_vid3;
-  //
-  //        int* test_vid2 = new int[n_active_edges];
-  //        cudaMemcpy(test_vid2, graph_slice->m_gatherMapTmp, n_active_edges * sizeof (int), cudaMemcpyDeviceToHost);
-  //        printf("m_gatherMapTmp: ");
-  //        for (int i = 0; i < n_active_edges; ++i)
-  //        {
-  //          printf("%d, ", test_vid2[i]);
-  //        }
-  //        printf("\n");
-  //        delete[] test_vid2;
-  //
-  //        test_vid2 = new int[n_active_edges];
-  //        cudaMemcpy(test_vid2, graph_slice->m_gatherDstsTmp, n_active_edges * sizeof (int), cudaMemcpyDeviceToHost);
-  //        printf("m_gatherDstsTmp: ");
-  //        for (int i = 0; i < n_active_edges; ++i)
-  //        {
-  //          printf("%d, ", test_vid2[i]);
-  //        }
-  //        printf("\n");
-  //        delete[] test_vid2;
-  //
-  //        test_vid2 = new int[graph_slice->nodes];
-  //        cudaMemcpy(test_vid2, graph_slice->vertex_list.d_labels, graph_slice->nodes * sizeof (int), cudaMemcpyDeviceToHost);
-  //        printf("d_labels: ");
-  //        for (int i = 0; i < graph_slice->nodes; ++i)
-  //        {
-  //          printf("%d, ", test_vid2[i]);
-  //        }
-  //        printf("\n");
-  //        delete[] test_vid2;
-  //
-  //        test_vid2 = new int[frontier_size];
-  //        cudaMemcpy(test_vid2, graph_slice->frontier_queues.d_keys[0], frontier_size * sizeof (int), cudaMemcpyDeviceToHost);
-  //        printf("d_keys: ");
-  //        for (int i = 0; i < frontier_size; ++i)
-  //        {
-  //          printf("%d, ", test_vid2[i]);
-  //        }
-  //        printf("\n");
-  //        delete[] test_vid2;
-  //
-  //        test_vid2 = new int[frontier_size];
-  //        cudaMemcpy(test_vid2, graph_slice->m_gatherTmp, frontier_size * sizeof (int), cudaMemcpyDeviceToHost);
-  //        printf("m_gather: ");
-  //        for (int i = 0; i < frontier_size; ++i)
-  //        {
-  //          printf("%d, ", test_vid2[i]);
-  //        }
-  //        printf("\n");
-  //        delete[] test_vid2;
-  //
-  //      }
-  //
-  //      fflush(stdout);
-  //      usleep(1000);
+  
+  cudaFree(d_seq);
+  cudaFree(d_edgeCountScan);
 }
 
 #endif	/* PREDEXTRACT_H */

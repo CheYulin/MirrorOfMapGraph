@@ -175,28 +175,13 @@ struct bfs
     }
   };
 
-//  struct gather_edge
-//  {
-//    __device__
-//    void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
-//        VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
-//    {
-//
-//    }
-//  };
-  
   struct gather_edge
   {
-
     __device__
-            void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
-                            VertexType &vertex_list, EdgeType &edge_list, GatherType & new_value)
+    void operator()(const int vertex_id, const int edge_id, const int neighbor_id_in,
+        VertexType &vertex_list, EdgeType &edge_list, GatherType& new_value)
     {
-//      printf("tid=%d, vertex_id=%d, neighbor_id_in=%d, nb_label=%d, my_label=%d, new_value=%d\n", threadIdx.x, vertex_id, neighbor_id_in, nb_label, my_label, new_value);
-      int nb_label = vertex_list.d_labels[neighbor_id_in];
-      int my_label = vertex_list.d_labels[vertex_id];
-      new_value = (my_label - nb_label) == 1? neighbor_id_in: -1;
-//      printf("tid=%d, vertex_id=%d, neighbor_id_in=%d, nb_label=%d, my_label=%d, new_value=%d\n", threadIdx.x, vertex_id, neighbor_id_in, nb_label, my_label, new_value);
+
     }
   };
 

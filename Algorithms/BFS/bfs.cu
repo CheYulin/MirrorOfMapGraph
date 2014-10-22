@@ -459,7 +459,13 @@ int main(int argc, char **argv)
   cudaMalloc((void**)&d_predlist, csr_graph.nodes * sizeof (int));
   
   //extract the predecessor list: the predecessor computed for the src vertex is arbitrary and should be ignored. 
-  predextract<bfs, VertexId, SizeT, Value, g_mark_predecessor, g_with_value > (csr_problem, device_id, d_predlist);
+//  predextract<bfs, VertexId, SizeT, Value, g_mark_predecessor, g_with_value > (csr_problem, device_id, d_predlist);
+  pred_extract(csr_problem.graph_slices[0]->nodes, 
+              csr_problem.graph_slices[0]->d_column_offsets, 
+              csr_problem.graph_slices[0]->d_row_indices, 
+              csr_problem.graph_slices[0]->vertex_list.d_labels,
+              device_id, 
+              d_predlist);
 
 //  int* test_vid = new int[csr_graph.nodes];
 //  cudaMemcpy(test_vid, d_predlist, csr_graph.nodes * sizeof (int), cudaMemcpyDeviceToHost);
