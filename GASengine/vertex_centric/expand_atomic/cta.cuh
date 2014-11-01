@@ -119,10 +119,11 @@ namespace GASengine
         // Typedefs
         //---------------------------------------------------------------------
 
-        typedef typename KernelPolicy::VertexId VertexId;
-        typedef typename KernelPolicy::SizeT SizeT;
+        typedef typename Program::VertexId VertexId;
+        typedef typename Program::SizeT SizeT;
         typedef typename Program::VertexType VertexType;
         typedef typename Program::EdgeType EdgeType;
+        typedef typename Program::MiscType MiscType;
 
         typedef typename KernelPolicy::SmemStorage SmemStorage;
 
@@ -142,14 +143,14 @@ namespace GASengine
         // Input and output device pointers
         VertexId *d_in;						// Incoming vertex frontier
         VertexId *d_out;						// Outgoing edge frontier
-        VertexId *d_predecessor_out;			// Outgoing predecessor edge frontier
+        MiscType *d_predecessor_out;			// Outgoing predecessor edge frontier
         VertexId *d_column_indices;			// CSR column-indices array
         SizeT *d_row_offsets;				// CSR row-offsets array
         VertexType vertex_list;
         EdgeType edge_list;
         VertexId *d_edgeCSC_indices;
         char* d_changed;
-        SizeT* deviceMappedValueEdge;
+        int* deviceMappedValueEdge;
         int selector;
         int previous_frontier_size;
 
@@ -610,7 +611,7 @@ namespace GASengine
          * Constructor
          */
         __device__ __forceinline__ Cta(int iteration, VertexId queue_index, int num_gpus, int selector, int previous_frontier_size, int *deviceMappedValueEdge, SmemStorage &smem_storage,
-            VertexId *d_in, VertexId *d_out, VertexId *d_predecessor_out, VertexType &vertex_list, EdgeType &edge_list, VertexId *d_edgeCSC_indices, char* d_changed, VertexId *d_column_indices,
+            VertexId *d_in, VertexId *d_out, MiscType *d_predecessor_out, VertexType &vertex_list, EdgeType &edge_list, VertexId *d_edgeCSC_indices, char* d_changed, VertexId *d_column_indices,
             SizeT *d_row_offsets, util::CtaWorkProgress &work_progress, SizeT max_edge_frontier) :
             iteration(iteration),
                 queue_index(queue_index), num_gpus(num_gpus), selector(selector), previous_frontier_size(previous_frontier_size), deviceMappedValueEdge(deviceMappedValueEdge), smem_storage(

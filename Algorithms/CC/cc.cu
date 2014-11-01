@@ -108,7 +108,7 @@ void cudaInit(int device)
   }
 }
 
-bool correctTest(const int nodes, const int* reference_dists, const int* h_dists)
+bool correctTest(const int nodes, const sssp::DataType* reference_dists, const sssp::DataType* h_dists)
 {
   bool pass = true;
   int nerr = 0;

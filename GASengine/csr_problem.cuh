@@ -512,7 +512,7 @@ namespace GASengine
 
           if (retval = util::B40CPerror(
               cudaMalloc((void**) &graph_slices[0]->d_edge_values,
-                  graph_slices[0]->edges * sizeof(VertexId)),
+                  graph_slices[0]->edges * sizeof(EValue)),
               "CsrProblem cudaMalloc d_edge_values failed", __FILE__,
               __LINE__))
             break;
@@ -543,7 +543,7 @@ namespace GASengine
           if (retval = util::B40CPerror(
               cudaMemcpy(graph_slices[0]->d_edge_values,
                   h_edge_values,
-                  graph_slices[0]->edges * sizeof(VertexId),
+                  graph_slices[0]->edges * sizeof(EValue),
                   cudaMemcpyHostToDevice),
               "CsrProblem cudaMemcpy d_edge_values failed",
               __FILE__, __LINE__))

@@ -79,7 +79,7 @@ namespace GASengine
             int *&d_frontier_size,
             typename Program::VertexId *&d_edge_frontier,
             typename Program::VertexId *&d_vertex_frontier,
-            typename Program::VertexId *&d_predecessor,
+            typename Program::MiscType *&d_predecessor,
             typename Program::GatherType *&m_gatherTmp,
             typename Program::VertexType &vertex_list,
             typename Program::EdgeType &edge_list,

@@ -73,28 +73,28 @@ namespace GASengine
         template<typename SmemStorage>
         static __device__ __forceinline__ void Invoke(
             int & iteration,
-            typename KernelPolicy::VertexId &queue_index,
-            typename KernelPolicy::VertexId &steal_index,
+            typename Program::VertexId &queue_index,
+            typename Program::VertexId &steal_index,
             int &num_gpus,
             int &selector,
             int &previous_frontier_size,
             int *&deviceMappedValueEdge,
-            typename KernelPolicy::VertexId *&d_vertex_frontier,
-            typename KernelPolicy::VertexId *&d_edge_frontier,
-            typename KernelPolicy::VertexId *&d_predecessor,
+            typename Program::VertexId *&d_vertex_frontier,
+            typename Program::VertexId *&d_edge_frontier,
+            typename Program::MiscType *&d_predecessor,
             typename Program::VertexType &vertex_list,
             typename Program::EdgeType &edge_list,
-            typename KernelPolicy::VertexId *&d_edgeCSC_indices,
+            typename Program::VertexId *&d_edgeCSC_indices,
             char *&d_changed,
-            typename KernelPolicy::VertexId *&d_column_indices,
-            typename KernelPolicy::SizeT *&d_row_offsets,
+            typename Program::VertexId *&d_column_indices,
+            typename Program::SizeT *&d_row_offsets,
             util::CtaWorkProgress &work_progress,
-            util::CtaWorkDistribution<typename KernelPolicy::SizeT> &work_decomposition,
-            typename KernelPolicy::SizeT &max_edge_frontier,
+            util::CtaWorkDistribution<typename Program::SizeT> &work_decomposition,
+            typename Program::SizeT &max_edge_frontier,
             SmemStorage &smem_storage)
         {
           typedef Cta<KernelPolicy, Program> Cta;
-          typedef typename KernelPolicy::SizeT SizeT;
+          typedef typename Program::SizeT SizeT;
 
           // Determine our threadblock's work range
           util::CtaWorkLimits<SizeT> work_limits;
@@ -182,7 +182,7 @@ namespace GASengine
             int &num_gpus,
             typename KernelPolicy::VertexId *&d_vertex_frontier,
             typename KernelPolicy::VertexId *&d_edge_frontier,
-            typename KernelPolicy::VertexId *&d_predecessor,
+            typename KernelPolicy::MiscType *&d_predecessor,
             typename KernelPolicy::VertexType &vertex_list,
             typename KernelPolicy::VertexId *&d_column_indices,
             typename KernelPolicy::SizeT *&d_row_offsets,
@@ -244,6 +244,7 @@ namespace GASengine
         typedef typename KernelPolicy::VertexId VertexId;
         typedef typename KernelPolicy::SizeT SizeT;
         typedef typename KernelPolicy::EValue EValue;
+        typedef typename Program::MiscType MiscType;
         typedef typename KernelPolicy::VisitedMask VisitedMask;
 
         static __device__ __forceinline__ void Kernel(
@@ -253,7 +254,7 @@ namespace GASengine
             volatile int *&d_done,
             VertexId *&d_vertex_frontier,
             VertexId *&d_edge_frontier,
-            VertexId *&d_predecessor,
+            MiscType *&d_predecessor,
             VertexId *&d_column_indices,
             SizeT *&d_row_offsets,
             util::CtaWorkProgress &work_progress,
@@ -277,6 +278,7 @@ namespace GASengine
         typedef typename KernelPolicy::VisitedMask VisitedMask;
         typedef typename Program::VertexType VertexType;
         typedef typename Program::EdgeType EdgeType;
+        typedef typename Program::MiscType MiscType;
 
         static __device__ __forceinline__ void Kernel(
             int &iteration,
@@ -290,7 +292,7 @@ namespace GASengine
             volatile int *&d_done,
             VertexId *&d_vertex_frontier,
             VertexId *&d_edge_frontier,
-            VertexId *&d_predecessor,
+            MiscType *&d_predecessor,
             VertexType &vertex_list,
             EdgeType &edge_list,
             VertexId *&d_edgeCSC_indices,
@@ -381,26 +383,26 @@ namespace GASengine
       __global__
       void Kernel(
           int iteration, //
-          typename KernelPolicy::VertexId queue_index,				// Current frontier queue counter index
-          typename KernelPolicy::VertexId steal_index,				// Current workstealing counter index
+          typename Program::VertexId queue_index,				// Current frontier queue counter index
+          typename Program::VertexId steal_index,				// Current workstealing counter index
           int num_gpus,					// Number of GPUs
           int selector,
           int previous_frontier_size,
           int* d_frontier_size,
           int* d_edge_frontier_size,
           volatile int *d_done,					// Flag to set when we detect incoming edge frontier is empty
-          typename KernelPolicy::VertexId *d_vertex_frontier,			// Incoming vertex frontier
-          typename KernelPolicy::VertexId *d_edge_frontier,			// Outgoing edge frontier
-          typename KernelPolicy::VertexId *d_predecessor,				// Outgoing predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
+          typename Program::VertexId *d_vertex_frontier,			// Incoming vertex frontier
+          typename Program::VertexId *d_edge_frontier,			// Outgoing edge frontier
+          typename Program::MiscType *d_predecessor,				// Outgoing predecessor edge frontier (used when KernelPolicy::MARK_PREDECESSORS)
           typename Program::VertexType vertex_list, //
           typename Program::EdgeType edge_list, //
-          typename KernelPolicy::VertexId *d_edgeCSC_indices,
+          typename Program::VertexId *d_edgeCSC_indices,
           char* d_changed,
-          typename KernelPolicy::VertexId *d_column_indices,			// CSR column-indices array
-          typename KernelPolicy::SizeT *d_row_offsets,				// CSR row-offsets array
+          typename Program::VertexId *d_column_indices,			// CSR column-indices array
+          typename Program::SizeT *d_row_offsets,				// CSR row-offsets array
           util::CtaWorkProgress work_progress,				// Atomic workstealing and queueing counters
-          typename KernelPolicy::SizeT max_vertex_frontier, 		// Maximum number of elements we can place into the outgoing vertex frontier
-          typename KernelPolicy::SizeT max_edge_frontier, 			// Maximum number of elements we can place into the outgoing edge frontier
+          typename Program::SizeT max_vertex_frontier, 		// Maximum number of elements we can place into the outgoing vertex frontier
+          typename Program::SizeT max_edge_frontier, 			// Maximum number of elements we can place into the outgoing edge frontier
           util::KernelRuntimeStats kernel_stats)				// Per-CTA clock timing statistics (used when KernelPolicy::INSTRUMENT)
       {
 //	printf("In expand Kernel\n");

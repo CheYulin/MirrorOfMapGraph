@@ -33,13 +33,13 @@ Research Projects Agency (DARPA) under Contract No. D14PC00029.
 struct sssp
 {
 
-  typedef int DataType;
+  typedef long long DataType;
   typedef DataType MiscType;
   typedef DataType GatherType;
   typedef int VertexId;
   typedef int SizeT;
 
-  static const int INIT_VALUE = 100000000;
+  static const DataType INIT_VALUE = 100000000;
   static const bool allow_duplicates = true;
 
   struct VertexType
@@ -68,7 +68,7 @@ struct sssp
   };
 
   static void Initialize(const int directed, const int nodes, const int edges, int num_srcs,
-      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, int* d_edge_values,
+      int* srcs, int* d_row_offsets, int* d_column_indices, int* d_column_offsets, int* d_row_indices, DataType* d_edge_values,
       VertexType &vertex_list, EdgeType &edge_list, int* d_frontier_keys[3],
       MiscType* d_frontier_values[3])
   {
@@ -232,12 +232,12 @@ struct sssp
     /**
      *
      */
-    void operator()(const int vertex_id, const int iteration, GatherType gathervalue,
+    void operator()(const VertexId vertex_id, const int iteration, GatherType gathervalue,
         VertexType& vertex_list, EdgeType& edge_list, char& changed)
     {
 
-      const int oldvalue = vertex_list.d_dists[vertex_id];
-      const int newvalue = min(oldvalue, gathervalue);
+      const DataType oldvalue = vertex_list.d_dists[vertex_id];
+      const DataType newvalue = min(oldvalue, gathervalue);
 
       if (iteration == 0)
       {
@@ -259,7 +259,7 @@ struct sssp
   struct post_apply
   {
     __device__
-    void operator()(const int vertex_id, VertexType& vertex_list, EdgeType& edge_list, GatherType* gather_tmp)
+    void operator()(const VertexId vertex_id, VertexType& vertex_list, EdgeType& edge_list, GatherType* gather_tmp)
     {
       vertex_list.d_dists[vertex_id] = vertex_list.d_dists_out[vertex_id];
       gather_tmp[vertex_id] = INIT_VALUE;
@@ -279,7 +279,7 @@ struct sssp
      *
      * @param vertex_list The vertices in the graph.
      */
-    bool operator()(const int vertex_id, const char changed, VertexType &vertex_list, EdgeType& edge_list)
+    bool operator()(const VertexId vertex_id, const char changed, VertexType &vertex_list, EdgeType& edge_list)
     {
       return changed == 1;
     }
@@ -327,8 +327,8 @@ struct sssp
      * has a 1:1 correspondence with the frontier array.
      */
     void operator()(const bool changed, const int iteration,
-        const int vertex_id, const int neighbor_id_in, const int edge_id,
-        VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
+        const VertexId vertex_id, const VertexId neighbor_id_in, const VertexId edge_id,
+        VertexType& vertex_list, EdgeType& edge_list, int& frontier, MiscType& misc_value)
     {
       const int src_dist = vertex_list.d_dists[vertex_id];
       const int dst_dist = vertex_list.d_dists[neighbor_id_in];
@@ -369,7 +369,7 @@ struct sssp
      * function.
      */
     void operator()(const int iteration, int &vertex_id,
-        VertexType &vertex_list, EdgeType &edge_list, GatherType* gather_tmp, int& misc_value)
+        VertexType &vertex_list, EdgeType &edge_list, GatherType* gather_tmp, MiscType& misc_value)
     {
 
       /**

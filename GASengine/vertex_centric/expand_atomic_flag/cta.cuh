@@ -127,6 +127,7 @@ namespace GASengine
         typedef typename KernelPolicy::SizeT SizeT;
         typedef typename Program::VertexType VertexType;
         typedef typename Program::EdgeType EdgeType;
+        typedef typename Program::MiscType MiscType;
 
         typedef typename KernelPolicy::SmemStorage SmemStorage;
 
@@ -146,7 +147,7 @@ namespace GASengine
         // Input and output device pointers
         VertexId *d_in;						// Incoming vertex frontier
         VertexId *d_out;						// Outgoing edge frontier
-        VertexId *d_predecessor_out;			// Outgoing predecessor edge frontier
+        MiscType *d_predecessor_out;			// Outgoing predecessor edge frontier
         VertexId *d_column_indices;			// CSR column-indices array
         SizeT *d_row_offsets;				// CSR row-offsets array
         VertexType vertex_list;
@@ -646,7 +647,7 @@ namespace GASengine
             SmemStorage &smem_storage,
             VertexId *d_in,
             VertexId *d_out,
-            VertexId *d_predecessor_out,
+            MiscType *d_predecessor_out,
             VertexType &vertex_list,
             EdgeType &edge_list,
             VertexId *d_edgeCSC_indices,

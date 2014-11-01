@@ -166,7 +166,7 @@ namespace GASengine
 
           // Dequeued vertex ids
           VertexId vertex_id[LOADS_PER_TILE][LOAD_VEC_SIZE];
-          VertexId predecessor_id[LOADS_PER_TILE][LOAD_VEC_SIZE];
+          MiscType predecessor_id[LOADS_PER_TILE][LOAD_VEC_SIZE];
 
           // Whether or not the corresponding vertex_id is valid for exploring
           ValidFlag flags[LOADS_PER_TILE][LOAD_VEC_SIZE];

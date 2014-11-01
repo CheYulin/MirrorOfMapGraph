@@ -461,7 +461,7 @@ namespace GASengine
         typename Program::VertexType& vertex_list,
         typename Program::EdgeType& edge_list,
         typename Program::VertexId* d_edgeCSC_indices,
-        typename Program::VertexId* misc_values)
+        typename Program::DataType* misc_values)
     {
 
       const int NT = 128;
@@ -1365,7 +1365,7 @@ namespace GASengine
             , Program::INIT_VALUE
             , reduce_functor()
             , mgpu::equal_to<VertexId>()
-            , (VertexId *) NULL
+            , (DataType *) NULL
             , reduce_iterator(m_gatherTmp1, graph_slice->frontier_queues.d_keys[selector ^ 1])
             , NULL
             , NULL

@@ -105,7 +105,7 @@ void cudaInit(int device)
   }
 }
 
-bool correctTest(int nodes, int* reference_dists, int* h_dists)
+bool correctTest(int nodes, sssp::DataType* reference_dists, sssp::DataType* h_dists)
 {
   bool pass = true;
   printf("Correctness testing ...");fflush(stdout);
@@ -127,7 +127,7 @@ bool correctTest(int nodes, int* reference_dists, int* h_dists)
 // FIXME CPUSSSP() ignores [directed]. Hence cross validation of the CPU and GPU
 // is only correct when the graph is treated as directed.
 template<typename VertexId, typename Value, typename SizeT>
-void CPUSSSP(const bool directed, CsrGraph<VertexId, Value, SizeT> const &graph, VertexId* dist, VertexId src)
+void CPUSSSP(const bool directed, CsrGraph<VertexId, Value, SizeT> const &graph, Value* dist, VertexId src)
 {
 
 // initialize dist[] and pred[] arrays. Start with vertex s by setting
@@ -225,9 +225,9 @@ int main(int argc, char **argv)
   const bool g_with_value = true;
   const bool g_mark_predecessor = false;
   bool g_verbose = false;
-  typedef int VertexId; // Use as the node identifier type
-  typedef int Value; // Use as the value type
-  typedef typename sssp::DataType SizeT; // Use as the graph size type
+  typedef sssp::VertexId VertexId; // Use as the node identifier type
+  typedef sssp::DataType Value; // Use as the value type
+  typedef typename sssp::SizeT SizeT; // Use as the graph size type
   char* graph_file = NULL;
   CsrGraph<VertexId, Value, SizeT> csr_graph(g_stream_from_host);
   char source_file_name[1000] = "";
@@ -374,10 +374,10 @@ int main(int argc, char **argv)
 
   int run_CPU = cfg.getParameter<int>("run_CPU");
 
-  VertexId* reference_dists;
+  sssp::DataType* reference_dists;
   if (strcmp(source_file_name, "") == 0 && run_CPU) //Do correctness test only with single starting vertex
   {
-    reference_dists = (VertexId*) malloc(sizeof(VertexId) * csr_graph.nodes);
+    reference_dists = (sssp::DataType*) malloc(sizeof(sssp::DataType) * csr_graph.nodes);
     int src = cfg.getParameter<int>("src");
 
     if (origin == 1)

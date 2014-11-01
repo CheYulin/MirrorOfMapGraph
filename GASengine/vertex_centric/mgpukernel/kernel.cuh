@@ -72,7 +72,7 @@ namespace GASengine
           typename Program::VertexType vertex_list,
           typename Program::EdgeType edge_list,
           typename Program::VertexId* d_edgeCSC_indices,
-          typename Program::VertexId* misc_values)
+          typename Program::DataType* misc_values)
       {
         __shared__ int indices_shared[NT * (VT + 1)];
         int tid = threadIdx.x;
