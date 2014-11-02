@@ -148,7 +148,7 @@ void CPUSSSP(const bool directed, CsrGraph<VertexId, Value, SizeT> const &graph,
   {
 // find shortest distance so far in unvisited vertices
     int u = -1;
-    int sd = sssp::INIT_VALUE; // assume not reachable
+    Value sd = sssp::INIT_VALUE; // assume not reachable
 
     for (int i = 0; i < n; i++)
     {
