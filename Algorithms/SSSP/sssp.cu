@@ -445,7 +445,7 @@ int main(int argc, char **argv)
     FILE* f = fopen(outFileName, "w");
     for (int i = 0; i < csr_graph.nodes; ++i)
     {
-      fprintf(f, "%d\n", h_values[i]);
+      fprintf(f, "%lld\n", (long long) h_values[i]);
     }
 
     fclose(f);

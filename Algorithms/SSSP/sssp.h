@@ -33,13 +33,26 @@ Research Projects Agency (DARPA) under Contract No. D14PC00029.
 struct sssp
 {
 
-  typedef long long DataType;
+	/*
+	 * Note: You must modify the code here and in the Gather device function to
+	 * switch between int32, int64, and float.  double could probably also be
+	 * supported with a re-interpretation cast to unsigned long long (in664).
+	 */
+  // int32
+  typedef int DataType;
+  static const DataType INIT_VALUE = INT_MAX;
+  // int64 (must also edit ../setup.mk to specify only cuda compute 3.5+)
+//  typedef unsigned long long DataType;
+//  static const DataType INIT_VALUE = ULLONG_MAX;
+  // float
+//  typedef float DataType;
+//  static const DataType INIT_VALUE = FLT_MAX;
+
   typedef DataType MiscType;
   typedef DataType GatherType;
   typedef int VertexId;
   typedef int SizeT;
 
-  static const DataType INIT_VALUE = 100000000;
   static const bool allow_duplicates = true;
 
   struct VertexType
@@ -379,7 +392,11 @@ struct sssp
        */
 
 //			  printf("vertex_id=%d, misc_value=%d\n", vertex_id, misc_value);
+      // Works for int32
+      // Works for int64 (CUDA compute 3.5+, but you must also edit the ../setup.mk to restrict the target architectures)
       GatherType old = atomicMin(&gather_tmp[vertex_id], misc_value);
+      // Works for float.
+      // GatherType old = atomicMin(reinterpret_cast<int *>( &gather_tmp[vertex_id] ), reinterpret_cast<int&>(misc_value));
 //      printf("Contract: vertex_id=%d, old=%d, gather_tmp=%d, misc_value=%d\n", vertex_id, old, gather_tmp[vertex_id], misc_value);
     }
   };

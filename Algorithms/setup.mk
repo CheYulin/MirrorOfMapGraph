@@ -21,6 +21,7 @@ endif
 
 LD_LIBS = -lmgpu $(CUDALIB) -lcuda
 
+# Note: atomicMin() for int64 requires compute 3.5+ (the others must be commented out)
 GEN_SM35 = -gencode=arch=compute_35,code=\"sm_35,compute_35\" 
 GEN_SM30 = -gencode=arch=compute_30,code=\"sm_30,compute_30\" 
 GEN_SM20 = -gencode=arch=compute_20,code=\"sm_20,compute_20\" 
