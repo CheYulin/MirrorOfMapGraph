@@ -108,7 +108,7 @@ void cudaInit(int device)
   }
 }
 
-bool correctTest(const int nodes, const sssp::DataType* reference_dists, const sssp::DataType* h_dists)
+bool correctTest(const int nodes, const cc::DataType* reference_dists, const cc::DataType* h_dists)
 {
   bool pass = true;
   int nerr = 0;
@@ -206,7 +206,7 @@ void printUsageAndExit(char* algo_name)
   std::cout << "     -help display the command options\n";
   std::cout << "     -graph specify a sparse matrix in Matrix Market (.mtx) format\n";
   std::cout << "     -output or -o specify file for output result\n";
-  std::cout << "     -c set the SSSP options from the configuration file\n";
+  std::cout << "     -c set the CC options from the configuration file\n";
   std::cout
       << "     -parameters (-p) set the options.  Options include the following:\n";
   Config::printOptions();
@@ -266,7 +266,7 @@ int main(int argc, char **argv)
       cfg.parseParameterString(argv[i]);
     }
     else if (strncmp(argv[i], "-c", 100) == 0)
-    { //use a configuration file to specify the SSSP options instead of command line
+    { //use a configuration file to specify the CC options instead of command line
       i++;
       cfg.parseFile(argv[i]);
     }
