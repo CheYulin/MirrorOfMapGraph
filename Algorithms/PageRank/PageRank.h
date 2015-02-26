@@ -34,7 +34,7 @@ struct pagerank
 {
 
   typedef float DataType;
-  typedef int MiscType;
+  typedef DataType MiscType;
   typedef float GatherType;
   typedef int VertexId;
   typedef int SizeT;
@@ -354,7 +354,7 @@ struct pagerank
      */
     void operator()(const bool changed, const int iteration,
         const int vertex_id, const int neighbor_id_in, const int edge_id,
-        VertexType& vertex_list, EdgeType& edge_list, int& frontier, int& misc_value)
+        VertexType& vertex_list, EdgeType& edge_list, int& frontier, MiscType& misc_value)
     {
 //      printf("expand: vertex_id=%d, neighbor_id_in=%d\n", vertex_id, neighbor_id_in);
       if (changed)
@@ -387,7 +387,7 @@ struct pagerank
      * function.
      */
     void operator()(const int iteration, int &vertex_id,
-        VertexType &vertex_list, EdgeType &edge_list, GatherType* gather_tmp, int& misc_value)
+        VertexType &vertex_list, EdgeType &edge_list, GatherType* gather_tmp, MiscType& misc_value)
     {
 
       /**
