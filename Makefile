@@ -1,5 +1,5 @@
 # The software release version.
-ver=0.3.2
+ver=0.3.3
 version=mapgraph.${ver}.tgz
 release.dir=releases
 
